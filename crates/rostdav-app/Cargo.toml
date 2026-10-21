@@ -1,0 +1,17 @@
+[package]
+name = "rostdav-app"
+description = "Dienste von Rostdav: Identity, File Service, Versionen, Freigaben, Administration"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[dependencies]
+rostdav-core.workspace = true
+rostdav-meta.workspace = true
+rostdav-storage.workspace = true
+tokio.workspace = true
+
+[lints]
+workspace = true

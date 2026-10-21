@@ -1,0 +1,52 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/rostdav-core",
+    "crates/rostdav-meta",
+    "crates/rostdav-storage",
+    "crates/rostdav-app",
+    "crates/rostdav-dav",
+    "crates/rostdav-compat",
+    "crates/rostdav-web",
+    "crates/rostdav",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/pierrejochem/rostdav"
+rust-version = "1.85"
+# Interne Crates; ausgeliefert wird das Binary.
+publish = false
+
+[workspace.dependencies]
+rostdav-core = { path = "crates/rostdav-core" }
+rostdav-meta = { path = "crates/rostdav-meta" }
+rostdav-storage = { path = "crates/rostdav-storage" }
+rostdav-app = { path = "crates/rostdav-app" }
+rostdav-dav = { path = "crates/rostdav-dav" }
+rostdav-compat = { path = "crates/rostdav-compat" }
+rostdav-web = { path = "crates/rostdav-web" }
+
+anyhow = "1"
+axum = "0.8"
+clap = { version = "4", features = ["derive", "env"] }
+figment = { version = "0.10", features = ["toml", "env"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+sqlx = { version = "0.8", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "migrate"] }
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "fs", "net"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["trace", "request-id", "sensitive-headers", "limit", "timeout", "util"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
+tempfile = "3"
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+unwrap_used = "warn"
+dbg_macro = "warn"
