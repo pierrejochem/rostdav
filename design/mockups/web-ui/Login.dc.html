@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Rostdav – Gerät verbinden</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#F2A65A}a:hover{color:#F7C589}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{font:inherit}
+</style>
+</helmet>
+<div style="min-height: 900px; background: #15171C; color: #F4EFE8; font-family: 'Space Grotesk', system-ui, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; padding: 48px 16px; box-sizing: border-box">
+
+<div style="display: flex; align-items: center; gap: 14px">
+<svg viewBox="0 0 140 128" width="56" height="51" aria-hidden="true">
+<path d="M18 34a8 8 0 0 1 8-8h22l8 9h44a8 8 0 0 1 8 8v51a8 8 0 0 1-8 8H26a8 8 0 0 1-8-8Z" fill="#7A2A12"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-9 44A4 4 0 0 1 99 102H24a4 4 0 0 1-3.9-4.8l9-44A4 4 0 0 1 33 50Z" fill="#C2491D"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-0.6 3.2H28.4l0.7-3.2A4 4 0 0 1 33 50Z" fill="#E8783A"></path>
+<rect x="110" y="84" width="9" height="9" rx="2" fill="#E8783A" transform="rotate(12 114.5 88.5)"></rect>
+<rect x="122" y="70" width="6" height="6" rx="1.5" fill="#F2A65A" transform="rotate(24 125 73)"></rect>
+<rect x="130" y="58" width="4" height="4" rx="1" fill="#F7C589" transform="rotate(36 132 60)"></rect>
+</svg>
+<span style="font-size: 36px; font-weight: 700; letter-spacing: -1.5px"><span style="color: #F4EFE8">rost</span><span style="color: #E8783A">dav</span></span>
+</div>
+
+<div style="width: 100%; max-width: 440px; background: #1F2229; border: 1px solid #2E313A; border-radius: 20px; padding: 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 14px; background: #2A2D35">
+<span style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: #3A2419; color: #F2A65A; flex: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 22px; height: 22px"><path d="M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"></path><path d="M11 18h2"></path></svg></span>
+<div style="min-width: 0"><div style="font-size: 15px; font-weight: 600">Nextcloud Android</div><div style="font-size: 13px; color: #C9C2B9">möchte sich mit deinem Konto verbinden</div></div>
+</div>
+<div>
+<h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.8px">Gerät verbinden</h1>
+<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.5; color: #C9C2B9">Melde dich an, um den Zugriff zu erlauben. Das Gerät bekommt ein eigenes App-Passwort, das du jederzeit widerrufen kannst.</p>
+</div>
+<form style="display: flex; flex-direction: column; gap: 14px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Benutzername
+<input type="text" autocomplete="username" style="min-height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid #3A3D45; background: #15171C; font: inherit; font-size: 16px; font-weight: 400; color: #F4EFE8">
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Passwort
+<input type="password" autocomplete="current-password" style="min-height: 48px; padding: 0 14px; border-radius: 12px; border: 1px solid #3A3D45; background: #15171C; font: inherit; font-size: 16px; font-weight: 400; color: #F4EFE8">
+</label>
+<a href="Login2FA.dc.html" style="min-height: 50px; margin-top: 6px; border-radius: 12px; background: #C2491D; color: #FFFFFF; font-size: 16px; font-weight: 700; display: flex; align-items: center; justify-content: center; text-decoration: none">Anmelden und Zugriff erlauben</a>
+<button type="button" style="min-height: 44px; border-radius: 12px; border: 1px solid #3A3D45; background: transparent; color: #E9E3DB; font-weight: 600; cursor: pointer">Ablehnen</button>
+</form>
+<div style="display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: #A8A29C">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px; margin-top: 2px"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9c-4-1.5-7-4.5-7-9V6Z"></path></svg>
+<span>Prüfe die Adresse im Browser, bevor du dein Passwort eingibst. Rostdav fragt hier nie nach einem App-Passwort.</span>
+</div>
+</div>
+
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 1px; color: #A8A29C; text-align: center">Rostdav · kompatibel mit Nextcloud-Clients · kein Nextcloud-Produkt</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

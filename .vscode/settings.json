@@ -1,0 +1,21 @@
+{
+  "rust-analyzer.check.command": "clippy",
+  "rust-analyzer.check.allTargets": true,
+  "rust-analyzer.cargo.features": "all",
+  "editor.formatOnSave": true,
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
+  "files.exclude": {
+    "target": true
+  },
+  "files.watcherExclude": {
+    "**/target/**": true,
+    "**/data/**": true
+  },
+  "search.exclude": {
+    "**/target": true,
+    "**/data": true,
+    "Cargo.lock": true
+  }
+}

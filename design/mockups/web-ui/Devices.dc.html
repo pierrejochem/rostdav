@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Rostdav – Geräte und Sicherheit</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+.t-light{--bg:#F7F4EF;--surface:#FFFFFF;--text:#15171C;--text-2:#5F5A54;--border:#E6DFD5;--divider:#EFE9E1;--muted-bg:#F2EDE6;--control-border:#DCD3C8;--accent-bg:#FBEDE4;--danger-bg:#F7E6DB;--danger-fg:#8A3214;--danger-border:#E4C7B6;--ok-bg:#E3F0EE;--ok-fg:#1F5F5A;--doc-bg:#ECEAF2;--doc-fg:#3C3A55;--switch-off:#CFC5B9;--knob:#FFFFFF;color-scheme:light}
+.t-dark{--bg:#0F1115;--surface:#1A1D23;--text:#F1ECE5;--text-2:#A9A39C;--border:#2C3038;--divider:#252931;--muted-bg:#23272E;--control-border:#3A3E47;--accent-bg:#3A2419;--danger-bg:#3A2419;--danger-fg:#F2A65A;--danger-border:#5A3322;--ok-bg:#16302D;--ok-fg:#7CC5BC;--doc-bg:#26253A;--doc-fg:#C3C0E0;--switch-off:#4A4E57;--knob:#F1ECE5;color-scheme:dark}
+input::placeholder{color:var(--text-2)}
+a{color:#B8441A}a:hover{color:#7A2A12}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+button{font:inherit}
+</style>
+</helmet>
+<div class="{{themeClass}}" style="min-height: 900px; background: var(--bg); color: var(--text); font-family: 'Space Grotesk', system-ui, sans-serif; display: flex; flex-wrap: wrap">
+
+<nav aria-label="Hauptnavigation" style="flex: 1 1 240px; max-width: 100%; background: #15171C; color: #E9E3DB; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px">
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
+<svg viewBox="0 0 140 128" width="36" height="33" aria-hidden="true">
+<path d="M18 34a8 8 0 0 1 8-8h22l8 9h44a8 8 0 0 1 8 8v51a8 8 0 0 1-8 8H26a8 8 0 0 1-8-8Z" fill="#7A2A12"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-9 44A4 4 0 0 1 99 102H24a4 4 0 0 1-3.9-4.8l9-44A4 4 0 0 1 33 50Z" fill="#C2491D"></path>
+<rect x="110" y="84" width="10" height="10" rx="2" fill="#E8783A" transform="rotate(12 115 89)"></rect>
+<rect x="123" y="69" width="7" height="7" rx="1.5" fill="#F2A65A" transform="rotate(24 126.5 72.5)"></rect>
+</svg>
+<span style="font-size: 24px; font-weight: 700; letter-spacing: -1px"><span style="color: #F4EFE8">rost</span><span style="color: #E8783A">dav</span></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></svg>Alle Dateien</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18Z"></path><path d="M12 7v5l3 2"></path></svg>Zuletzt geändert</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Freigaben</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg>Papierkorb</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #A8A29C; padding: 0 12px 6px">Konto</div>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; background: #2A2D35; color: #FFFFFF; text-decoration: none; font-weight: 600"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12v10H4Z"></path><path d="M2 19h16"></path><path d="M19 9h3v10h-3Z"></path></svg>Geräte &amp; Sicherheit</a>
+<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><path d="M15 4v4M9 10v4M17 16v4"></path></svg>Einstellungen</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #A8A29C; padding: 0 12px 6px">Verwaltung</div>
+<a href="Admin.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z"></path><path d="M3 21a6 6 0 0 1 12 0"></path><path d="M17 11a3 3 0 1 0 0-6"></path><path d="M21 21a5 5 0 0 0-4-4.9"></path></svg>Administration</a>
+</div>
+<div style="margin-top: auto; padding: 16px 12px; border-radius: 12px; background: #1F2229; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; font-size: 14px"><span style="color: #E9E3DB">Speicher</span><span style="color: #C9C2B9">[BELEGT] von [QUOTA]</span></div>
+<div style="height: 6px; border-radius: 3px; background: #3A3D45"><div style="width: 38%; height: 6px; border-radius: 3px; background: #E8783A"></div></div>
+</div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; padding: 40px 32px; box-sizing: border-box">
+<div style="max-width: 960px; display: flex; flex-direction: column; gap: 28px">
+<div>
+<h1 style="margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -1px">Geräte &amp; Sicherheit</h1>
+<p style="margin: 8px 0 0; font-size: 16px; line-height: 1.5; color: var(--text-2); max-width: 620px">Jedes Gerät meldet sich mit einem eigenen App-Passwort an. Widerrufst du es, ist das Gerät sofort abgemeldet – dein Kontopasswort bleibt unverändert.</p>
+</div>
+
+<section aria-labelledby="h-devices" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--divider)">
+<h2 id="h-devices" style="margin: 0; font-size: 18px; font-weight: 700">Verbundene Geräte</h2>
+<span style="font-size: 14px; color: var(--text-2)">{{activeCount}} aktiv</span>
+</div>
+<sc-for list="{{devices}}" as="d" hint-placeholder-count="4">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px 24px; border-bottom: 1px solid var(--muted-bg); opacity: {{d.opacity}}">
+<span style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--muted-bg); color: var(--doc-fg); flex: none">
+<sc-if value="{{d.isPhone}}" hint-placeholder-val="{{true}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 22px; height: 22px"><path d="M8 3h8a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z"></path><path d="M11 18h2"></path></svg></sc-if>
+<sc-if value="{{d.isComputer}}" hint-placeholder-val="{{false}}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 22px; height: 22px"><path d="M4 5h16v11H4Z"></path><path d="M2 20h20"></path></svg></sc-if>
+</span>
+<div style="flex: 1 1 260px; min-width: 0">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<span style="font-size: 16px; font-weight: 600">{{d.name}}</span>
+<sc-if value="{{d.isCurrent}}" hint-placeholder-val="{{false}}"><span style="height: 24px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 12px; background: var(--ok-bg); color: var(--ok-fg); font-size: 12px; font-weight: 600">Diese Sitzung</span></sc-if>
+<sc-if value="{{d.isRevoked}}" hint-placeholder-val="{{false}}"><span style="height: 24px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 12px; background: var(--muted-bg); color: var(--text-2); font-size: 12px; font-weight: 600">Widerrufen</span></sc-if>
+</div>
+<div style="font-size: 14px; color: var(--text-2); margin-top: 2px">{{d.meta}}</div>
+</div>
+<div style="font-size: 14px; color: var(--text-2); min-width: 140px">{{d.lastSeen}}</div>
+<sc-if value="{{d.canRevoke}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{d.revoke}}" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--danger-border); background: var(--surface); color: var(--danger-fg); font-weight: 600; cursor: pointer">Widerrufen</button>
+</sc-if>
+</div>
+</sc-for>
+</section>
+
+<section aria-labelledby="h-2fa" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 18px">
+<div style="display: flex; flex-wrap: wrap; align-items: flex-start; gap: 16px">
+<span style="width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: var(--accent-bg); color: #B8441A; flex: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 22px; height: 22px"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9c-4-1.5-7-4.5-7-9V6Z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
+<div style="flex: 1 1 320px; min-width: 0">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<h2 id="h-2fa" style="margin: 0; font-size: 18px; font-weight: 700">Zwei-Faktor-Anmeldung</h2>
+<span style="height: 24px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 12px; background: {{tfaBadgeBg}}; color: {{tfaBadgeFg}}; font-size: 12px; font-weight: 600">{{tfaBadge}}</span>
+</div>
+<p style="margin: 6px 0 0; font-size: 14px; line-height: 1.5; color: var(--text-2); max-width: 640px">Optional. Zusätzlich zum Passwort fragt Rostdav bei jeder Browser-Anmeldung einen sechsstelligen Code aus deiner Authenticator-App ab. Verbundene Geräte behalten ihr App-Passwort und müssen nichts tun.</p>
+</div>
+<sc-if value="{{tfaOff}}" hint-placeholder-val="{{true}}">
+<button type="button" onClick="{{startSetup}}" style="min-height: 44px; padding: 0 18px; border-radius: 10px; border: none; background: #B8441A; color: #FFFFFF; font-weight: 600; cursor: pointer">Einrichten</button>
+</sc-if>
+</div>
+
+<sc-if value="{{tfaSetup}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-wrap: wrap; gap: 24px; padding: 20px; border-radius: 14px; background: var(--bg)">
+<div style="width: 168px; height: 168px; border-radius: 12px; background: var(--surface); border: 1px dashed var(--switch-off); display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; box-sizing: border-box; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; color: var(--text-2); flex: none">[QR-CODE otpauth://]</div>
+<div style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 14px">
+<ol style="margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; line-height: 1.5">
+<li>Scanne den QR-Code mit einer Authenticator-App (z. B. Aegis, 2FAS, 1Password).</li>
+<li>Oder gib den Schlüssel manuell ein: <code style="font-family: 'JetBrains Mono', ui-monospace, monospace; background: var(--surface); padding: 2px 6px; border-radius: 6px">[GEHEIMER-SCHLÜSSEL]</code></li>
+<li>Bestätige mit dem aktuellen Code aus der App.</li>
+</ol>
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Bestätigungscode
+<input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="width: 180px; min-height: 48px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 20px; letter-spacing: 6px; color: var(--text)">
+</label>
+<button type="button" onClick="{{confirmSetup}}" style="min-height: 48px; padding: 0 18px; border-radius: 10px; border: none; background: #B8441A; color: #FFFFFF; font-weight: 600; cursor: pointer">Aktivieren</button>
+<button type="button" onClick="{{cancelSetup}}" style="min-height: 48px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer">Abbrechen</button>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{tfaOn}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<div style="flex: 1 1 220px; padding: 16px; border-radius: 12px; background: var(--bg)"><div style="font-size: 13px; color: var(--text-2)">Methode</div><div style="font-size: 15px; font-weight: 600; margin-top: 2px">Authenticator-App (TOTP)</div></div>
+<div style="flex: 1 1 220px; padding: 16px; border-radius: 12px; background: var(--bg)"><div style="font-size: 13px; color: var(--text-2)">Wiederherstellungscodes</div><div style="font-size: 15px; font-weight: 600; margin-top: 2px">10 von 10 übrig</div></div>
+</div>
+<div style="display: flex; gap: 10px; align-items: flex-start; padding: 14px 16px; border-radius: 12px; background: #15171C; color: #F4EFE8; font-size: 14px; line-height: 1.5">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="color: #F2A65A; margin-top: 2px"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9L2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path></svg>
+<span>Dein Kontopasswort funktioniert jetzt nicht mehr direkt für WebDAV. Neue Clients ohne Browser-Anmeldung brauchen ein App-Passwort.</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 10px">
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer">Wiederherstellungscodes anzeigen</button>
+<button type="button" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer">Neue Codes erzeugen</button>
+<button type="button" onClick="{{disable}}" style="min-height: 44px; padding: 0 16px; border-radius: 10px; border: none; background: var(--danger-bg); color: var(--danger-fg); font-weight: 600; cursor: pointer">Deaktivieren</button>
+</div>
+</div>
+</sc-if>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
+<section aria-labelledby="h-new" style="flex: 2 1 380px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="h-new" style="margin: 0; font-size: 18px; font-weight: 700">App-Passwort erstellen</h2>
+<p style="margin: 0; font-size: 14px; line-height: 1.5; color: var(--text-2)">Für Clients ohne Browser-Anmeldung, etwa rclone, davfs2 oder Skripte. Die Nextcloud-App braucht das nicht – sie verbindet sich über die Anmeldeseite.</p>
+<div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px">
+<label style="flex: 1 1 220px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Gerätename
+<input type="text" placeholder="z. B. Backup-Server" style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); font: inherit; font-size: 15px; font-weight: 400; color: var(--text)">
+</label>
+<button type="button" onClick="{{create}}" style="min-height: 44px; padding: 0 18px; border-radius: 10px; border: none; background: #B8441A; color: #FFFFFF; font-weight: 600; cursor: pointer">Erstellen</button>
+</div>
+<sc-if value="{{created}}" hint-placeholder-val="{{false}}">
+<div role="status" style="display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 12px; background: #15171C; color: #F4EFE8">
+<div style="font-size: 14px; font-weight: 600">Neues App-Passwort – wird nur jetzt angezeigt</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px">
+<code style="flex: 1 1 260px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 15px; letter-spacing: 1px; color: #F2A65A; overflow-wrap: anywhere">[GENERIERTES-APP-PASSWORT]</code>
+<button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 8px; border: 1px solid #4A4D55; background: transparent; color: #F4EFE8; cursor: pointer">Kopieren</button>
+</div>
+</div>
+</sc-if>
+</section>
+
+<section aria-labelledby="h-sec" style="flex: 1 1 280px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="h-sec" style="margin: 0; font-size: 18px; font-weight: 700">Konto</h2>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; color: var(--text-2)">Benutzername</span><span style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 15px">pierre</span></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><span style="font-size: 14px; color: var(--text-2)">Passwort-Hash</span><span style="font-size: 15px">Argon2id</span></div>
+<button type="button" style="min-height: 44px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-weight: 600; cursor: pointer">Passwort ändern</button>
+<button type="button" style="min-height: 44px; border-radius: 10px; border: none; background: var(--danger-bg); color: var(--danger-fg); font-weight: 600; cursor: pointer">Alle Geräte abmelden</button>
+</section>
+</div>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["hell","dunkel"],"default":"hell"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { revoked: {}, created: false, tfa: 'off' };
+}
+renderVals() {
+const raw = [
+{ id: 'd1', name: 'Nextcloud Android · Pixel 8', meta: 'Über Anmeldeseite verbunden am 2. Okt.', lastSeen: 'Vor 4 Minuten', phone: true },
+{ id: 'd2', name: 'Nextcloud iOS · iPad', meta: 'Über Anmeldeseite verbunden am 19. Sep.', lastSeen: 'Gestern', phone: true },
+{ id: 'd3', name: 'rclone · Laptop', meta: 'App-Passwort, manuell erstellt am 14. Okt.', lastSeen: '14. Okt.', phone: false },
+{ id: 'd4', name: 'Safari auf macOS', meta: 'Browser-Sitzung', lastSeen: 'Jetzt', phone: false, current: true }
+];
+const devices = raw.map((d) => {
+const isRevoked = !!this.state.revoked[d.id];
+return {
+...d,
+isPhone: d.phone,
+isComputer: !d.phone,
+isCurrent: !!d.current,
+isRevoked,
+canRevoke: !d.current && !isRevoked,
+opacity: isRevoked ? '0.55' : '1',
+revoke: () => this.setState({ revoked: { ...this.state.revoked, [d.id]: true } })
+};
+});
+const activeCount = devices.filter((d) => !d.isRevoked).length;
+const tfa = this.state.tfa;
+const badge = { off: ['Aus', 'var(--muted-bg)', 'var(--text-2)'], setup: ['Einrichtung läuft', 'var(--accent-bg)', 'var(--danger-fg)'], on: ['Aktiv', 'var(--ok-bg)', 'var(--ok-fg)'] }[tfa];
+return {
+themeClass: (this.props.theme ?? 'hell') === 'dunkel' ? 't-dark' : 't-light',
+devices, activeCount,
+created: this.state.created, create: () => this.setState({ created: true }),
+tfaOff: tfa === 'off', tfaSetup: tfa === 'setup', tfaOn: tfa === 'on',
+tfaBadge: badge[0], tfaBadgeBg: badge[1], tfaBadgeFg: badge[2],
+startSetup: () => this.setState({ tfa: 'setup' }),
+cancelSetup: () => this.setState({ tfa: 'off' }),
+confirmSetup: () => this.setState({ tfa: 'on' }),
+disable: () => this.setState({ tfa: 'off' })
+};
+}
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,38 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "check",
+      "type": "shell",
+      "command": "cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "test",
+      "type": "shell",
+      "command": "cargo test --workspace",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": ["$rustc"]
+    },
+    {
+      "label": "smoke",
+      "type": "shell",
+      "command": "cargo build -p rostdav && scripts/smoke.sh ./target/debug/rostdav",
+      "problemMatcher": []
+    },
+    {
+      "label": "run",
+      "type": "shell",
+      "command": "cargo run -p rostdav -- serve",
+      "options": {
+        "env": {
+          "ROSTDAV_LOG__FORMAT": "pretty",
+          "ROSTDAV_LOG__LEVEL": "info,rostdav=debug"
+        }
+      },
+      "isBackground": true,
+      "problemMatcher": []
+    }
+  ]
+}

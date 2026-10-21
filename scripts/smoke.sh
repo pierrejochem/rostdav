@@ -29,6 +29,7 @@ wait "$PID" || fail "Exit-Code nach SIGTERM nicht 0"
 grep -q '"message":"beendet"' "$WORK/log.txt" || fail "kein geordnetes Herunterfahren im Log"
 grep -q '"path":"/healthz"' "$WORK/log.txt" || fail "Anfragen werden nicht geloggt"
 if grep -q -e 'c21va2U6c2VjcmV0' -e 'smoketoken' "$WORK/log.txt"; then fail "Geheimnis im Log"; fi
-[ "$(stat -c %a "$WORK/data")" = 700 ] || fail "Datenverzeichnis nicht 0700"
+mode="$(stat -c %a "$WORK/data" 2>/dev/null || stat -f %Lp "$WORK/data")"  # GNU bzw. macOS
+[ "$mode" = 700 ] || fail "Datenverzeichnis nicht 0700 (ist $mode)"
 
 echo "Smoke-Test bestanden"

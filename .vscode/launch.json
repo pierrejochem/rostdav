@@ -1,0 +1,31 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "rostdav serve",
+      "cargo": {
+        "args": ["build", "-p", "rostdav", "--bin", "rostdav"],
+        "filter": { "name": "rostdav", "kind": "bin" }
+      },
+      "args": ["serve"],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "ROSTDAV_LOG__FORMAT": "pretty",
+        "ROSTDAV_LOG__LEVEL": "info,rostdav=debug",
+        "ROSTDAV_STORAGE__DATA_DIR": "${workspaceFolder}/data"
+      }
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Tests (rostdav)",
+      "cargo": {
+        "args": ["test", "--no-run", "-p", "rostdav"],
+        "filter": { "kind": "test" }
+      },
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

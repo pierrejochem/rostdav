@@ -1,0 +1,97 @@
+/* Rostdav Design-Tokens.
+ * Quelle: Design-Canvas „Rostdav Web-UI“ (design/mockups/web-ui). Marke: design/mockups/logo.
+ * Standard folgt prefers-color-scheme; data-theme="light|dark" auf <html> überschreibt
+ * (Benutzerwahl aus den Einstellungen).
+ */
+
+:root {
+  color-scheme: light;
+  --bg: #F7F4EF;
+  --surface: #FFFFFF;
+  --text: #15171C;
+  --text-2: #5F5A54;
+  --border: #E6DFD5;
+  --divider: #EFE9E1;
+  --muted-bg: #F2EDE6;
+  --control-border: #DCD3C8;
+  --accent: #B8441A;
+  --accent-bg: #FBEDE4;
+  --danger-bg: #F7E6DB;
+  --danger-fg: #8A3214;
+  --danger-border: #E4C7B6;
+  --ok-bg: #E3F0EE;
+  --ok-fg: #1F5F5A;
+  --doc-bg: #ECEAF2;
+  --doc-fg: #3C3A55;
+  --switch-off: #CFC5B9;
+  --knob: #FFFFFF;
+  --nav-bg: #15171C;
+  --nav-active: #2A2D35;
+  --nav-text: #C9C2B9;
+  --rust-oxide: #7A2A12;
+  --rust: #C2491D;
+  --copper: #E8783A;
+  --ember: #F2A65A;
+  --iron: #15171C;
+  --ivory: #F4EFE8;
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --radius-s: 8px;
+  --radius-m: 12px;
+  --radius-l: 16px;
+  --touch: 44px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+  --bg: #0F1115;
+  --surface: #1A1D23;
+  --text: #F1ECE5;
+  --text-2: #A9A39C;
+  --border: #2C3038;
+  --divider: #252931;
+  --muted-bg: #23272E;
+  --control-border: #3A3E47;
+  --accent: #C2491D;
+  --accent-bg: #3A2419;
+  --danger-bg: #3A2419;
+  --danger-fg: #F2A65A;
+  --danger-border: #5A3322;
+  --ok-bg: #16302D;
+  --ok-fg: #7CC5BC;
+  --doc-bg: #26253A;
+  --doc-fg: #C3C0E0;
+  --switch-off: #4A4E57;
+  --knob: #F1ECE5;
+  --nav-bg: #15171C;
+  --nav-active: #2A2D35;
+  --nav-text: #C9C2B9;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0F1115;
+  --surface: #1A1D23;
+  --text: #F1ECE5;
+  --text-2: #A9A39C;
+  --border: #2C3038;
+  --divider: #252931;
+  --muted-bg: #23272E;
+  --control-border: #3A3E47;
+  --accent: #C2491D;
+  --accent-bg: #3A2419;
+  --danger-bg: #3A2419;
+  --danger-fg: #F2A65A;
+  --danger-border: #5A3322;
+  --ok-bg: #16302D;
+  --ok-fg: #7CC5BC;
+  --doc-bg: #26253A;
+  --doc-fg: #C3C0E0;
+  --switch-off: #4A4E57;
+  --knob: #F1ECE5;
+  --nav-bg: #15171C;
+  --nav-active: #2A2D35;
+  --nav-text: #C9C2B9;
+}

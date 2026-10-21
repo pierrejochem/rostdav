@@ -2,3 +2,6 @@
 /data
 *.sqlite
 *.sqlite-*
+rostdav.toml
+.DS_Store
+.idea/

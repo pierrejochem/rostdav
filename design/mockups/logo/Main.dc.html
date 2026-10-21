@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Rostdav Hauptlogo</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#E8783A}a:hover{color:#F2A65A}
+</style>
+</helmet>
+<div style="width: 1200px; height: 675px; box-sizing: border-box; background: {{bg}}; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 40px; font-family: 'Space Grotesk', system-ui, sans-serif">
+<div style="display: flex; align-items: center; gap: 36px">
+<svg viewBox="0 0 140 128" width="210" height="192" role="img" aria-label="Rostdav Bildmarke: Ordner mit abplatzenden Rostflocken">
+<path d="M18 34a8 8 0 0 1 8-8h22l8 9h44a8 8 0 0 1 8 8v51a8 8 0 0 1-8 8H26a8 8 0 0 1-8-8Z" fill="#7A2A12"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-9 44A4 4 0 0 1 99 102H24a4 4 0 0 1-3.9-4.8l9-44A4 4 0 0 1 33 50Z" fill="#C2491D"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-0.6 3.2H28.4l0.7-3.2A4 4 0 0 1 33 50Z" fill="#E8783A"></path>
+<rect x="110" y="84" width="9" height="9" rx="2" fill="#E8783A" transform="rotate(12 114.5 88.5)"></rect>
+<rect x="122" y="70" width="6" height="6" rx="1.5" fill="#F2A65A" transform="rotate(24 125 73)"></rect>
+<rect x="130" y="58" width="4" height="4" rx="1" fill="#F7C589" transform="rotate(36 132 60)"></rect>
+</svg>
+<div style="display: flex; align-items: baseline; font-size: 132px; font-weight: 700; letter-spacing: -6px; line-height: 1">
+<span style="color: {{ink}}">rost</span><span style="color: #E8783A">dav</span>
+</div>
+</div>
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 18px; font-weight: 500; letter-spacing: 4px; text-transform: uppercase; color: {{sub}}">WebDAV · Nextcloud-kompatibel · in Rust</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dunkel","hell"],"default":"dunkel"},"$preview":{"width":1200,"height":675}}'>
+class Component extends DCLogic {
+renderVals() {
+const light = (this.props.theme ?? 'dunkel') === 'hell';
+return {
+bg: light ? '#F4EFE8' : '#15171C',
+ink: light ? '#15171C' : '#F4EFE8',
+sub: light ? '#5A5550' : '#A8A29C'
+};
+}
+}
+</script>
+</body>
+</html>
