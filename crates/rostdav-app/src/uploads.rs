@@ -167,7 +167,11 @@ impl AppState {
         if sum > self.inner.config.limits.max_upload_bytes {
             return Err(Error::TooLarge);
         }
-        let freed = existing.map_or(0, |n| n.size.max(0)).unsigned_abs();
+        let freed = if self.inner.config.versioning.enabled {
+            0
+        } else {
+            existing.map_or(0, |n| n.size.max(0)).unsigned_abs()
+        };
         if let Some(h) = self.inner.db.quota_headroom(p.user_id).await? {
             if sum > h.unsigned_abs().saturating_add(freed) {
                 return Err(Error::QuotaExceeded);
@@ -192,7 +196,13 @@ impl AppState {
         match self
             .inner
             .db
-            .commit_file_ext(parent.id, name, &blob, mtime, None, &cond)
+            .commit_file_with(
+                parent.id,
+                name,
+                &blob,
+                &self.commit_opts(p, mtime, None),
+                &cond,
+            )
             .await
         {
             Ok(w) => {

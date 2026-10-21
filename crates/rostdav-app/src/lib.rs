@@ -16,6 +16,7 @@ mod password;
 mod ratelimit;
 mod secrets;
 mod uploads;
+mod versions;
 
 pub use admin::{Actor, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport};
 pub use audit::AuditOptions;
@@ -24,6 +25,7 @@ pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, norma
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use uploads::UploadListing;
+pub use versions::{VersionEntry, VersionListing, VersioningOptions};
 
 use rostdav_core::Result;
 use rostdav_meta::Db;
@@ -57,6 +59,7 @@ pub(crate) fn now_secs() -> i64 {
 struct AppConfig {
     limits: Limits,
     audit: AuditOptions,
+    versioning: VersioningOptions,
 }
 
 /// Operating limits.
@@ -124,6 +127,15 @@ impl AppState {
     pub fn with_limits(self, limits: Limits) -> Self {
         let config = AppConfig {
             limits,
+            ..self.inner.config.clone()
+        };
+        self.reconfigured(config)
+    }
+
+    #[must_use]
+    pub fn with_versioning(self, versioning: VersioningOptions) -> Self {
+        let config = AppConfig {
+            versioning,
             ..self.inner.config.clone()
         };
         self.reconfigured(config)
@@ -446,8 +458,18 @@ mod tests {
             .put(&anna, &lp("/b"), &[0u8; 3][..], None, &WriteCondition::None)
             .await;
         assert!(matches!(over, Err(Error::QuotaExceeded)));
-        // replacing /a with 8 bytes again fits: the old size is freed
-        st.put(&anna, &lp("/a"), &[0u8; 8][..], None, &WriteCondition::None)
+        // with versioning the replaced content stays and keeps counting: no room
+        let same = st
+            .put(&anna, &lp("/a"), &[1u8; 8][..], None, &WriteCondition::None)
+            .await;
+        assert!(matches!(same, Err(Error::QuotaExceeded)), "{same:?}");
+
+        // without versioning the old size is freed and the replacement fits
+        let st = st.with_versioning(VersioningOptions {
+            enabled: false,
+            ..VersioningOptions::default()
+        });
+        st.put(&anna, &lp("/a"), &[1u8; 8][..], None, &WriteCondition::None)
             .await
             .expect("replace");
         assert_eq!(st.inner.store.list_blobs().await.expect("l").len(), 2);
@@ -968,5 +990,221 @@ mod tests {
         );
         assert_eq!(st.file_id(7).len(), 8 + 12);
         assert!(st.file_id(7).starts_with("00000007oc"));
+    }
+
+    // ---- versions -------------------------------------------------------------
+
+    async fn versioned(st: &AppState, p: &Principal, path: &str, body: &str, mtime: i64) {
+        st.put(
+            p,
+            &lp(path),
+            body.as_bytes(),
+            Some(mtime),
+            &WriteCondition::None,
+        )
+        .await
+        .expect("put");
+    }
+
+    #[tokio::test]
+    async fn overwrites_create_versions_that_can_be_read_restored_and_deleted() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        versioned(&st, &anna, "/doc.txt", "one", 1000).await;
+        versioned(&st, &anna, "/doc.txt", "second", 2000).await;
+        versioned(&st, &anna, "/doc.txt", "3", 3000).await;
+        let id = st.stat(&anna, &lp("/doc.txt")).await.expect("stat").id;
+
+        let l = st.version_list(&anna, id).await.expect("list");
+        let names: Vec<_> = l
+            .entries
+            .iter()
+            .map(|e| (e.version_time, e.size, e.live))
+            .collect();
+        assert_eq!(names, [(1000, 3, false), (2000, 6, false), (3000, 1, true)]);
+        assert_eq!(l.entries[0].author.as_deref(), Some("anna"));
+
+        let read = |t: i64| {
+            let st = st.clone();
+            let anna = anna.clone();
+            async move {
+                let (_, _, mut f) = st.version_open(&anna, id, t).await.expect("open");
+                let mut s = String::new();
+                f.read_to_string(&mut s).await.expect("read");
+                s
+            }
+        };
+        assert_eq!(read(1000).await, "one");
+        assert_eq!(read(2000).await, "second");
+        assert_eq!(read(3000).await, "3", "the live entry is readable too");
+        assert!(matches!(
+            st.version_open(&anna, id, 1234).await,
+            Err(Error::NotFound)
+        ));
+
+        // restore the oldest: it becomes live, the replaced content is archived
+        let n = st.version_restore(&anna, id, 1000).await.expect("restore");
+        assert_eq!((n.size, n.mtime), (3, 1000));
+        let l = st.version_list(&anna, id).await.expect("list");
+        assert_eq!(
+            l.entries
+                .iter()
+                .map(|e| (e.version_time, e.live))
+                .collect::<Vec<_>>(),
+            [(1000, true), (2000, false), (3000, false)]
+        );
+        let (_, mut f) = st.read(&anna, &lp("/doc.txt")).await.expect("read");
+        let mut s = String::new();
+        f.read_to_string(&mut s).await.expect("r");
+        assert_eq!(s, "one");
+        // restoring the live entry is a no-op
+        st.version_restore(&anna, id, 1000).await.expect("noop");
+        assert_eq!(
+            st.version_list(&anna, id).await.expect("l").entries.len(),
+            3
+        );
+
+        // delete: archived yes, live no, missing 404
+        st.version_delete(&anna, id, 2000).await.expect("delete");
+        assert!(matches!(
+            st.version_delete(&anna, id, 2000).await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.version_delete(&anna, id, 1000).await,
+            Err(Error::Forbidden)
+        ));
+        assert_eq!(st.user_info(&anna).await.expect("i").used, 3 + 1);
+    }
+
+    #[tokio::test]
+    async fn versions_are_private_and_follow_the_file() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        let bob = login(&st, "bob").await;
+        versioned(&st, &anna, "/f", "one", 1000).await;
+        versioned(&st, &anna, "/f", "two", 2000).await;
+        let id = st.stat(&anna, &lp("/f")).await.expect("s").id;
+        assert!(matches!(
+            st.version_list(&bob, id).await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.version_open(&bob, id, 1000).await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.version_restore(&bob, id, 1000).await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.version_delete(&bob, id, 1000).await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.version_list(&anna, 99_999).await,
+            Err(Error::NotFound)
+        ));
+        // a directory has no versions
+        st.mkcol(&anna, &lp("/d")).await.expect("mkcol");
+        let d = st.stat(&anna, &lp("/d")).await.expect("s").id;
+        assert!(matches!(
+            st.version_list(&anna, d).await,
+            Err(Error::NotFound)
+        ));
+
+        // move keeps them, delete removes them
+        st.mkcol(&anna, &lp("/dir")).await.expect("mkcol");
+        st.move_to(&anna, &lp("/f"), &lp("/dir/g"), false)
+            .await
+            .expect("move");
+        assert_eq!(
+            st.version_list(&anna, id).await.expect("l").entries.len(),
+            2
+        );
+        st.delete(&anna, &lp("/dir/g"), None).await.expect("delete");
+        assert!(matches!(
+            st.version_list(&anna, id).await,
+            Err(Error::NotFound)
+        ));
+        assert_eq!(st.user_info(&anna).await.expect("i").used, 0);
+        st.collect_garbage().await.expect("gc");
+        assert!(
+            st.inner.store.list_blobs().await.expect("l").is_empty(),
+            "version blobs are collected with the file"
+        );
+    }
+
+    #[tokio::test]
+    async fn versioning_can_be_switched_off_and_limited() {
+        let (_d, st) = state().await;
+        let st = st.with_versioning(VersioningOptions {
+            enabled: false,
+            ..VersioningOptions::default()
+        });
+        let anna = login(&st, "anna").await;
+        versioned(&st, &anna, "/f", "one", 1000).await;
+        versioned(&st, &anna, "/f", "two", 2000).await;
+        let id = st.stat(&anna, &lp("/f")).await.expect("s").id;
+        assert_eq!(
+            st.version_list(&anna, id).await.expect("l").entries.len(),
+            1,
+            "only the live entry"
+        );
+        assert!(!st.versioning_enabled());
+
+        let (_d2, st2) = state().await;
+        let st2 = st2.with_versioning(VersioningOptions {
+            max_versions: 1,
+            ..VersioningOptions::default()
+        });
+        let anna = login(&st2, "anna").await;
+        for (i, body) in ["a", "bb", "ccc", "dddd"].iter().enumerate() {
+            versioned(&st2, &anna, "/f", body, 1000 + i as i64).await;
+        }
+        let id = st2.stat(&anna, &lp("/f")).await.expect("s").id;
+        let l = st2.version_list(&anna, id).await.expect("l");
+        assert_eq!(
+            l.entries.iter().map(|e| e.size).collect::<Vec<_>>(),
+            [3, 4],
+            "one version plus live"
+        );
+    }
+
+    #[tokio::test]
+    async fn chunked_assembly_and_cleanup_use_versioning_too() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        versioned(&st, &anna, "/f", "old", 1000).await;
+        st.upload_create(&anna, "t").await.expect("session");
+        st.upload_chunk(&anna, "t", "1", &b"new content"[..])
+            .await
+            .expect("chunk");
+        st.upload_assemble(&anna, "t", &lp("/f"), true, None, Some(2000))
+            .await
+            .expect("assemble");
+        let id = st.stat(&anna, &lp("/f")).await.expect("s").id;
+        let l = st.version_list(&anna, id).await.expect("l");
+        assert_eq!(
+            l.entries.iter().map(|e| e.size).collect::<Vec<_>>(),
+            [3, 11]
+        );
+
+        // quota share: versions may take 5% of a 100 byte quota -> the 3-byte version fits, a bigger one does not
+        st.set_quota("anna", Some(100)).await.expect("quota");
+        let st = st.with_versioning(VersioningOptions {
+            max_quota_share_percent: 2,
+            ..VersioningOptions::default()
+        });
+        st.collect_garbage().await.expect("gc");
+        assert_eq!(
+            st.version_list(&anna, id).await.expect("l").entries.len(),
+            1,
+            "2 bytes allowed: the 3-byte version went"
+        );
+        assert!(
+            st.inner.store.list_blobs().await.expect("l").len() == 1,
+            "its blob was collected"
+        );
     }
 }

@@ -174,7 +174,12 @@ impl AppState {
         // Limit the stream by the upload limit and the remaining quota
         // (a replaced file's old size is freed by the commit).
         let existing = self.inner.db.resolve(p.user_id, path).await?;
-        let freed = existing.map_or(0, |n| n.size.max(0)).unsigned_abs();
+        // A replaced file's old content stays as a version and keeps counting.
+        let freed = if self.inner.config.versioning.enabled {
+            0
+        } else {
+            existing.map_or(0, |n| n.size.max(0)).unsigned_abs()
+        };
         let headroom = self.inner.db.quota_headroom(p.user_id).await?;
         let quota_limit = headroom.map(|h| h.unsigned_abs().saturating_add(freed));
         let max = quota_limit.map_or(self.inner.config.limits.max_upload_bytes, |q| {
@@ -198,12 +203,11 @@ impl AppState {
         match self
             .inner
             .db
-            .commit_file_ext(
+            .commit_file_with(
                 parent.id,
                 name,
                 &blob,
-                opts.mtime,
-                opts.client_checksum.as_deref(),
+                &self.commit_opts(p, opts.mtime, opts.client_checksum.clone()),
                 &cond,
             )
             .await
@@ -272,6 +276,16 @@ impl AppState {
         let expired = self
             .expire_uploads(crate::uploads::SESSION_MAX_AGE_SECS)
             .await?;
-        Ok(ids.len() + expired)
+        self.purge_old_events().await?;
+        // retention may leave blobs without a reference: collect them in the same run
+        let versions = self.cleanup_versions().await?;
+        let mut more = 0;
+        if versions > 0 {
+            for id in self.inner.db.delete_unreferenced_blobs().await? {
+                self.inner.store.delete_blob(&BlobId::parse(&id)?).await?;
+                more += 1;
+            }
+        }
+        Ok(ids.len() + more + expired)
     }
 }
