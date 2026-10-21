@@ -13,11 +13,11 @@
     }
   },
   "response": {
-    "status": 405,
+    "status": 201,
     "headers": [
       [
         "Date",
-        "Wed, 21 Oct 2026 21:32:13 GMT"
+        "Wed, 21 Oct 2026 21:48:01 GMT"
       ],
       [
         "Server",
@@ -88,22 +88,24 @@
         "admin"
       ],
       [
-        "Allow",
-        "OPTIONS, GET, HEAD, DELETE, PROPFIND, PUT, PROPPATCH, COPY, MOVE, REPORT, LOCK, UNLOCK"
+        "OC-FileId",
+        "00000078och35prclkve"
       ],
       [
         "Content-Length",
-        "247"
+        "0"
+      ],
+      [
+        "X-Request-Id",
+        "aoKxHG8oCiTmj13Zr8MC"
       ],
       [
         "Content-Type",
-        "application/xml; charset=utf-8"
+        "text/html; charset=UTF-8"
       ]
     ],
     "body": {
-      "length": 247,
-      "sha256": "c5437077750bcc35775e6d38043b4c22561b334d0c54e9cb5a392fbe8dc591a0",
-      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\MethodNotAllowed</s:exception>\n  <s:message>The resource you tried to create already exists</s:message>\n</d:error>\n"
+      "empty": true
     }
   }
 }

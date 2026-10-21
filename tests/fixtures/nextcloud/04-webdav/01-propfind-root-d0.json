@@ -21,7 +21,7 @@
     "headers": [
       [
         "Date",
-        "Wed, 21 Oct 2026 21:32:13 GMT"
+        "Wed, 21 Oct 2026 21:48:00 GMT"
       ],
       [
         "Server",
@@ -101,7 +101,7 @@
       ],
       [
         "X-Request-Id",
-        "VBof3atDG3IizwMXCzW6"
+        "1CK46w0T03StLbww1NLd"
       ],
       [
         "Content-Length",
@@ -114,8 +114,8 @@
     ],
     "body": {
       "length": 1037,
-      "sha256": "725f34de2f5e420df4200f7c6ead44770b992a3a0ecdcfb5128acbeca1b9e38a",
-      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/files/admin/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 21:31:58 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>&quot;6ad92f4e905e2&quot;</d:getetag><oc:id>00000007ocb0ngxhatbv</oc:id><oc:fileid>7</oc:fileid><oc:size>65646160</oc:size><oc:permissions>RGDNVCK</oc:permissions><oc:favorite>0</oc:favorite><oc:owner-id>admin</oc:owner-id><oc:owner-display-name>admin</oc:owner-display-name><oc:share-types/><nc:has-preview>false</nc:has-preview><nc:mount-type></nc:mount-type><nc:creation_time>0</nc:creation_time></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><d:getcontenttype/><oc:checksums/><oc:downloadURL/><nc:is-encrypted/><nc:upload_time/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response></d:multistatus>\n"
+      "sha256": "c9c94ce7ff8ee2704885e64836302b354aa0038de86d052b3056705015262b95",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/files/admin/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 21:47:52 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>&quot;6ad93308a584b&quot;</d:getetag><oc:id>00000007och35prclkve</oc:id><oc:fileid>7</oc:fileid><oc:size>65646129</oc:size><oc:permissions>RGDNVCK</oc:permissions><oc:favorite>0</oc:favorite><oc:owner-id>admin</oc:owner-id><oc:owner-display-name>admin</oc:owner-display-name><oc:share-types/><nc:has-preview>false</nc:has-preview><nc:mount-type></nc:mount-type><nc:creation_time>0</nc:creation_time></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><d:getcontenttype/><oc:checksums/><oc:downloadURL/><nc:is-encrypted/><nc:upload_time/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response></d:multistatus>\n"
     }
   }
 }

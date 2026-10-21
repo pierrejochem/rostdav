@@ -1,0 +1,119 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PROPFIND",
+    "path": "/remote.php/dav/uploads/admin",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/xml",
+      "Depth": "1",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 405,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:48:11 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Vary",
+        "Brief,Prefer"
+      ],
+      [
+        "DAV",
+        "1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, nc-paginate, nextcloud-checksum-update, nc-calendar-search, nc-enable-birthday-calendar, 2"
+      ],
+      [
+        "Allow",
+        "OPTIONS, GET, HEAD, DELETE, PROPFIND, PUT, PROPPATCH, COPY, MOVE, REPORT, LOCK, UNLOCK"
+      ],
+      [
+        "Content-Length",
+        "246"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 246,
+      "sha256": "14a49b82b117ff63f4bb3acb5b76499d91032740d6c8d05fd7f45fc0fe1b241d",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\MethodNotAllowed</s:exception>\n  <s:message>Listing members of this collection is disabled</s:message>\n</d:error>\n"
+    }
+  }
+}

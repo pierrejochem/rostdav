@@ -1,0 +1,111 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PUT",
+    "path": "/remote.php/dav/files/admin/Docs/a.part",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 1,
+      "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+      "text": "x"
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:48:09 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "385"
+      ],
+      [
+        "Connection",
+        "close"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 385,
+      "sha256": "0fb5de3721255e8053d5fccbb110bfbf1002c6df26991d415b82731b744d707d",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:o=\"http://owncloud.org/ns\">\n  <s:exception>OCA\\DAV\\Connector\\Sabre\\Exception\\InvalidPath</s:exception>\n  <s:message>\".part\" is a forbidden file type.</s:message>\n  <o:retry xmlns:o=\"o:\">false</o:retry>\n  <o:reason xmlns:o=\"o:\">\".part\" is a forbidden file type.</o:reason>\n</d:error>\n"
+    }
+  }
+}

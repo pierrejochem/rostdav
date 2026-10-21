@@ -1,0 +1,109 @@
+{
+  "synthetic_request": true,
+  "note": "overwrite a chunk",
+  "request": {
+    "method": "PUT",
+    "path": "/remote.php/dav/uploads/admin/rec-transfer-3/00001",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 7,
+      "sha256": "f6065e9349aa98b73e9a41eeffc15334c9203ea622303fdb70d3bbd041ccbead",
+      "text": "XXXXXXX"
+    }
+  },
+  "response": {
+    "status": 204,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:48:10 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "ETag",
+        "\"298f85c330dc14ce41018d1cfe5c3308\""
+      ],
+      [
+        "X-Request-Id",
+        "AVXd21klhS40LWPe48bt"
+      ],
+      [
+        "OC-ETag",
+        "\"298f85c330dc14ce41018d1cfe5c3308\""
+      ]
+    ],
+    "body": {
+      "empty": true
+    }
+  }
+}

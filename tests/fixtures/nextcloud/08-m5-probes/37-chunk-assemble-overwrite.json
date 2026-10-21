@@ -1,0 +1,106 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "MOVE",
+    "path": "/remote.php/dav/uploads/admin/rec-transfer-3/.file",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Destination": "http://{{host}}/remote.php/dav/files/admin/Docs/c3.bin",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:48:11 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "244"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 244,
+      "sha256": "e3941c7e22df20c701e67b0d6104ac287987be171004bdf1425a6f159e3a648a",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\NotFound</s:exception>\n  <s:message>File with name //rec-transfer-3 could not be located</s:message>\n</d:error>\n"
+    }
+  }
+}

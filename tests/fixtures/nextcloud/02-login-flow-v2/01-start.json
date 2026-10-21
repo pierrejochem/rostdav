@@ -16,7 +16,7 @@
     "headers": [
       [
         "Date",
-        "Wed, 21 Oct 2026 21:32:09 GMT"
+        "Wed, 21 Oct 2026 21:47:56 GMT"
       ],
       [
         "Server",
@@ -76,7 +76,7 @@
       ],
       [
         "X-Request-Id",
-        "xkJAVDNucoYvnASn8a8k"
+        "1bLkCRhwvYGcrVsH2QYJ"
       ],
       [
         "Cache-Control",
@@ -97,7 +97,7 @@
     ],
     "body": {
       "length": 386,
-      "sha256": "813ac8b833ccf0674431c260ff71bb54b5dcd82b5d587b392a98747afae757e9",
+      "sha256": "06c3500c905d7152f5e58f5dd460b231216e29117b02b2b5298d9981621fb52a",
       "text": "{\"poll\":{\"token\":\"{{poll_token}}\",\"endpoint\":\"http:\\/\\/{{host}}\\/login\\/v2\\/poll\"},\"login\":\"http:\\/\\/{{host}}\\/login\\/v2\\/flow\\/{{flow_token}}\"}"
     }
   }

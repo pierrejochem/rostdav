@@ -14,11 +14,11 @@
     }
   },
   "response": {
-    "status": 200,
+    "status": 404,
     "headers": [
       [
         "Date",
-        "Wed, 21 Oct 2026 21:32:19 GMT"
+        "Wed, 21 Oct 2026 21:48:06 GMT"
       ],
       [
         "Server",
@@ -86,7 +86,7 @@
       ],
       [
         "X-Request-Id",
-        "2Y1cz6Z92PBrxZoGKhR5"
+        "Ym4n8sLZNCNxRq6K48CO"
       ],
       [
         "Cache-Control",
@@ -102,7 +102,7 @@
       ],
       [
         "Content-Length",
-        "223"
+        "107"
       ],
       [
         "Content-Type",
@@ -110,9 +110,9 @@
       ]
     ],
     "body": {
-      "length": 223,
-      "sha256": "62b15be1e1f47c68edd24bb5aeabb8e578bc57272f76682c8aa0730a9bc7723d",
-      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":200,\"message\":\"OK\"},\"data\":{\"userId\":\"admin\",\"message\":null,\"messageId\":null,\"messageIsPredefined\":false,\"icon\":null,\"clearAt\":null,\"status\":\"online\",\"statusIsUserDefined\":false}}}"
+      "length": 107,
+      "sha256": "f44dacd14e2908008f324a874f67f4a3c8a3ba960ac6afea6487d00989943364",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"failure\",\"statuscode\":404,\"message\":\"No status for the current user\"},\"data\":[]}}"
     }
   }
 }

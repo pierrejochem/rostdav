@@ -1,0 +1,120 @@
+{
+  "synthetic_request": true,
+  "note": "chunks 1 and 3, no total length",
+  "request": {
+    "method": "MOVE",
+    "path": "/remote.php/dav/uploads/admin/rec-transfer-3/.file",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Destination": "http://{{host}}/remote.php/dav/files/admin/Docs/c3.bin",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:48:10 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "OC-ETag",
+        "\"51d22f40b1cd2466e39d28b926888b3e\""
+      ],
+      [
+        "ETag",
+        "\"51d22f40b1cd2466e39d28b926888b3e\""
+      ],
+      [
+        "OC-FileId",
+        "00000117och35prclkve"
+      ],
+      [
+        "Content-Length",
+        "0"
+      ],
+      [
+        "X-Request-Id",
+        "BahCugBAQcvABV6A9FRa"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "empty": true
+    }
+  }
+}

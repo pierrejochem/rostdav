@@ -1,0 +1,133 @@
+{
+  "synthetic_request": true,
+  "note": "was the file stored?",
+  "request": {
+    "method": "GET",
+    "path": "/remote.php/dav/files/admin/Docs/sha1bad.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:48:07 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Last-Modified",
+        "Wed, 21 Oct 2026 21:48:07 GMT"
+      ],
+      [
+        "ETag",
+        "\"45426847fa18341d38c523c0a76e37b1\""
+      ],
+      [
+        "Content-Length",
+        "3"
+      ],
+      [
+        "X-Request-Id",
+        "UrYQTQWUlsVY7BbxnZ8v"
+      ],
+      [
+        "OC-ETag",
+        "\"45426847fa18341d38c523c0a76e37b1\""
+      ],
+      [
+        "Content-Disposition",
+        "attachment; filename*=UTF-8''sha1bad.txt; filename=\"sha1bad.txt\""
+      ],
+      [
+        "OC-Checksum",
+        "SHA1:0000000000000000000000000000000000000000"
+      ],
+      [
+        "X-Accel-Buffering",
+        "no"
+      ],
+      [
+        "Content-Type",
+        "text/plain;charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 3,
+      "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+      "text": "abc"
+    }
+  }
+}

@@ -287,6 +287,57 @@ def main():
     r.call(f, "hovercard-userstatus", "GET", "/ocs/v2.php/apps/user_status/api/v1/user_status?format=json", ocs, auth=auth)
     r.call(f, "dashboard-widgets", "GET", "/ocs/v2.php/apps/dashboard/api/v1/widgets?format=json", ocs, auth=auth)
 
+    # ---- M5 probes: checksums, quota props, names, chunk edge cases ------------
+    f = "08-m5-probes"
+    quota_props = ("<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\"><d:prop><d:quota-used-bytes/>"
+                   "<d:quota-available-bytes/><d:getetag/></d:prop></d:propfind>")
+    r.call(f, "propfind-quota-root", "PROPFIND", dav + "/", {**xml, "Depth": "0"}, quota_props, auth=auth)
+    r.call(f, "propfind-quota-file", "PROPFIND", dav + "/Docs/chunked.bin", {**xml, "Depth": "0"}, quota_props, auth=auth)
+    sha1 = hashlib.sha1(b"abc").hexdigest()
+    r.call(f, "put-sha1-good", "PUT", dav + "/Docs/sha1good.txt", {"OC-Checksum": "SHA1:" + sha1}, b"abc", auth=auth)
+    r.call(f, "put-sha1-bad", "PUT", dav + "/Docs/sha1bad.txt", {"OC-Checksum": "SHA1:" + "0" * 40}, b"abc", auth=auth)
+    r.call(f, "get-after-sha1-bad", "GET", dav + "/Docs/sha1bad.txt", auth=auth, note="was the file stored?")
+    r.call(f, "put-md5-bad", "PUT", dav + "/Docs/md5bad.txt", {"OC-Checksum": "MD5:" + "0" * 32}, b"abc", auth=auth)
+    r.call(f, "put-adler32-bad", "PUT", dav + "/Docs/adlerbad.txt", {"OC-Checksum": "ADLER32:00000000"}, b"abc", auth=auth)
+    r.call(f, "put-checksum-unknown-algo", "PUT", dav + "/Docs/foo.txt", {"OC-Checksum": "FOO:abc"}, b"abc", auth=auth)
+    r.call(f, "put-checksum-malformed", "PUT", dav + "/Docs/malformed.txt", {"OC-Checksum": "nocolon"}, b"abc", auth=auth)
+    cprops = ("<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" "
+              "xmlns:nc=\"http://nextcloud.org/ns\"><d:prop><oc:checksums/><d:getlastmodified/><nc:upload_time/></d:prop></d:propfind>")
+    r.call(f, "propfind-checksums-sha1good", "PROPFIND", dav + "/Docs/sha1good.txt", {**xml, "Depth": "0"}, cprops, auth=auth)
+    r.call(f, "propfind-checksums-nochecksum", "PROPFIND", dav + "/Docs/chunked.bin", {**xml, "Depth": "0"}, cprops, auth=auth)
+    r.call(f, "put-mtime", "PUT", dav + "/Docs/mtime.txt", {"X-OC-MTime": "1500000000"}, b"x", auth=auth)
+    r.call(f, "propfind-mtime", "PROPFIND", dav + "/Docs/mtime.txt", {**xml, "Depth": "0"}, cprops, auth=auth)
+    r.call(f, "put-mtime-garbage", "PUT", dav + "/Docs/mtime2.txt", {"X-OC-MTime": "abc"}, b"x", auth=auth)
+    r.call(f, "put-empty", "PUT", dav + "/Docs/empty.txt", None, b"", auth=auth)
+    r.call(f, "put-name-part", "PUT", dav + "/Docs/a.part", None, b"x", auth=auth)
+    r.call(f, "put-name-htaccess", "PUT", dav + "/Docs/.htaccess", None, b"x", auth=auth)
+    r.call(f, "put-name-trailing-space", "PUT", dav + "/Docs/trail%20", None, b"x", auth=auth)
+    r.call(f, "put-name-backslash", "PUT", dav + "/Docs/a%5Cb", None, b"x", auth=auth)
+    r.call(f, "put-name-long", "PUT", dav + "/Docs/" + "a" * 300, None, b"x", auth=auth)
+    r.call(f, "mkcol-name-newline", "MKCOL", dav + "/Docs/a%0Ab", auth=auth)
+    r.call(f, "get-after-delete-of-dir-with-content", "DELETE", dav + "/Docs", auth=auth)
+    r.call(f, "mkcol-docs-again", "MKCOL", dav + "/Docs", auth=auth)
+    up3 = f"/remote.php/dav/uploads/{user}/rec-transfer-3"
+    d3 = f"http://{a.host}{dav}/Docs/c3.bin"
+    r.call(f, "chunk-put-no-session", "PUT", up3 + "/00001", None, b"A", auth=auth)
+    r.call(f, "chunk-mkcol", "MKCOL", up3, {"Destination": d3}, auth=auth)
+    r.call(f, "chunk-mkcol-again", "MKCOL", up3, {"Destination": d3}, auth=auth)
+    r.call(f, "chunk-name-nonnumeric", "PUT", up3 + "/abc", None, b"A", auth=auth)
+    r.call(f, "chunk-put-1", "PUT", up3 + "/00001", None, b"A" * 5, auth=auth)
+    r.call(f, "chunk-put-3-gap", "PUT", up3 + "/00003", None, b"C" * 5, auth=auth)
+    r.call(f, "chunk-put-1-again", "PUT", up3 + "/00001", None, b"X" * 7, auth=auth, note="overwrite a chunk")
+    r.call(f, "chunk-assemble-gap", "MOVE", up3 + "/.file", {"Destination": d3}, auth=auth, note="chunks 1 and 3, no total length")
+    r.call(f, "chunk-get-after-gap", "GET", dav + "/Docs/c3.bin", auth=auth)
+    r.call(f, "chunk-assemble-no-destination", "MOVE", up3 + "/.file", None, auth=auth)
+    r.call(f, "chunk-assemble-foreign-user", "MOVE", up3 + "/.file", {"Destination": f"http://{a.host}/remote.php/dav/files/other/x"}, auth=auth)
+    r.call(f, "put-existing-for-overwrite", "PUT", dav + "/Docs/c3.bin", None, b"old", auth=auth)
+    r.call(f, "chunk-assemble-overwrite-false", "MOVE", up3 + "/.file", {"Destination": d3, "Overwrite": "F"}, auth=auth)
+    r.call(f, "chunk-assemble-overwrite", "MOVE", up3 + "/.file", {"Destination": d3}, auth=auth)
+    r.call(f, "chunk-get-assembled", "GET", dav + "/Docs/c3.bin", auth=auth)
+    r.call(f, "chunk-delete-missing-session", "DELETE", up3, auth=auth)
+    r.call(f, "chunk-put-session-other-user", "PUT", "/remote.php/dav/uploads/someoneelse/x/00001", None, b"A", auth=auth)
+    r.call(f, "uploads-root-propfind", "PROPFIND", f"/remote.php/dav/uploads/{user}", {**xml, "Depth": "1"}, auth=auth)
+
     # ---- sign out --------------------------------------------------------
     f = "07-logout"
     r.call(f, "revoke-app-password", "DELETE", "/ocs/v2.php/core/apppassword?format=json", ocs, auth=auth)

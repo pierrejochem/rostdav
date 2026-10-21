@@ -16,11 +16,11 @@
     }
   },
   "response": {
-    "status": 423,
+    "status": 201,
     "headers": [
       [
         "Date",
-        "Wed, 21 Oct 2026 21:32:15 GMT"
+        "Wed, 21 Oct 2026 21:48:02 GMT"
       ],
       [
         "Server",
@@ -91,18 +91,40 @@
         "admin"
       ],
       [
+        "OC-FileId",
+        "00000083och35prclkve"
+      ],
+      [
         "Content-Length",
-        "233"
+        "0"
+      ],
+      [
+        "ETag",
+        "\"64d1435ece9d788c2b890ba146b7b317\""
+      ],
+      [
+        "X-Request-Id",
+        "3z6aVzrvRfbolj3CZ6C4"
+      ],
+      [
+        "OC-ETag",
+        "\"64d1435ece9d788c2b890ba146b7b317\""
+      ],
+      [
+        "X-NC-OwnerId",
+        "admin"
+      ],
+      [
+        "X-NC-Permissions",
+        "RGDNVW"
       ],
       [
         "Content-Type",
-        "application/xml; charset=utf-8"
+        "text/html; charset=UTF-8"
       ]
     ],
     "body": {
-      "length": 233,
-      "sha256": "1ea340c879634eadfbc979d6c6d0cdee2b5d08709a0c955e1b5fdf79a8cfcd3c",
-      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>OCA\\DAV\\Connector\\Sabre\\Exception\\FileLocked</s:exception>\n  <s:message>\"/Docs/bad.txt\" is locked</s:message>\n</d:error>\n"
+      "empty": true
     }
   }
 }

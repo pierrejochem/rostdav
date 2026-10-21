@@ -1,0 +1,109 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "MKCOL",
+    "path": "/remote.php/dav/files/admin/Docs/a%0Ab",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:48:09 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "415"
+      ],
+      [
+        "Connection",
+        "close"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 415,
+      "sha256": "59b90d1b63465734d826b0cd8026a8758062a4f3e9b895b91b1664540cf9a4b8",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:o=\"http://owncloud.org/ns\">\n  <s:exception>OCA\\DAV\\Connector\\Sabre\\Exception\\InvalidPath</s:exception>\n  <s:message>Filename contains at least one invalid character</s:message>\n  <o:retry xmlns:o=\"o:\">false</o:retry>\n  <o:reason xmlns:o=\"o:\">Filename contains at least one invalid character</o:reason>\n</d:error>\n"
+    }
+  }
+}

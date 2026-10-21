@@ -1,0 +1,134 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PUT",
+    "path": "/remote.php/dav/files/admin/Docs/mtime.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "X-OC-MTime": "1500000000",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 1,
+      "sha256": "2d711642b726b04401627ca9fbac32f5c8530fb1903cc4db02258717921a4881",
+      "text": "x"
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:48:08 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-OC-MTime",
+        "accepted"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "OC-FileId",
+        "00000108och35prclkve"
+      ],
+      [
+        "Content-Length",
+        "0"
+      ],
+      [
+        "ETag",
+        "\"1b317155d06892d0973fc729e81684ec\""
+      ],
+      [
+        "X-Request-Id",
+        "WRWoxFopYUw6CFzw2p3I"
+      ],
+      [
+        "OC-ETag",
+        "\"1b317155d06892d0973fc729e81684ec\""
+      ],
+      [
+        "X-NC-OwnerId",
+        "admin"
+      ],
+      [
+        "X-NC-Permissions",
+        "RGDNVW"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "empty": true
+    }
+  }
+}

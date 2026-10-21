@@ -18,7 +18,7 @@
     "headers": [
       [
         "Date",
-        "Wed, 21 Oct 2026 21:32:12 GMT"
+        "Wed, 21 Oct 2026 21:47:59 GMT"
       ],
       [
         "Server",
@@ -86,7 +86,7 @@
       ],
       [
         "X-Request-Id",
-        "H30bjXaaLjxmjfD7NYyv"
+        "UFTWj9Vo70IME87RwofX"
       ],
       [
         "Cache-Control",
@@ -111,8 +111,8 @@
     ],
     "body": {
       "length": 1241,
-      "sha256": "464f312324441f3f388a9e074b2a479b48226eb785db366473c02761dc676c06",
-      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":100,\"message\":\"OK\",\"totalitems\":\"\",\"itemsperpage\":\"\"},\"data\":{\"enabled\":true,\"storageLocation\":\"\\/var\\/www\\/html\\/data\\/admin\",\"id\":\"admin\",\"firstLoginTimestamp\":1792618093,\"lastLoginTimestamp\":1792618332,\"lastLogin\":1792618332000,\"backend\":\"Database\",\"subadmin\":[],\"quota\":{\"free\":-3,\"used\":65646160,\"total\":-3,\"relative\":0,\"quota\":-3},\"manager\":\"\",\"avatarScope\":\"v2-federated\",\"email\":null,\"emailScope\":\"v2-federated\",\"additional_mail\":[],\"additional_mailScope\":[],\"displayname\":\"admin\",\"display-name\":\"admin\",\"displaynameScope\":\"v2-federated\",\"phone\":\"\",\"phoneScope\":\"v2-local\",\"address\":\"\",\"addressScope\":\"v2-local\",\"website\":\"\",\"websiteScope\":\"v2-local\",\"twitter\":\"\",\"twitterScope\":\"v2-local\",\"bluesky\":\"\",\"blueskyScope\":\"v2-local\",\"fediverse\":\"\",\"fediverseScope\":\"v2-local\",\"organisation\":\"\",\"organisationScope\":\"v2-local\",\"role\":\"\",\"roleScope\":\"v2-local\",\"headline\":\"\",\"headlineScope\":\"v2-local\",\"biography\":\"\",\"biographyScope\":\"v2-local\",\"profile_enabled\":\"1\",\"profile_enabledScope\":\"v2-local\",\"pronouns\":\"\",\"pronounsScope\":\"v2-federated\",\"groups\":[\"admin\"],\"language\":\"en\",\"locale\":\"\",\"timezone\":\"UTC\",\"notify_email\":null,\"backendCapabilities\":{\"setDisplayName\":true,\"setPassword\":true}}}}"
+      "sha256": "e589cf427d1f1b955e9f2ed43c385eaedd0c27e97a8dec0dee274ee96ceeafae",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":100,\"message\":\"OK\",\"totalitems\":\"\",\"itemsperpage\":\"\"},\"data\":{\"enabled\":true,\"storageLocation\":\"\\/var\\/www\\/html\\/data\\/admin\",\"id\":\"admin\",\"firstLoginTimestamp\":1792619267,\"lastLoginTimestamp\":1792619267,\"lastLogin\":1792619267000,\"backend\":\"Database\",\"subadmin\":[],\"quota\":{\"free\":-3,\"used\":65646129,\"total\":-3,\"relative\":0,\"quota\":-3},\"manager\":\"\",\"avatarScope\":\"v2-federated\",\"email\":null,\"emailScope\":\"v2-federated\",\"additional_mail\":[],\"additional_mailScope\":[],\"displayname\":\"admin\",\"display-name\":\"admin\",\"displaynameScope\":\"v2-federated\",\"phone\":\"\",\"phoneScope\":\"v2-local\",\"address\":\"\",\"addressScope\":\"v2-local\",\"website\":\"\",\"websiteScope\":\"v2-local\",\"twitter\":\"\",\"twitterScope\":\"v2-local\",\"bluesky\":\"\",\"blueskyScope\":\"v2-local\",\"fediverse\":\"\",\"fediverseScope\":\"v2-local\",\"organisation\":\"\",\"organisationScope\":\"v2-local\",\"role\":\"\",\"roleScope\":\"v2-local\",\"headline\":\"\",\"headlineScope\":\"v2-local\",\"biography\":\"\",\"biographyScope\":\"v2-local\",\"profile_enabled\":\"1\",\"profile_enabledScope\":\"v2-local\",\"pronouns\":\"\",\"pronounsScope\":\"v2-federated\",\"groups\":[\"admin\"],\"language\":\"en\",\"locale\":\"\",\"timezone\":\"UTC\",\"notify_email\":null,\"backendCapabilities\":{\"setDisplayName\":true,\"setPassword\":true}}}}"
     }
   }
 }

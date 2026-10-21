@@ -18,7 +18,7 @@
     "headers": [
       [
         "Date",
-        "Wed, 21 Oct 2026 21:32:20 GMT"
+        "Wed, 21 Oct 2026 21:48:06 GMT"
       ],
       [
         "Server",
@@ -86,7 +86,7 @@
       ],
       [
         "X-Request-Id",
-        "CBy4ymPcG8mS0BkHBPG4"
+        "hm6q055nJmBo2CKS9NUL"
       ],
       [
         "Cache-Control",
@@ -102,7 +102,7 @@
       ],
       [
         "Content-Length",
-        "2296"
+        "2255"
       ],
       [
         "Content-Type",
@@ -110,9 +110,9 @@
       ]
     ],
     "body": {
-      "length": 2296,
-      "sha256": "6d9e83101351c2e771e4ca8f7cf2cbe82bb8b6f2160716b935c03c570ecc3a5e",
-      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":200,\"message\":\"OK\"},\"data\":{\"activity\":{\"id\":\"activity\",\"title\":\"Neueste Aktivit\\u00e4ten\",\"order\":20,\"icon_class\":\"icon-activity\",\"icon_url\":\"http:\\/\\/{{host}}\\/apps\\/activity\\/img\\/activity-dark.svg\",\"widget_url\":\"http:\\/\\/{{host}}\\/apps\\/activity\\/\",\"item_icons_round\":true,\"item_api_versions\":[1,2],\"reload_interval\":30,\"buttons\":[{\"type\":\"more\",\"text\":\"Weitere Aktivit\\u00e4ten\",\"link\":\"http:\\/\\/{{host}}\\/apps\\/activity\\/\"}]},\"circles\":{\"id\":\"circles\",\"title\":\"Teams\",\"order\":0,\"icon_class\":\"icon-teams\",\"icon_url\":\"http:\\/\\/{{host}}\\/apps\\/circles\\/img\\/circles-dark.svg\",\"widget_url\":\"http:\\/\\/{{host}}\\/apps\\/circles\\/teams\",\"item_icons_round\":false,\"item_api_versions\":[],\"reload_interval\":0,\"buttons\":[{\"type\":\"more\",\"text\":\"Alle Teams anzeigen\",\"link\":\"http:\\/\\/{{host}}\\/apps\\/circles\\/teams\"},{\"type\":\"setup\",\"text\":\"Ein neues Team erstellen\",\"link\":\"http:\\/\\/{{host}}\\/apps\\/circles\\/teams\"}]},\"files-favorites\":{\"id\":\"files-favorites\",\"title\":\"Favorisierte Dateien\",\"order\":0,\"icon_class\":\"icon-starred-dark\",\"icon_url\":\"http:\\/\\/{{host}}\\/core\\/img\\/actions\\/star-dark.svg\",\"widget_url\":\"http:\\/\\/{{host}}\\/apps\\/files\\/favorites\",\"item_icons_round\":false,\"item_api_versions\":[2],\"reload_interval\":0,\"buttons\":[{\"type\":\"more\",\"text\":\"Weitere Favoriten\",\"link\":\"http:\\/\\/{{host}}\\/apps\\/files\\/favorites\"}]},\"photos-onthisday\":{\"id\":\"photos-onthisday\",\"title\":\"An diesem Tag\",\"order\":20,\"icon_class\":\"icon-calendar-dark\",\"icon_url\":\"http:\\/\\/{{host}}\\/core\\/img\\/places\\/calendar.svg\",\"widget_url\":\"http:\\/\\/{{host}}\\/apps\\/photos\\/thisday\",\"item_icons_round\":false,\"item_api_versions\":[],\"reload_interval\":0},\"recommendations\":{\"id\":\"recommendations\",\"title\":\"Empfohlene Dateien\",\"order\":0,\"icon_class\":\"icon-files-dark\",\"icon_url\":\"http:\\/\\/{{host}}\\/apps\\/files\\/img\\/app-dark.svg\",\"widget_url\":null,\"item_icons_round\":false,\"item_api_versions\":[1],\"reload_interval\":0},\"user_status\":{\"id\":\"user_status\",\"title\":\"Letzter Status\",\"order\":5,\"icon_class\":\"icon-user-status-dark\",\"icon_url\":\"http:\\/\\/{{host}}\\/apps\\/user_status\\/img\\/app-dark.svg\",\"widget_url\":null,\"item_icons_round\":true,\"item_api_versions\":[1,2],\"reload_interval\":0}}}}"
+      "length": 2255,
+      "sha256": "f9f914d630a7c32f9d36407d889bdb649ba63eb32addf74a5ad8b6951d7f5eb4",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":200,\"message\":\"OK\"},\"data\":{\"activity\":{\"id\":\"activity\",\"title\":\"Recent activity\",\"order\":20,\"icon_class\":\"icon-activity\",\"icon_url\":\"http:\\/\\/{{host}}\\/apps\\/activity\\/img\\/activity-dark.svg\",\"widget_url\":\"http:\\/\\/{{host}}\\/apps\\/activity\\/\",\"item_icons_round\":true,\"item_api_versions\":[1,2],\"reload_interval\":30,\"buttons\":[{\"type\":\"more\",\"text\":\"More activities\",\"link\":\"http:\\/\\/{{host}}\\/apps\\/activity\\/\"}]},\"circles\":{\"id\":\"circles\",\"title\":\"Teams\",\"order\":0,\"icon_class\":\"icon-teams\",\"icon_url\":\"http:\\/\\/{{host}}\\/apps\\/circles\\/img\\/circles-dark.svg\",\"widget_url\":\"http:\\/\\/{{host}}\\/apps\\/circles\\/teams\",\"item_icons_round\":false,\"item_api_versions\":[],\"reload_interval\":0,\"buttons\":[{\"type\":\"more\",\"text\":\"Show all teams\",\"link\":\"http:\\/\\/{{host}}\\/apps\\/circles\\/teams\"},{\"type\":\"setup\",\"text\":\"Create a new team\",\"link\":\"http:\\/\\/{{host}}\\/apps\\/circles\\/teams\"}]},\"files-favorites\":{\"id\":\"files-favorites\",\"title\":\"Favorite files\",\"order\":0,\"icon_class\":\"icon-starred-dark\",\"icon_url\":\"http:\\/\\/{{host}}\\/core\\/img\\/actions\\/star-dark.svg\",\"widget_url\":\"http:\\/\\/{{host}}\\/apps\\/files\\/favorites\",\"item_icons_round\":false,\"item_api_versions\":[2],\"reload_interval\":0,\"buttons\":[{\"type\":\"more\",\"text\":\"More favorites\",\"link\":\"http:\\/\\/{{host}}\\/apps\\/files\\/favorites\"}]},\"photos-onthisday\":{\"id\":\"photos-onthisday\",\"title\":\"On This Day\",\"order\":20,\"icon_class\":\"icon-calendar-dark\",\"icon_url\":\"http:\\/\\/{{host}}\\/core\\/img\\/places\\/calendar.svg\",\"widget_url\":\"http:\\/\\/{{host}}\\/apps\\/photos\\/thisday\",\"item_icons_round\":false,\"item_api_versions\":[],\"reload_interval\":0},\"recommendations\":{\"id\":\"recommendations\",\"title\":\"Recommended files\",\"order\":0,\"icon_class\":\"icon-files-dark\",\"icon_url\":\"http:\\/\\/{{host}}\\/apps\\/files\\/img\\/app-dark.svg\",\"widget_url\":null,\"item_icons_round\":false,\"item_api_versions\":[1],\"reload_interval\":0},\"user_status\":{\"id\":\"user_status\",\"title\":\"Recent statuses\",\"order\":5,\"icon_class\":\"icon-user-status-dark\",\"icon_url\":\"http:\\/\\/{{host}}\\/apps\\/user_status\\/img\\/app-dark.svg\",\"widget_url\":null,\"item_icons_round\":true,\"item_api_versions\":[1,2],\"reload_interval\":0}}}}"
     }
   }
 }
