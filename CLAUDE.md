@@ -12,7 +12,7 @@ The binding working rules are in [AGENTS.md](AGENTS.md). The full project instru
 
 - M0 complete (skeleton, configuration, logs, health endpoints, CI).
 - Approval point 2 granted (ADR 0002 accepted). M1 complete (schema, BlobStore, naming rules, `admin user add`).
-- Next milestone: M2 – WebDAV core.
+- M2 (WebDAV core) implemented; `cadaver` check open. Next milestone: M3 – reference recordings.
 
 ## Commands
 

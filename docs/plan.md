@@ -23,10 +23,11 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 - `rostdav admin user add` (CLI), Argon2id
 - **Acceptance:** unit tests for naming rules (incl. Unicode, `..`, percent-encoding); crash simulation between blob and commit leaves no inconsistent state
 
-### M2 – WebDAV core
+### M2 – WebDAV core (implemented 2026-10-21; `cadaver` check open)
 - Basic Auth with account password (app passwords follow in M4)
 - OPTIONS, PROPFIND (Depth 0/1), GET/HEAD with Range, PUT (streaming), MKCOL, DELETE, MOVE, COPY
 - ETag, Last-Modified, `If-Match`/`If-None-Match`, `Overwrite`, recursive folder ETags
+- **Result:** `rclone` (copy up/down, check, moveto, purge, mkdir) verified manually; litmus `basic` 16/16 and `copymove` 13/13 pass (`scripts/litmus.sh`, CI job `litmus`). litmus `props` is not run: it needs PROPPATCH/dead properties, which are not implemented. `cadaver` not yet tried.
 - **Acceptance:** integration tests of all methods incl. error cases; a second user demonstrably cannot access the first user's files; `rclone` and `cadaver` work; litmus basic tests run in CI
 
 ## Phase 3: App compatibility (P1)

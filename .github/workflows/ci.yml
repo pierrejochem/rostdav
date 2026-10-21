@@ -39,3 +39,16 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check advisories licenses bans sources
+
+  litmus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install litmus
+        run: sudo apt-get update && sudo apt-get install -y litmus
+      - name: Build
+        run: cargo build
+      - name: litmus (basic, copymove)
+        run: scripts/litmus.sh ./target/debug/rostdav

@@ -80,6 +80,22 @@ fn name_of(ns: &ResolveResult<'_>, local: &[u8]) -> PropName {
     (ns, String::from_utf8_lossy(local).into_owned())
 }
 
+/// Rejects unbound prefixes and `xmlns:p=""` (invalid in XML Namespaces 1.0).
+fn check_element(ns: &ResolveResult<'_>, e: &quick_xml::events::BytesStart<'_>) -> Result<()> {
+    let bad = || Error::BadRequest("invalid namespace declaration");
+    if matches!(ns, ResolveResult::Unknown(_)) {
+        return Err(bad());
+    }
+    for attr in e.attributes() {
+        let attr = attr.map_err(|_| Error::BadRequest("malformed XML"))?;
+        let key = attr.key.as_ref();
+        if key.starts_with(b"xmlns:") && attr.value.is_empty() {
+            return Err(bad());
+        }
+    }
+    Ok(())
+}
+
 /// An empty body means `allprop` (RFC 4918 §9.1).
 pub fn parse_propfind(body: &[u8]) -> Result<PropfindRequest> {
     if body.iter().all(u8::is_ascii_whitespace) {
@@ -93,8 +109,12 @@ pub fn parse_propfind(body: &[u8]) -> Result<PropfindRequest> {
             .map_err(|_| Error::BadRequest("malformed XML"))?;
         match event {
             Event::DocType(_) => return Err(Error::BadRequest("DOCTYPE not allowed")),
-            Event::Start(e) => st.start(name_of(&ns, e.local_name().as_ref()))?,
+            Event::Start(e) => {
+                check_element(&ns, &e)?;
+                st.start(name_of(&ns, e.local_name().as_ref()))?;
+            }
             Event::Empty(e) => {
+                check_element(&ns, &e)?;
                 st.start(name_of(&ns, e.local_name().as_ref()))?;
                 st.end();
             }
@@ -256,6 +276,8 @@ mod tests {
             "<x xmlns=\"DAV:\"/>",
             "<d:propfind xmlns:d=\"DAV:\"/>",
             "<propfind xmlns=\"other:\"><allprop/></propfind>",
+            "<d:propfind xmlns:d=\"DAV:\"><d:prop><x:foo/></d:prop></d:propfind>",
+            "<d:propfind xmlns:d=\"DAV:\"><d:prop><x:foo xmlns:x=\"\"/></d:prop></d:propfind>",
         ] {
             assert!(parse_propfind(bad.as_bytes()).is_err(), "{bad}");
         }
