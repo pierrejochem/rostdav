@@ -10,7 +10,17 @@ publish.workspace = true
 [dependencies]
 rostdav-core.workspace = true
 rostdav-app.workspace = true
+rostdav-meta.workspace = true
 axum.workspace = true
+base64.workspace = true
+futures-core.workspace = true
+httpdate.workspace = true
+mime_guess.workspace = true
+percent-encoding.workspace = true
+quick-xml.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+tracing.workspace = true
 
 [lints]
 workspace = true

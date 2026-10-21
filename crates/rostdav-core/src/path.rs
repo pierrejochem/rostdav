@@ -96,6 +96,14 @@ impl LogicalPath {
         Ok(Self { segments })
     }
 
+    /// Appends a validated name.
+    #[must_use]
+    pub fn join(&self, name: &Name) -> Self {
+        let mut segments = self.segments.clone();
+        segments.push(name.clone());
+        Self { segments }
+    }
+
     pub fn segments(&self) -> &[Name] {
         &self.segments
     }
