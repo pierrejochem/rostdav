@@ -11,6 +11,8 @@ publish.workspace = true
 rostdav-core.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+blake3.workspace = true
+ulid.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
