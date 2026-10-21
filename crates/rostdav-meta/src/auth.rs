@@ -332,18 +332,22 @@ impl Db {
     }
 
     pub async fn find_user_by_id(&self, id: i64) -> Result<Option<crate::User>> {
-        let row: Option<(i64, String, String, bool)> =
-            sqlx::query_as("SELECT id, name, password_hash, is_admin FROM users WHERE id = ?")
-                .bind(id)
-                .fetch_optional(self.pool())
-                .await
-                .map_err(err)?;
-        Ok(row.map(|(id, name, password_hash, is_admin)| crate::User {
-            id,
-            name,
-            password_hash,
-            is_admin,
-        }))
+        let row: Option<(i64, String, String, bool, bool)> = sqlx::query_as(
+            "SELECT id, name, password_hash, is_admin, disabled FROM users WHERE id = ?",
+        )
+        .bind(id)
+        .fetch_optional(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(row.map(
+            |(id, name, password_hash, is_admin, disabled)| crate::User {
+                id,
+                name,
+                password_hash,
+                is_admin,
+                disabled,
+            },
+        ))
     }
 }
 

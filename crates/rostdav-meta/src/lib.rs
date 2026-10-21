@@ -3,10 +3,12 @@
 //! Schema and migrations per ADR 0002. Repositories are added as the
 //! milestones require them.
 
+mod admin;
 mod auth;
 mod nodes;
 mod users;
 
+pub use admin::{Event, UsageMismatch, UserSummary};
 pub use auth::{AppPassword, LoginFlow, MAX_UPLOAD_SESSIONS_PER_USER, PollResult, UploadSession};
 pub use nodes::{NewBlob, Node, NodeKind, WriteCondition, Written};
 pub use users::{NewUser, User};

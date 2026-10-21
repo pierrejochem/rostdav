@@ -10,6 +10,7 @@ pub struct User {
     pub name: String,
     pub password_hash: String,
     pub is_admin: bool,
+    pub disabled: bool,
 }
 
 pub struct NewUser<'a> {
@@ -66,6 +67,7 @@ impl Db {
             name: name.as_str().to_owned(),
             password_hash: new.password_hash.to_owned(),
             is_admin: new.is_admin,
+            disabled: false,
         })
     }
 
@@ -74,19 +76,22 @@ impl Db {
         let Ok(name) = Name::parse(name) else {
             return Ok(None);
         };
-        let row: Option<(i64, String, String, bool)> = sqlx::query_as(
-            "SELECT id, name, password_hash, is_admin FROM users WHERE name_key = ?",
+        let row: Option<(i64, String, String, bool, bool)> = sqlx::query_as(
+            "SELECT id, name, password_hash, is_admin, disabled FROM users WHERE name_key = ?",
         )
         .bind(name.key())
         .fetch_optional(self.pool())
         .await
         .map_err(Error::internal)?;
-        Ok(row.map(|(id, name, password_hash, is_admin)| User {
-            id,
-            name,
-            password_hash,
-            is_admin,
-        }))
+        Ok(
+            row.map(|(id, name, password_hash, is_admin, disabled)| User {
+                id,
+                name,
+                password_hash,
+                is_admin,
+                disabled,
+            }),
+        )
     }
 }
 
