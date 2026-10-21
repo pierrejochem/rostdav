@@ -36,6 +36,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 - Nextcloud (same major version as emulated) in Docker, reference app in the Android emulator, record traffic with mitmproxy
 - Flows: add server, Login Flow v2, open folder, upload small/large, download, rename, move, delete, sign out
 - Sanitized fixtures to `tests/fixtures/nextcloud/`, findings with sources in `docs/compatibility.md`
+- **Result so far:** Nextcloud 35.0.2 in Docker recorded with synthetic requests (`scripts/record_nextcloud.py`, ~110 fixtures, findings in `docs/compatibility.md`). Not done: capture of the real Android app via emulator + mitmproxy.
 - **Acceptance:** every flow present as a fixture, open questions documented
 
 ### M4 – Sign-in like Nextcloud
