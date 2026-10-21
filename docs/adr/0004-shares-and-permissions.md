@@ -1,6 +1,6 @@
 # ADR 0004: Shares and the permission model
 
-- Status: **Proposed — approval point 3 (permission model) is open.** No authorization code has been changed for this ADR.
+- Status: **Accepted** by the project owner on 2026-10-22 as proposed (no resharing; cross-owner MOVE refused, COPY allowed; link web page deferred to M11). Approval point 3 granted.
 - Date: 2026-10-22
 - Evidence: reference recordings `tests/fixtures/nextcloud/10-shares/` (Nextcloud 35.0.2, `scripts/record_nextcloud_extra.py shares`).
 
@@ -62,11 +62,11 @@ Access { node, perms: u8 (bits as above), origin: Own | Share(id) | Link(id) }
 
 An authorization matrix (owner, recipient with 1/3/5/7/15, link read/edit/create-only, link with wrong or missing password, stranger, admin, expired link) × (GET, HEAD, PROPFIND, PUT new, PUT overwrite, MKCOL, DELETE, MOVE inside, MOVE across trees, COPY out/in, versions list/restore/delete, chunked upload, OCS share management, share enumeration by ID), each with its expected status from the fixtures, plus path traversal through mount points and through `Destination` headers, and quota accounting to the owner.
 
-## Open questions for the project owner
+## Decisions of the project owner (2026-10-22)
 
-1. Resharing off (as proposed) — acceptable? The apps send `permissions=31` by default; we would store 15 and report 15.
-2. Cross-owner **move** refused — acceptable, or must it work (as copy + delete)?
-3. Public links in M9 are WebDAV + OCS only; the HTML page `/s/<token>` follows with the web UI (M11). OK?
+1. Resharing stays off; the apps send `permissions=31`, we store and report 15.
+2. Cross-owner **move** is refused.
+3. Public links in M9 are WebDAV + OCS only; the HTML page `/s/<token>` follows with the web UI (M11).
 
 ## Consequences
 

@@ -210,6 +210,25 @@ impl Db {
         .await
         .map_err(err)?;
 
+        // shares on the moved nodes now belong to the new owner; a share to the new owner makes no sense any more
+        sqlx::query(
+            "WITH RECURSIVE sub(id) AS (
+                 SELECT id FROM nodes WHERE parent_id = ?1
+                 UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
+             )
+             UPDATE shares SET owner_id = ?2 WHERE node_id IN (SELECT id FROM sub)",
+        )
+        .bind(folder)
+        .bind(to)
+        .execute(&mut *tx)
+        .await
+        .map_err(err)?;
+        sqlx::query("DELETE FROM shares WHERE owner_id = ?1 AND recipient_id = ?1")
+            .bind(to)
+            .execute(&mut *tx)
+            .await
+            .map_err(err)?;
+
         let moved: i64 = sqlx::query_scalar(
             "WITH RECURSIVE sub(id) AS (
                  SELECT id FROM nodes WHERE parent_id = ?1

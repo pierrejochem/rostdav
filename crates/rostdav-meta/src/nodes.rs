@@ -338,6 +338,7 @@ impl Db {
         let now = now_secs();
         let mut tx = self.write_tx().await?;
         let parent = require_dir(&mut tx, parent_id).await?;
+        crate::shares::ensure_no_mount_clash(&mut tx, &parent, name.key()).await?;
         let id: i64 = sqlx::query_scalar(
             "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, mtime, etag, created_at, updated_at)
              VALUES (?, ?, ?, ?, 'dir', ?, ?, ?, ?) RETURNING id",
@@ -467,6 +468,7 @@ impl Db {
                 (old.id, delta, true)
             }
             None => {
+                crate::shares::ensure_no_mount_clash(&mut tx, &parent, name.key()).await?;
                 let id: i64 = sqlx::query_scalar(
                     "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time, created_at, updated_at)
                      VALUES (?, ?, ?, ?, 'file', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
@@ -544,6 +546,7 @@ impl Db {
         if is_within(&mut tx, parent.id, node.id).await? {
             return Err(Error::Conflict("cannot move into itself"));
         }
+        crate::shares::ensure_no_mount_clash(&mut tx, &parent, name.key()).await?;
         let replaced = clear_target(&mut tx, &parent, name, overwrite, node.id).await?;
         sqlx::query(
             "UPDATE nodes SET parent_id = ?, name = ?, name_key = ?, updated_at = ? WHERE id = ?",
@@ -579,18 +582,28 @@ impl Db {
             return Err(Error::Conflict("cannot copy the root"));
         }
         let parent = require_dir(&mut tx, new_parent).await?;
-        if parent.owner_id != src.owner_id {
-            return Err(Error::Forbidden);
-        }
+        // Copies may cross owners (ADR 0004): the new nodes belong to the
+        // destination's owner and count against their quota.
         if is_within(&mut tx, parent.id, src.id).await? {
             return Err(Error::Conflict("cannot copy into itself"));
         }
+        crate::shares::ensure_no_mount_clash(&mut tx, &parent, name.key()).await?;
         let replaced = clear_target(&mut tx, &parent, name, overwrite, src.id).await?;
 
         let added = subtree_size(&mut tx, src.id).await?;
-        adjust_used(&mut tx, src.owner_id, added).await?;
+        adjust_used(&mut tx, parent.owner_id, added).await?;
+        let owner = parent.owner_id;
 
-        let new_id = copy_one(&mut tx, &src, parent.id, name.as_str(), name.key(), now).await?;
+        let new_id = copy_one(
+            &mut tx,
+            &src,
+            owner,
+            parent.id,
+            name.as_str(),
+            name.key(),
+            now,
+        )
+        .await?;
         let mut stack = vec![(src.id, new_id)];
         while let Some((old_dir, new_dir)) = stack.pop() {
             let rows: Vec<Row> =
@@ -603,7 +616,7 @@ impl Db {
                 let child = to_node(row)?;
                 // Stored names were validated on the way in.
                 let key = Name::parse(&child.name)?.key().to_owned();
-                let nid = copy_one(&mut tx, &child, new_dir, &child.name, &key, now).await?;
+                let nid = copy_one(&mut tx, &child, owner, new_dir, &child.name, &key, now).await?;
                 if child.kind == NodeKind::Dir {
                     stack.push((child.id, nid));
                 }
@@ -661,6 +674,7 @@ async fn clear_target(
 async fn copy_one(
     conn: &mut SqliteConnection,
     src: &Node,
+    owner: i64,
     parent: i64,
     name: &str,
     name_key: &str,
@@ -674,7 +688,7 @@ async fn copy_one(
         "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
-    .bind(src.owner_id)
+    .bind(owner)
     .bind(parent)
     .bind(name)
     .bind(name_key)
@@ -1030,20 +1044,24 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn users_cannot_cross_trees() {
+    async fn moves_cannot_cross_trees_but_copies_may() {
         let (_d, db) = test_db().await;
-        let (_, ra) = user(&db, "anna").await;
+        let (ua, ra) = user(&db, "anna").await;
         let (ub, rb) = user(&db, "bob").await;
-        let f = put(&db, ra, "f", "1", 1).await;
+        let f = put(&db, ra, "f", "1", 4).await;
         assert!(matches!(
             db.move_node(f.id, rb, &n("f"), false).await,
             Err(Error::Forbidden)
         ));
-        assert!(matches!(
-            db.copy_node(f.id, rb, &n("f"), false).await,
-            Err(Error::Forbidden)
-        ));
+        // a copy into another user's tree belongs to that user and counts for them
+        let c = db.copy_node(f.id, rb, &n("f"), false).await.expect("copy");
+        assert_eq!(c.node.owner_id, ub);
+        assert_eq!((used(&db, ua).await, used(&db, ub).await), (4, 4));
+        assert!(db.usage_mismatches().await.expect("m").is_empty());
         let p = LogicalPath::from_url_path("/f").expect("p");
-        assert_eq!(db.resolve(ub, &p).await.expect("r"), None);
+        assert_eq!(
+            db.resolve(ub, &p).await.expect("r").map(|n| n.id),
+            Some(c.node.id)
+        );
     }
 }
