@@ -32,13 +32,58 @@ impl DavError {
     }
 }
 
+impl DavError {
+    /// Sabre/DAV exception class and message, as in the reference bodies
+    /// (`tests/fixtures/nextcloud/04-webdav/`). Internal details never appear.
+    fn sabre(&self) -> (&'static str, String) {
+        let (class, msg): (&str, String) = match &self.0 {
+            Error::NotFound => ("NotFound", "File with name could not be located".into()),
+            Error::Unauthenticated => (
+                "NotAuthenticated",
+                "No public access to this resource.".into(),
+            ),
+            Error::Forbidden => ("Forbidden", "Access denied".into()),
+            Error::Conflict(m) => ("Conflict", (*m).into()),
+            Error::AlreadyExists => (
+                "MethodNotAllowed",
+                "The resource you tried to create already exists".into(),
+            ),
+            Error::PreconditionFailed => (
+                "PreconditionFailed",
+                "A precondition of the request was not met".into(),
+            ),
+            Error::QuotaExceeded => ("InsufficientStorage", "Insufficient storage".into()),
+            Error::Locked => ("Locked", "Locked".into()),
+            Error::TooLarge => ("PayloadTooLarge", "The request is too large".into()),
+            Error::RateLimited { .. } => (
+                "TooManyRequests",
+                "Too many failed attempts, try again later".into(),
+            ),
+            Error::BadRequest(m) => ("BadRequest", (*m).into()),
+            Error::Invalid(m) => ("BadRequest", m.clone()),
+            Error::Unavailable => ("ServiceUnavailable", "Service unavailable".into()),
+            Error::Internal(_) => ("ServiceUnavailable", "Internal server error".into()),
+        };
+        (class, msg)
+    }
+}
+
 impl IntoResponse for DavError {
     fn into_response(self) -> Response {
         if self.0.is_internal() {
             tracing::error!(error = %self.0, cause = ?std::error::Error::source(&self.0), "internal error");
         }
         let status = self.status();
-        let mut resp = status.into_response();
+        let (class, msg) = self.sabre();
+        let body = format!(
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\{class}</s:exception>\n  <s:message>{}</s:message>\n</d:error>\n",
+            crate::xml::escape(&msg)
+        );
+        let mut resp = (status, body).into_response();
+        resp.headers_mut().insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("application/xml; charset=utf-8"),
+        );
         if status == StatusCode::UNAUTHORIZED {
             resp.headers_mut().insert(
                 header::WWW_AUTHENTICATE,
@@ -84,11 +129,39 @@ mod tests {
         assert_eq!(s(Error::BadRequest("x")), 400);
     }
 
-    #[test]
-    fn unauthenticated_carries_challenge_and_internal_hides_details() {
+    #[tokio::test]
+    async fn bodies_are_sabre_xml_and_internal_hides_details() {
+        use http_body_util_lite::body_string;
         let r = DavError(Error::Unauthenticated).into_response();
         assert!(r.headers().contains_key(header::WWW_AUTHENTICATE));
-        let r = DavError(Error::internal(std::io::Error::other("/srv/geheim"))).into_response();
+        let b = body_string(r).await;
+        assert!(
+            b.contains("<s:exception>Sabre\\DAV\\Exception\\NotAuthenticated</s:exception>"),
+            "{b}"
+        );
+
+        let r =
+            DavError(Error::internal(std::io::Error::other("/srv/secret-path"))).into_response();
         assert_eq!(r.status(), 500);
+        let b = body_string(r).await;
+        assert!(!b.contains("secret-path"));
+        assert!(b.contains("Internal server error"));
+
+        let r = DavError(Error::Invalid("a<b&c".into())).into_response();
+        let b = body_string(r).await;
+        assert!(b.contains("a&lt;b&amp;c"), "{b}");
+        assert_eq!(
+            DavError(Error::AlreadyExists).into_response().headers()["allow"],
+            crate::ALLOWED_METHODS
+        );
+    }
+
+    mod http_body_util_lite {
+        pub async fn body_string(r: axum::response::Response) -> String {
+            let bytes = axum::body::to_bytes(r.into_body(), 1 << 20)
+                .await
+                .expect("body");
+            String::from_utf8_lossy(&bytes).into_owned()
+        }
     }
 }

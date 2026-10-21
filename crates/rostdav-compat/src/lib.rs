@@ -9,7 +9,7 @@ mod ocs;
 
 use axum::Router;
 use axum::extract::State;
-use axum::http::{HeaderValue, header};
+use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use rostdav_app::AppState;
@@ -23,6 +23,8 @@ pub struct CompatConfig {
     /// `major.minor.micro[.build]`
     pub version: String,
     pub product_name: String,
+    /// Advertised maximum size of one upload chunk in bytes.
+    pub max_chunk_bytes: u64,
 }
 
 impl Default for CompatConfig {
@@ -31,6 +33,7 @@ impl Default for CompatConfig {
             public_url: None,
             version: "35.0.2.2".into(),
             product_name: "Rostdav".into(),
+            max_chunk_bytes: 100 * 1024 * 1024,
         }
     }
 }
@@ -61,6 +64,12 @@ pub fn router(cfg: CompatConfig) -> Router<AppState> {
             "/ocs/{version}/core/apppassword",
             delete(ocs::revoke_app_password),
         )
+        // Previews and avatars are not provided; answer cleanly instead of failing.
+        .route("/index.php/core/preview", get(not_found))
+        .route("/index.php/core/preview.png", get(not_found))
+        .route("/core/preview", get(not_found))
+        .route("/index.php/avatar/{user}/{size}", get(not_found))
+        .route("/avatar/{user}/{size}", get(not_found))
         .route("/index.php/login/v2", post(login::start))
         .route("/login/v2", post(login::start))
         .route("/index.php/login/v2/poll", post(login::poll))
@@ -90,6 +99,10 @@ async fn status(
         HeaderValue::from_static("application/json"),
     );
     r
+}
+
+async fn not_found() -> StatusCode {
+    StatusCode::NOT_FOUND
 }
 
 pub(crate) fn json_response(body: serde_json::Value) -> Response {

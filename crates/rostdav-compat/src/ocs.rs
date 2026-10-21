@@ -233,6 +233,14 @@ pub async fn capabilities(
                 "pollinterval": 60,
                 "webdav-root": "remote.php/webdav",
             },
+            "dav": { "chunking": "1.0" },
+            "files": {
+                "chunked_upload": {
+                    "max_size": cfg.max_chunk_bytes,
+                    "max_parallel_count": 5,
+                },
+                "forbidden_filename_extensions": rostdav_app::FORBIDDEN_EXTENSIONS,
+            },
         },
     }))
 }

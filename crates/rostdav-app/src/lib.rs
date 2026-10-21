@@ -14,7 +14,7 @@ mod secrets;
 mod uploads;
 
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, UserInfo, Via, authorize};
-pub use files::{Listing, PutOptions, normalize_checksum};
+pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, normalize_checksum};
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use uploads::UploadListing;

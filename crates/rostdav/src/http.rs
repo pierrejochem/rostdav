@@ -27,6 +27,7 @@ pub struct HttpOptions {
     pub public_url: Option<String>,
     pub reported_version: Option<String>,
     pub product_name: Option<String>,
+    pub max_chunk_bytes: Option<u64>,
 }
 
 impl HttpOptions {
@@ -36,6 +37,7 @@ impl HttpOptions {
             public_url: cfg.server.public_url.clone(),
             reported_version: Some(cfg.compat.reported_version.clone()),
             product_name: Some(cfg.compat.product_name.clone()),
+            max_chunk_bytes: Some(cfg.limits.max_chunk_bytes),
         }
     }
 }
@@ -54,6 +56,9 @@ pub fn router_with(state: AppState, opts: &HttpOptions) -> Router {
     }
     if let Some(n) = &opts.product_name {
         compat.product_name.clone_from(n);
+    }
+    if let Some(m) = opts.max_chunk_bytes {
+        compat.max_chunk_bytes = m;
     }
     let proxies = Arc::new(opts.trusted_proxies.clone());
 

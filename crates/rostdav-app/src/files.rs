@@ -33,6 +33,23 @@ pub fn normalize_checksum(raw: &str) -> Option<String> {
     ok.then(|| raw.to_owned())
 }
 
+/// Extensions clients must not create (reference: `files.forbidden_filename_extensions`,
+/// `tests/fixtures/nextcloud/08-m5-probes/16-put-name-part`).
+pub const FORBIDDEN_EXTENSIONS: [&str; 2] = [".filepart", ".part"];
+
+/// Policy for names of newly created files and folders.
+pub fn check_new_name(name: &Name) -> Result<()> {
+    let lower = name.as_str().to_lowercase();
+    for ext in FORBIDDEN_EXTENSIONS {
+        if lower.ends_with(ext) {
+            return Err(Error::Invalid(format!(
+                "\"{ext}\" is a forbidden file type."
+            )));
+        }
+    }
+    Ok(())
+}
+
 /// A directory with its children.
 #[derive(Debug)]
 pub struct Listing {
@@ -73,6 +90,7 @@ impl AppState {
             Err(Error::NotFound) => return Err(Error::Conflict("parent does not exist")),
             other => other?,
         };
+        check_new_name(name)?;
         Ok((parent, name))
     }
 

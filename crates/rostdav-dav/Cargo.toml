@@ -19,6 +19,7 @@ percent-encoding.workspace = true
 quick-xml.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
+blake3.workspace = true
 tracing.workspace = true
 
 [lints]

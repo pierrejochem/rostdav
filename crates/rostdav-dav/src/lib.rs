@@ -1,13 +1,17 @@
 //! WebDAV adapter: protocol translation only.
 //!
-//! No database, no file system: everything goes through [`AppState`]. Scope of
-//! M2 is plain RFC 4918 class 1 under `/remote.php/dav/files/<user>/`;
-//! Nextcloud extensions (`oc:`/`nc:` properties, upload headers, chunked
-//! upload) follow in M5 and are not advertised here.
+//! No database, no file system: everything goes through [`AppState`]. RFC 4918
+//! class 1 under `/remote.php/dav/files/<user>/` (and the legacy
+//! `/remote.php/webdav/`) plus the Nextcloud extensions recorded in
+//! `tests/fixtures/nextcloud/`: `oc:`/`nc:` properties, upload headers
+//! (`X-OC-MTime`, `OC-Checksum`, `OC-FileId`, `OC-ETag`) and chunked upload v2
+//! under `/remote.php/dav/uploads/<user>/`.
 
 mod error;
+mod props;
 mod range;
 mod target;
+mod uploads;
 mod xml;
 
 use axum::Router;
@@ -18,22 +22,23 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::any;
 use std::net::{IpAddr, Ipv4Addr};
 
-use rostdav_app::{AppState, Principal};
+use rostdav_app::{AppState, Principal, PutOptions, normalize_checksum};
 use rostdav_core::{ClientIp, Error, Name, Result};
 use rostdav_meta::{Node, NodeKind, WriteCondition};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::{ReaderStream, StreamReader};
+use uploads::{UPLOADS_PREFIX, UploadTarget};
 
 use error::DavError;
 use range::{RangeOutcome, parse_range};
-use target::{DestinationError, Target, parse_destination};
-use xml::{DAV_NS, PropfindRequest, ResponseBuilder, multistatus, parse_propfind};
+use target::{SEGMENT, Target, parse_destination};
+use xml::{ResponseBuilder, multistatus, parse_propfind};
 
 pub(crate) const ALLOWED_METHODS: &str =
     "OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, COPY, MOVE, PROPFIND";
 
 /// Maximum size of an XML request body.
-const MAX_XML_BODY: usize = 64 * 1024;
+pub(crate) const MAX_XML_BODY: usize = 64 * 1024;
 
 /// Routes of this layer.
 pub fn router() -> Router<AppState> {
@@ -42,6 +47,7 @@ pub fn router() -> Router<AppState> {
         .route("/remote.php/webdav", any(entry))
         .route("/remote.php/webdav/", any(entry))
         .route("/remote.php/webdav/{*rest}", any(entry))
+        .route("/remote.php/dav/uploads/{*rest}", any(entry))
 }
 
 async fn entry(State(state): State<AppState>, req: Request) -> Response {
@@ -60,16 +66,25 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
         .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |c| c.0);
     let principal = authenticate(&state, req.headers(), ip).await?;
     let principal_name = Name::parse(&principal.name)?;
-    let target = Target::parse_any(req.uri().path(), &principal_name)?;
-    // The user in the URL must be the authenticated user; checked on the
-    // NFC key so equivalent spellings match.
-    if target.user.key() != principal_name.key() {
-        return Err(Error::Forbidden.into());
-    }
-
     let (parts, body) = req.into_parts();
     let headers = &parts.headers;
     let method = parts.method.as_str();
+
+    if parts.uri.path().starts_with(UPLOADS_PREFIX) {
+        let t = UploadTarget::parse(parts.uri.path())?;
+        if t.user.key() != principal_name.key() {
+            // Reference: "Principal with name … not found" (404).
+            return Err(Error::NotFound.into());
+        }
+        return uploads::handle(&state, &principal, method, &t, headers, body).await;
+    }
+
+    let target = Target::parse_any(parts.uri.path(), &principal_name)?;
+    // The user in the URL must be the authenticated user; checked on the
+    // NFC key so equivalent spellings match. The reference answers 404 here.
+    if target.user.key() != principal_name.key() {
+        return Err(Error::NotFound.into());
+    }
     match method {
         "GET" => get(&state, &principal, &target, headers, false).await,
         "HEAD" => get(&state, &principal, &target, headers, true).await,
@@ -91,7 +106,7 @@ fn options() -> Response {
     r
 }
 
-fn method_not_allowed() -> Response {
+pub(crate) fn method_not_allowed() -> Response {
     let mut r = StatusCode::METHOD_NOT_ALLOWED.into_response();
     r.headers_mut()
         .insert(header::ALLOW, HeaderValue::from_static(ALLOWED_METHODS));
@@ -109,7 +124,7 @@ async fn authenticate(state: &AppState, headers: &HeaderMap, ip: IpAddr) -> Resu
 
 // ---- helpers ---------------------------------------------------------------
 
-fn quoted(etag: &str) -> String {
+pub(crate) fn quoted(etag: &str) -> String {
     format!("\"{etag}\"")
 }
 
@@ -118,26 +133,49 @@ fn unquote(tag: &str) -> &str {
     tag.trim().trim_start_matches("W/").trim_matches('"')
 }
 
-fn header_str(h: &HeaderMap, name: impl header::AsHeaderName) -> Option<&str> {
+pub(crate) fn header_str(h: &HeaderMap, name: impl header::AsHeaderName) -> Option<&str> {
     h.get(name).and_then(|v| v.to_str().ok())
 }
 
-fn http_date(secs: i64) -> String {
+pub(crate) fn http_date(secs: i64) -> String {
     let t = std::time::UNIX_EPOCH + std::time::Duration::from_secs(secs.max(0).unsigned_abs());
     httpdate::fmt_http_date(t)
 }
 
-fn set(resp: &mut Response, name: header::HeaderName, value: &str) {
+pub(crate) fn set(resp: &mut Response, name: header::HeaderName, value: &str) {
     if let Ok(v) = HeaderValue::from_str(value) {
         resp.headers_mut().insert(name, v);
     }
 }
 
-fn empty(status: StatusCode) -> Response {
+pub(crate) fn empty(status: StatusCode) -> Response {
     let mut r = status.into_response();
     r.headers_mut()
         .insert(header::CONTENT_LENGTH, HeaderValue::from_static("0"));
     r
+}
+
+/// `X-OC-MTime`: unix seconds. Garbage is a client error (the reference answers 500).
+pub(crate) fn parse_mtime(headers: &HeaderMap) -> Result<Option<i64>> {
+    let Some(v) = header_str(headers, "x-oc-mtime") else {
+        return Ok(None);
+    };
+    v.trim().parse::<i64>().map(Some).map_err(|_| {
+        Error::Invalid(format!(
+            "X-OC-MTime header must be a valid integer (unix timestamp), got \"{}\".",
+            v.chars()
+                .filter(|c| !c.is_control())
+                .take(40)
+                .collect::<String>()
+        ))
+    })
+}
+
+/// Request body as a byte stream with `io::Error`s, as `StreamReader` wants.
+pub(crate) fn body_stream(
+    body: Body,
+) -> impl futures_core::Stream<Item = std::io::Result<axum::body::Bytes>> + Unpin {
+    tokio_stream_adapter(body)
 }
 
 fn name_of(node: &Node) -> Result<Name> {
@@ -195,6 +233,7 @@ async fn get(
     *r.status_mut() = status;
     set(&mut r, header::CONTENT_LENGTH, &len.to_string());
     set(&mut r, header::ETAG, &etag);
+    set(&mut r, header::HeaderName::from_static("oc-etag"), &etag);
     set(&mut r, header::LAST_MODIFIED, &http_date(node.mtime));
     set(&mut r, header::ACCEPT_RANGES, "bytes");
     let ct = mime_guess::from_path(&node.name).first_or_octet_stream();
@@ -238,9 +277,15 @@ async fn put(
         }
     }
 
+    let mtime = parse_mtime(headers)?;
+    let opts = PutOptions {
+        mtime,
+        client_checksum: header_str(headers, "oc-checksum").and_then(normalize_checksum),
+        cond: Some(cond),
+    };
     let stream = tokio_stream_adapter(body);
     let written = state
-        .put(p, &t.path, StreamReader::new(stream), None, &cond)
+        .put_ext(p, &t.path, StreamReader::new(stream), &opts)
         .await?;
 
     let status = if written.replaced {
@@ -250,6 +295,23 @@ async fn put(
     };
     let mut r = empty(status);
     set(&mut r, header::ETAG, &quoted(&written.node.etag));
+    set(
+        &mut r,
+        header::HeaderName::from_static("oc-etag"),
+        &quoted(&written.node.etag),
+    );
+    set(
+        &mut r,
+        header::HeaderName::from_static("oc-fileid"),
+        &state.file_id(written.node.id),
+    );
+    if mtime.is_some() {
+        set(
+            &mut r,
+            header::HeaderName::from_static("x-oc-mtime"),
+            "accepted",
+        );
+    }
     Ok(r)
 }
 
@@ -317,7 +379,11 @@ async fn mkcol(
     }
     let node = state.mkcol(p, &t.path).await?;
     let mut r = empty(StatusCode::CREATED);
-    set(&mut r, header::ETAG, &quoted(&node.etag));
+    set(
+        &mut r,
+        header::HeaderName::from_static("oc-fileid"),
+        &state.file_id(node.id),
+    );
     Ok(r)
 }
 
@@ -332,14 +398,11 @@ async fn transfer(
 ) -> Result<Response, DavError> {
     let dest_raw = header_str(headers, "destination")
         .ok_or(Error::BadRequest("missing Destination header"))?;
-    let host = header_str(headers, header::HOST);
-    let dest = match parse_destination(dest_raw, host, &t.user) {
-        Ok(d) => d,
-        Err(DestinationError::Foreign) => return Ok(empty(StatusCode::BAD_GATEWAY)),
-        Err(DestinationError::Invalid(e)) => return Err(e.into()),
-    };
+    // Like the reference, only the path of the Destination is used; its host
+    // is ignored (it may differ behind a reverse proxy).
+    let dest = parse_destination(dest_raw, &t.user)?;
     if dest.user.key() != t.user.key() {
-        return Err(Error::Forbidden.into());
+        return Err(Error::NotFound.into());
     }
     let overwrite = match header_str(headers, "overwrite").map(str::trim) {
         None | Some("T" | "t") => true,
@@ -351,11 +414,25 @@ async fn transfer(
     } else {
         state.copy_to(p, &t.path, &dest.path, overwrite).await?
     };
-    Ok(empty(if written.replaced {
+    let mut r = empty(if written.replaced {
         StatusCode::NO_CONTENT
     } else {
         StatusCode::CREATED
-    }))
+    });
+    if is_move {
+        set(&mut r, header::ETAG, &quoted(&written.node.etag));
+        set(
+            &mut r,
+            header::HeaderName::from_static("oc-etag"),
+            &quoted(&written.node.etag),
+        );
+    }
+    set(
+        &mut r,
+        header::HeaderName::from_static("oc-fileid"),
+        &state.file_id(written.node.id),
+    );
+    Ok(r)
 }
 
 // ---- PROPFIND --------------------------------------------------------------
@@ -398,11 +475,12 @@ async fn propfind(
         }
     }
 
+    let ctx = props::PropCtx::new(state, p).await?;
     let mut responses = Vec::with_capacity(nodes.len());
     for (path, node) in &nodes {
         let is_dir = node.kind == NodeKind::Dir;
         let mut rb = ResponseBuilder::new(t.href_for(path, is_dir));
-        fill_props(&request, node, &mut rb);
+        props::fill(&ctx, &request, node, &mut rb).await?;
         responses.push(rb);
     }
 
@@ -413,55 +491,4 @@ async fn propfind(
         "application/xml; charset=utf-8",
     );
     Ok(r)
-}
-
-const KNOWN_PROPS: [&str; 6] = [
-    "resourcetype",
-    "displayname",
-    "getlastmodified",
-    "getetag",
-    "getcontentlength",
-    "getcontenttype",
-];
-
-fn fill_props(request: &PropfindRequest, node: &Node, rb: &mut ResponseBuilder) {
-    let is_dir = node.kind == NodeKind::Dir;
-    let wanted: Vec<(String, String)> = match request {
-        PropfindRequest::Props(list) => list.clone(),
-        PropfindRequest::AllProp | PropfindRequest::PropName => KNOWN_PROPS
-            .iter()
-            .filter(|k| !is_dir || !matches!(**k, "getcontentlength" | "getcontenttype"))
-            .map(|k| (DAV_NS.to_owned(), (*k).to_owned()))
-            .collect(),
-    };
-    let names_only = matches!(request, PropfindRequest::PropName);
-
-    for (ns, local) in wanted {
-        let value: Option<String> = if ns != DAV_NS {
-            None
-        } else {
-            match local.as_str() {
-                "resourcetype" => Some(if is_dir {
-                    "<d:collection/>".into()
-                } else {
-                    String::new()
-                }),
-                "displayname" => Some(xml::escape(&node.name)),
-                "getlastmodified" => Some(http_date(node.mtime)),
-                "getetag" => Some(xml::escape(&quoted(&node.etag))),
-                "getcontentlength" if !is_dir => Some(node.size.to_string()),
-                "getcontenttype" if !is_dir => Some(
-                    mime_guess::from_path(&node.name)
-                        .first_or_octet_stream()
-                        .essence_str()
-                        .to_owned(),
-                ),
-                _ => None,
-            }
-        };
-        match value {
-            Some(v) => rb.ok(&local, if names_only { "" } else { &v }),
-            None => rb.missing((ns, local)),
-        }
-    }
 }

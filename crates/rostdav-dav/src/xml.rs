@@ -10,6 +10,8 @@ use quick_xml::name::ResolveResult;
 use rostdav_core::{Error, Result};
 
 pub const DAV_NS: &str = "DAV:";
+pub const OC_NS: &str = "http://owncloud.org/ns";
+pub const NC_NS: &str = "http://nextcloud.org/ns";
 const MAX_DEPTH: usize = 16;
 const MAX_PROPS: usize = 64;
 
@@ -165,12 +167,13 @@ impl ResponseBuilder {
         }
     }
 
-    /// Adds a `DAV:` property; `inner` is already valid XML.
-    pub fn ok(&mut self, local: &str, inner: &str) {
+    /// Adds a property under `prefix` (`d`, `oc` or `nc`); `inner` is already valid XML.
+    pub fn ok(&mut self, prefix: &str, local: &str, inner: &str) {
         if inner.is_empty() {
-            self.ok.push_str(&format!("<d:{local}/>"));
+            self.ok.push_str(&format!("<{prefix}:{local}/>"));
         } else {
-            self.ok.push_str(&format!("<d:{local}>{inner}</d:{local}>"));
+            self.ok
+                .push_str(&format!("<{prefix}:{local}>{inner}</{prefix}:{local}>"));
         }
     }
 
@@ -192,6 +195,10 @@ impl ResponseBuilder {
             for (i, (ns, local)) in self.missing.iter().enumerate() {
                 if ns == DAV_NS {
                     out.push_str(&format!("<d:{}/>", escape(local)));
+                } else if ns == OC_NS {
+                    out.push_str(&format!("<oc:{}/>", escape(local)));
+                } else if ns == NC_NS {
+                    out.push_str(&format!("<nc:{}/>", escape(local)));
                 } else if ns.is_empty() {
                     out.push_str(&format!("<{}/>", escape(local)));
                 } else {
@@ -307,15 +314,17 @@ mod tests {
     #[test]
     fn multistatus_shape_and_unknown_props() {
         let mut r = ResponseBuilder::new("/a&b/".into());
-        r.ok("getetag", "&quot;e&quot;");
-        r.ok("resourcetype", "<d:collection/>");
+        r.ok("d", "getetag", "&quot;e&quot;");
+        r.ok("d", "resourcetype", "<d:collection/>");
         r.missing(("http://owncloud.org/ns".into(), "fileid".into()));
+        r.missing(("http://example.org/other".into(), "thing".into()));
         r.missing(dav("getcontentlength"));
         let xml = multistatus(&[r]);
         assert!(xml.contains("<d:href>/a&amp;b/</d:href>"));
         assert!(xml.contains("HTTP/1.1 200 OK"));
         assert!(xml.contains("HTTP/1.1 404 Not Found"));
-        assert!(xml.contains("<x0:fileid xmlns:x0=\"http://owncloud.org/ns\"/>"));
+        assert!(xml.contains("<oc:fileid/>"));
+        assert!(xml.contains("<x1:thing xmlns:x1=\"http://example.org/other\"/>"));
         // output must itself be well-formed
         let mut rd = quick_xml::Reader::from_str(&xml);
         loop {

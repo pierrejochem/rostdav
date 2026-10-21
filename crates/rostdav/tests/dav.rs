@@ -500,9 +500,20 @@ async fn propfind_prop_list_unknown_props_and_infinity() {
     let t = r.text();
     assert_eq!(r.status, StatusCode::MULTI_STATUS);
     assert!(t.contains("<d:getetag>"));
-    assert!(t.contains("HTTP/1.1 404 Not Found"));
-    assert!(t.contains("fileid xmlns:x0=\"http://owncloud.org/ns\""));
+    assert!(t.contains("<oc:fileid>"));
+    assert!(!t.contains("HTTP/1.1 404 Not Found"));
     assert!(!t.contains("<d:getcontentlength>"), "only requested props");
+
+    // a property nobody knows answers 404 in its own propstat
+    let body = r#"<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
+        <d:prop><d:getetag/><oc:no-such-thing/></d:prop></d:propfind>"#;
+    let r = call("PROPFIND", &format!("{A}/f"), "anna")
+        .h("depth", "0")
+        .body(body)
+        .send(&e)
+        .await;
+    assert!(r.text().contains("HTTP/1.1 404 Not Found"));
+    assert!(r.text().contains("<oc:no-such-thing/>"));
 
     for depth in ["infinity", "2", ""] {
         let r = call("PROPFIND", &format!("{A}/"), "anna")
@@ -654,25 +665,30 @@ async fn move_and_copy() {
 }
 
 #[tokio::test]
-async fn destination_must_stay_on_this_server_and_in_own_tree() {
+async fn destination_uses_only_its_path_and_stays_in_own_tree() {
     let e = env().await;
     put(&e, &format!("{A}/f"), "x").await;
+    // like the reference, the host of the Destination is ignored
     let r = call("COPY", &format!("{A}/f"), "anna")
-        .h("destination", format!("https://evil.test{A}/g"))
+        .h("destination", format!("https://other.test{A}/g"))
         .send(&e)
         .await;
-    assert_eq!(r.status, StatusCode::BAD_GATEWAY);
+    assert_eq!(r.status, StatusCode::CREATED);
+    assert_eq!(
+        call("GET", &format!("{A}/g"), "anna").send(&e).await.text(),
+        "x"
+    );
     // into bob's tree
     let r = call("COPY", &format!("{A}/f"), "anna")
         .h("destination", format!("{B}/g"))
         .send(&e)
         .await;
-    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert_eq!(r.status, StatusCode::NOT_FOUND);
     let r = call("MOVE", &format!("{A}/f"), "anna")
         .h("destination", format!("{B}/g"))
         .send(&e)
         .await;
-    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert_eq!(r.status, StatusCode::NOT_FOUND);
     // traversal in Destination
     let r = call("MOVE", &format!("{A}/f"), "anna")
         .h("destination", format!("{A}/../bob/g"))
@@ -719,7 +735,8 @@ async fn second_user_cannot_access_first_users_files() {
             c = c.h("destination", format!("{B}/stolen.txt"));
         }
         let r = c.body(if m == "PUT" { "evil" } else { "" }).send(&e).await;
-        assert_eq!(r.status, StatusCode::FORBIDDEN, "{m}");
+        // like the reference: someone else's URL space does not exist for you
+        assert_eq!(r.status, StatusCode::NOT_FOUND, "{m}");
         assert!(!r.text().contains("geheim"));
     }
 

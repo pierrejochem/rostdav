@@ -274,8 +274,24 @@ async fn capabilities_advertise_only_what_exists() {
     let caps = ours["ocs"]["data"]["capabilities"]
         .as_object()
         .expect("caps");
-    assert_eq!(caps.keys().collect::<Vec<_>>(), ["core"]);
+    let mut keys: Vec<_> = caps.keys().map(String::as_str).collect();
+    keys.sort_unstable();
+    assert_eq!(
+        keys,
+        ["core", "dav", "files"],
+        "nothing else is implemented"
+    );
     assert_eq!(caps["core"]["webdav-root"], "remote.php/webdav");
+    assert_eq!(caps["dav"]["chunking"], "1.0");
+    assert_eq!(
+        caps["files"]["chunked_upload"]["max_size"],
+        100 * 1024 * 1024
+    );
+    assert_eq!(caps["files"]["chunked_upload"]["max_parallel_count"], 5);
+    assert_eq!(
+        caps["files"]["forbidden_filename_extensions"],
+        serde_json::json!([".filepart", ".part"])
+    );
     let v = &ours["ocs"]["data"]["version"];
     assert_eq!(
         (v["major"].as_u64(), v["string"].as_str()),

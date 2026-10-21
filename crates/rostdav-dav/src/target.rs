@@ -8,7 +8,7 @@ pub const FILES_PREFIX: &str = "/remote.php/dav/files/";
 pub const LEGACY_PREFIX: &str = "/remote.php/webdav";
 
 /// Encode everything except unreserved characters.
-const SEGMENT: &AsciiSet = &NON_ALPHANUMERIC
+pub(crate) const SEGMENT: &AsciiSet = &NON_ALPHANUMERIC
     .remove(b'-')
     .remove(b'_')
     .remove(b'.')
@@ -78,44 +78,27 @@ impl Target {
     }
 }
 
-/// Resolves a `Destination` header to a target on *this* server.
+/// Resolves a `Destination` header to a target on this server.
 ///
-/// Absolute URIs must name the same authority as the `Host` header; a foreign
-/// host is reported as [`DestinationError::Foreign`] (RFC 4918: 502).
-pub fn parse_destination(
-    value: &str,
-    host: Option<&str>,
-    principal: &Name,
-) -> Result<Target, DestinationError> {
+/// Only the path counts. The reference server ignores the host of an absolute
+/// URI (`04-webdav/25-move-foreign-host`), and behind a reverse proxy it often
+/// differs from the one the client used. Nothing is fetched from that host.
+pub fn parse_destination(value: &str, principal: &Name) -> Result<Target> {
     let path = if let Some(rest) = value
         .strip_prefix("http://")
         .or_else(|| value.strip_prefix("https://"))
     {
-        let (authority, path) = rest.split_once('/').unwrap_or((rest, ""));
-        match host {
-            Some(h) if h.eq_ignore_ascii_case(authority) => {}
-            _ => return Err(DestinationError::Foreign),
-        }
+        let (_authority, path) = rest.split_once('/').unwrap_or((rest, ""));
         format!("/{path}")
     } else if value.starts_with('/') {
         value.to_owned()
     } else {
-        return Err(DestinationError::Invalid(Error::BadRequest(
-            "invalid Destination",
-        )));
+        return Err(Error::BadRequest("invalid Destination"));
     };
-    if path.contains(['?', '#']) {
-        return Err(DestinationError::Invalid(Error::BadRequest(
-            "invalid Destination",
-        )));
+    if path.contains(['?', '#']) || path.starts_with("//") {
+        return Err(Error::BadRequest("invalid Destination"));
     }
-    Target::parse_any(&path, principal).map_err(DestinationError::Invalid)
-}
-
-#[derive(Debug)]
-pub enum DestinationError {
-    Foreign,
-    Invalid(Error),
+    Target::parse_any(&path, principal)
 }
 
 #[cfg(test)]
@@ -184,47 +167,34 @@ mod tests {
     }
 
     #[test]
-    fn destination_same_host_relative_and_foreign() {
-        let ok = parse_destination(
-            "https://cloud.example/remote.php/dav/files/anna/x",
-            Some("cloud.example"),
+    fn destination_uses_only_the_path() {
+        let ok = parse_destination("https://cloud.example/remote.php/dav/files/anna/x", &anna())
+            .expect("dest");
+        assert_eq!(ok.path.segments()[0].as_str(), "x");
+        // the host is not interpreted at all
+        let other = parse_destination(
+            "http://evil.example:81/remote.php/dav/files/anna/x",
             &anna(),
         )
         .expect("dest");
-        assert_eq!(ok.path.segments()[0].as_str(), "x");
-        assert!(parse_destination("/remote.php/dav/files/anna/x", None, &anna()).is_ok());
-        assert!(matches!(
-            parse_destination(
-                "https://evil.example/remote.php/dav/files/anna/x",
-                Some("cloud.example"),
-                &anna()
-            ),
-            Err(DestinationError::Foreign)
-        ));
-        assert!(matches!(
-            parse_destination(
-                "https://cloud.example/remote.php/dav/files/anna/x",
-                None,
-                &anna()
-            ),
-            Err(DestinationError::Foreign)
-        ));
+        assert_eq!(other.path, ok.path);
+        assert!(parse_destination("/remote.php/dav/files/anna/x", &anna()).is_ok());
+        assert!(
+            parse_destination("/remote.php/webdav/x", &anna())
+                .expect("legacy")
+                .legacy
+        );
         for bad in [
             "x",
             "/remote.php/dav/files/anna/x?y=1",
             "ftp://h/x",
             "//host/x",
+            "http://h",
+            "/other/x",
+            "/remote.php/dav/files/anna/../bob/x",
+            "https://h/remote.php/dav/files/anna/%2e%2e/x",
         ] {
-            assert!(parse_destination(bad, Some("h"), &anna()).is_err(), "{bad}");
+            assert!(parse_destination(bad, &anna()).is_err(), "{bad}");
         }
-        // userinfo trick must not match the host
-        assert!(matches!(
-            parse_destination(
-                "https://cloud.example@evil.example/remote.php/dav/files/anna/x",
-                Some("cloud.example"),
-                &anna()
-            ),
-            Err(DestinationError::Foreign)
-        ));
     }
 }
