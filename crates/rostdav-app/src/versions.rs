@@ -77,6 +77,8 @@ impl AppState {
 
     /// The file addressed by its ID, only if `p` may access it. Anything else is NotFound.
     async fn versioned_file(&self, p: &Principal, file_id: i64, action: Action) -> Result<Node> {
+        // Versions are the owner's business (ADR 0004): recipients and links never see them.
+        Self::require_full(p).map_err(|_| Error::NotFound)?;
         let node = self
             .inner
             .db

@@ -448,6 +448,7 @@ impl AppState {
             name: u.name.clone(),
             is_admin: u.is_admin,
             via: Via::AccountPassword,
+            scope: crate::auth::Scope::Full,
         };
 
         let meta = tokio::fs::symlink_metadata(host_path)

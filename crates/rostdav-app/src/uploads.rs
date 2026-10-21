@@ -9,6 +9,7 @@ use rostdav_storage::{BlobId, ChunkInfo, ChunkName};
 use tokio::io::AsyncRead;
 
 use crate::AppState;
+use crate::access::{Need, authorize_access};
 use crate::auth::Principal;
 
 /// Sessions older than this are removed by garbage collection.
@@ -43,6 +44,7 @@ impl UploadListing {
 
 impl AppState {
     async fn session(&self, p: &Principal, transfer_id: &str) -> Result<UploadSession> {
+        Self::require_full(p)?;
         valid_transfer_id(transfer_id).map_err(|_| Error::NotFound)?;
         self.inner
             .db
@@ -52,6 +54,7 @@ impl AppState {
     }
 
     pub async fn upload_create(&self, p: &Principal, transfer_id: &str) -> Result<()> {
+        Self::require_full(p)?;
         valid_transfer_id(transfer_id)?;
         let dir = BlobId::generate();
         self.inner.store.create_session(&dir).await?;
@@ -149,20 +152,24 @@ impl AppState {
             }
         }
 
-        let (parent, name) = match self.parent_of(p, dest).await {
+        let (parent, name) = match self.parent_access(p, dest, None).await {
             Err(Error::Conflict(_)) => {
                 return Err(Error::Conflict("The destination node is not found"));
             }
             other => other?,
         };
-        let existing = self.inner.db.resolve(p.user_id, dest).await?;
-        if let Some(n) = &existing {
-            if n.kind == rostdav_meta::NodeKind::Dir {
+        let existing = match self.resolve_access(p, dest).await {
+            Ok(a) => Some(a),
+            Err(Error::NotFound) => None,
+            Err(e) => return Err(e),
+        };
+        match &existing {
+            Some(a) if a.is_dir() || a.mount_root => {
                 return Err(Error::Conflict("target is a directory"));
             }
-            if !overwrite {
-                return Err(Error::PreconditionFailed);
-            }
+            Some(_) if !overwrite => return Err(Error::PreconditionFailed),
+            Some(a) => authorize_access(p, a, Need::Update)?,
+            None => authorize_access(p, &parent, Need::Create)?,
         }
         if sum > self.inner.config.limits.max_upload_bytes {
             return Err(Error::TooLarge);
@@ -170,9 +177,12 @@ impl AppState {
         let freed = if self.inner.config.versioning.enabled {
             0
         } else {
-            existing.map_or(0, |n| n.size.max(0)).unsigned_abs()
+            existing
+                .as_ref()
+                .map_or(0, |a| a.node.size.max(0))
+                .unsigned_abs()
         };
-        if let Some(h) = self.inner.db.quota_headroom(p.user_id).await? {
+        if let Some(h) = self.inner.db.quota_headroom(parent.node.owner_id).await? {
             if sum > h.unsigned_abs().saturating_add(freed) {
                 return Err(Error::QuotaExceeded);
             }
@@ -197,7 +207,7 @@ impl AppState {
             .inner
             .db
             .commit_file_with(
-                parent.id,
+                parent.node.id,
                 name,
                 &blob,
                 &self.commit_opts(p, mtime, None),

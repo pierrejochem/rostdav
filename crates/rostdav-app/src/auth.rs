@@ -25,6 +25,21 @@ pub enum Via {
     AccountPassword,
     /// ID of the app password used.
     AppPassword(i64),
+    /// ID of the public link used.
+    Link(i64),
+}
+
+/// How far a principal's reach goes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Scope {
+    /// A signed-in user: own tree and received shares.
+    Full,
+    /// A public link: only the shared node, with the link's permissions.
+    Link {
+        share_id: i64,
+        node_id: i64,
+        perms: u8,
+    },
 }
 
 /// The authenticated caller.
@@ -34,6 +49,7 @@ pub struct Principal {
     pub name: String,
     pub is_admin: bool,
     pub via: Via,
+    pub scope: Scope,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -54,7 +70,7 @@ pub fn authorize(principal: &Principal, node: &Node, _action: Action) -> Result<
 
 /// Hash verified for unknown users so that response time does not reveal
 /// whether a user exists.
-fn dummy_hash() -> &'static str {
+pub(crate) fn dummy_hash() -> &'static str {
     static HASH: OnceLock<String> = OnceLock::new();
     HASH.get_or_init(|| hash_password("dummy-password-for-timing").unwrap_or_default())
 }
@@ -126,6 +142,7 @@ impl AppState {
                     name: u.name.clone(),
                     is_admin: u.is_admin,
                     via: Via::AppPassword(id),
+                    scope: Scope::Full,
                 });
             }
         }
@@ -158,6 +175,7 @@ impl AppState {
                     name: u.name,
                     is_admin: u.is_admin,
                     via: Via::AccountPassword,
+                    scope: Scope::Full,
                 })
             }
             _ => {
@@ -218,7 +236,9 @@ impl AppState {
                 .await;
                 Ok(())
             }
-            Via::AccountPassword => Err(Error::BadRequest("not signed in with an app password")),
+            Via::AccountPassword | Via::Link(_) => {
+                Err(Error::BadRequest("not signed in with an app password"))
+            }
         }
     }
 }
@@ -236,6 +256,7 @@ pub struct UserInfo {
 
 impl AppState {
     pub async fn user_info(&self, p: &Principal) -> Result<UserInfo> {
+        Self::require_full(p)?;
         let (quota_total, used) = self.inner.db.quota_info(p.user_id).await?;
         Ok(UserInfo {
             id: p.name.clone(),

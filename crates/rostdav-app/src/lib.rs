@@ -5,6 +5,7 @@
 
 use std::sync::Arc;
 
+mod access;
 mod admin;
 #[cfg(test)]
 mod admin_tests;
@@ -15,15 +16,22 @@ mod login_flow;
 mod password;
 mod ratelimit;
 mod secrets;
+#[cfg(test)]
+mod share_tests;
+mod shares;
 mod uploads;
 mod versions;
 
+pub use access::{Access, MountView, Need, Origin, authorize_access};
 pub use admin::{Actor, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport};
 pub use audit::AuditOptions;
-pub use auth::{APP_PASSWORD_LEN, Action, Principal, UserInfo, Via, authorize};
+pub use auth::{APP_PASSWORD_LEN, Action, Principal, Scope, UserInfo, Via, authorize};
 pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, normalize_checksum};
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
+pub use shares::{
+    LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,
+};
 pub use uploads::UploadListing;
 pub use versions::{VersionEntry, VersionListing, VersioningOptions};
 
@@ -287,7 +295,7 @@ mod tests {
         assert_eq!(node.id, w.node.id);
         let l = st.list(&anna, &lp("/docs")).await.expect("list");
         assert_eq!(l.children.len(), 1);
-        assert_eq!(st.size_of(&anna, &l.node).await.expect("size"), 5);
+        assert_eq!(st.size_of(&anna, &l.access).await.expect("size"), 5);
     }
 
     #[tokio::test]
@@ -412,7 +420,7 @@ mod tests {
         ));
         let admin = Principal {
             is_admin: true,
-            ..bob
+            ..bob.clone()
         };
         assert!(
             matches!(
@@ -421,10 +429,18 @@ mod tests {
             ),
             "admins get no implicit access"
         );
+        let access = st.stat_access(&anna, &lp("/")).await.expect("access");
         assert!(matches!(
-            st.size_of(&admin, &node).await,
+            st.size_of(&admin, &access).await,
             Err(Error::Forbidden)
         ));
+        assert!(
+            matches!(
+                authorize_access(&bob, &access, Need::Read),
+                Err(Error::Forbidden)
+            ),
+            "an access grant resolved for anna is useless for bob"
+        );
     }
 
     #[tokio::test]
