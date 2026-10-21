@@ -19,7 +19,26 @@ pub struct Config {
     pub database: Database,
     pub limits: Limits,
     pub compat: Compat,
+    pub audit: Audit,
     pub log: Log,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Audit {
+    /// Store client addresses shortened (IPv4 /24, IPv6 /48).
+    pub anonymize_ip: bool,
+    /// Events older than this many days are deleted; 0 keeps everything.
+    pub retention_days: u32,
+}
+
+impl Default for Audit {
+    fn default() -> Self {
+        Self {
+            anonymize_ip: false,
+            retention_days: 365,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

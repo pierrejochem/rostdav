@@ -23,6 +23,12 @@ data_dir = "./data"
 # reported_version = "35.0.2.2"
 # product_name = "Rostdav"
 
+[audit]
+# Event log (rostdav admin audit export). Shorten stored client addresses:
+# anonymize_ip = false
+# Delete events older than this many days (0 = keep everything):
+# retention_days = 365
+
 [limits]
 # Maximum size of a single upload in bytes (default: 16 GiB).
 # max_upload_bytes = 17179869184

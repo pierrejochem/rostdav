@@ -1,0 +1,576 @@
+//! `rostdav admin …`: the command line for administration.
+//!
+//! Output goes to the writer passed in, so the commands can be tested. Secrets
+//! are read from stdin, never from arguments.
+
+use std::io::{BufRead, Write};
+use std::path::PathBuf;
+
+use anyhow::{Context, bail};
+use clap::{Args, Subcommand};
+use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, ImportOptions};
+
+#[derive(Subcommand)]
+pub enum AdminCommand {
+    /// User management.
+    #[command(subcommand)]
+    User(UserCommand),
+    /// Checks database and blob storage for inconsistencies. Exit code 1 if damage remains.
+    Fsck(FsckArgs),
+    /// Copies a directory from this host into a user's files.
+    Import(ImportArgs),
+    /// Event log.
+    #[command(subcommand)]
+    Audit(AuditCommand),
+}
+
+#[derive(Subcommand)]
+pub enum UserCommand {
+    /// Creates a user. The password is read as one line from stdin
+    /// (never as an argument, so it does not end up in process lists or shell history).
+    Add {
+        name: String,
+        /// The user is granted administrator rights.
+        #[arg(long)]
+        admin: bool,
+    },
+    /// Lists users with role, state, quota and usage.
+    List {
+        /// One JSON object per line.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Blocks every sign-in of the user (devices are kept).
+    Disable { name: String },
+    /// Allows the user to sign in again.
+    Enable { name: String },
+    /// Makes the user an administrator or a normal user.
+    Role {
+        name: String,
+        #[arg(value_enum)]
+        role: Role,
+    },
+    /// Sets the quota: `10G`, `500M`, `1024` (bytes) or `unlimited`.
+    SetQuota { name: String, quota: String },
+    /// Sets a new password, read as one line from stdin.
+    SetPassword {
+        name: String,
+        /// Also sign out all devices (revoke their app passwords).
+        #[arg(long)]
+        revoke_devices: bool,
+    },
+    /// Deletes a user. Requires `--yes`.
+    Delete {
+        name: String,
+        /// Move the files into a folder of this user instead of deleting them.
+        #[arg(long)]
+        transfer_to: Option<String>,
+        #[arg(long)]
+        yes: bool,
+    },
+}
+
+#[derive(Clone, Copy, clap::ValueEnum)]
+pub enum Role {
+    Admin,
+    User,
+}
+
+#[derive(Args)]
+pub struct FsckArgs {
+    /// Delete orphan files and fix usage counters. Without it nothing is changed.
+    #[arg(long)]
+    pub repair: bool,
+    /// Read every blob and compare size and checksum (slow).
+    #[arg(long)]
+    pub verify: bool,
+    /// Ignore unreferenced blob files younger than this many seconds (uploads in flight).
+    #[arg(long, default_value_t = 3600)]
+    pub min_orphan_age: i64,
+}
+
+#[derive(Args)]
+pub struct ImportArgs {
+    pub path: PathBuf,
+    #[arg(long)]
+    pub user: String,
+    /// Folder below the user's root, created if missing.
+    #[arg(long)]
+    pub dest: Option<String>,
+    /// Replace files that already exist (default: skip them).
+    #[arg(long)]
+    pub overwrite: bool,
+}
+
+#[derive(Subcommand)]
+pub enum AuditCommand {
+    /// Prints events as JSON Lines.
+    Export {
+        /// `2026-01-31`, `2026-01-31T12:00:00Z` or unix seconds.
+        #[arg(long)]
+        since: Option<String>,
+    },
+}
+
+/// Runs a command; returns the process exit code.
+pub async fn run(
+    state: &AppState,
+    cmd: AdminCommand,
+    stdin: &mut dyn BufRead,
+    out: &mut dyn Write,
+) -> anyhow::Result<i32> {
+    let actor = Actor::Cli;
+    match cmd {
+        AdminCommand::User(u) => user(state, &actor, u, stdin, out).await?,
+        AdminCommand::Fsck(a) => return fsck(state, &actor, &a, out).await,
+        AdminCommand::Import(a) => import(state, &actor, a, out).await?,
+        AdminCommand::Audit(AuditCommand::Export { since }) => {
+            let since = since.as_deref().map(parse_since).transpose()?.unwrap_or(0);
+            for e in state.audit_events(&actor, since).await? {
+                writeln!(out, "{}", event_line(&e))?;
+            }
+        }
+    }
+    Ok(0)
+}
+
+fn read_password(stdin: &mut dyn BufRead) -> anyhow::Result<String> {
+    let mut line = String::new();
+    stdin
+        .read_line(&mut line)
+        .context("could not read password from stdin")?;
+    Ok(line.trim_end_matches(['\r', '\n']).to_owned())
+}
+
+async fn user(
+    state: &AppState,
+    actor: &Actor<'_>,
+    cmd: UserCommand,
+    stdin: &mut dyn BufRead,
+    out: &mut dyn Write,
+) -> anyhow::Result<()> {
+    match cmd {
+        UserCommand::Add { name, admin } => {
+            let password = read_password(stdin)?;
+            let u = state
+                .create_user_as(actor, &name, &password, admin)
+                .await
+                .map_err(|e| anyhow::anyhow!("user not created: {e}"))?;
+            writeln!(out, "user {} created", u.name)?;
+        }
+        UserCommand::List { json } => {
+            let users = state.users_list(actor).await?;
+            if json {
+                for u in users {
+                    writeln!(
+                        out,
+                        "{}",
+                        serde_json::json!({
+                            "name": u.name, "admin": u.is_admin, "disabled": u.disabled,
+                            "quota_bytes": u.quota_bytes, "used_bytes": u.used_bytes,
+                            "devices": u.devices, "created": rfc3339(u.created_at),
+                        })
+                    )?;
+                }
+            } else {
+                writeln!(
+                    out,
+                    "{:<24} {:<6} {:<9} {:>10} {:>10} {:>7}",
+                    "NAME", "ROLE", "STATE", "USED", "QUOTA", "DEVICES"
+                )?;
+                for u in users {
+                    writeln!(
+                        out,
+                        "{:<24} {:<6} {:<9} {:>10} {:>10} {:>7}",
+                        u.name,
+                        if u.is_admin { "admin" } else { "user" },
+                        if u.disabled { "disabled" } else { "active" },
+                        format_size(u.used_bytes),
+                        u.quota_bytes
+                            .map_or_else(|| "unlimited".to_owned(), format_size),
+                        u.devices,
+                    )?;
+                }
+            }
+        }
+        UserCommand::Disable { name } => {
+            state
+                .user_set_disabled(actor, &name, true)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            writeln!(out, "user {name} disabled")?;
+        }
+        UserCommand::Enable { name } => {
+            state
+                .user_set_disabled(actor, &name, false)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            writeln!(out, "user {name} enabled")?;
+        }
+        UserCommand::Role { name, role } => {
+            let admin = matches!(role, Role::Admin);
+            state
+                .user_set_admin(actor, &name, admin)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            writeln!(
+                out,
+                "user {name} is now {}",
+                if admin {
+                    "an administrator"
+                } else {
+                    "a normal user"
+                }
+            )?;
+        }
+        UserCommand::SetQuota { name, quota } => {
+            let q = parse_quota(&quota)?;
+            state
+                .user_set_quota(actor, &name, q)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            writeln!(
+                out,
+                "quota of {name}: {}",
+                q.map_or_else(|| "unlimited".to_owned(), format_size)
+            )?;
+        }
+        UserCommand::SetPassword {
+            name,
+            revoke_devices,
+        } => {
+            let password = read_password(stdin)?;
+            state
+                .user_set_password(actor, &name, &password, revoke_devices)
+                .await
+                .map_err(|e| anyhow::anyhow!("password not changed: {e}"))?;
+            writeln!(out, "password of {name} changed")?;
+        }
+        UserCommand::Delete {
+            name,
+            transfer_to,
+            yes,
+        } => {
+            if !yes {
+                bail!(
+                    "refusing to delete {name} without --yes (this removes the account and, unless --transfer-to is given, all files)"
+                );
+            }
+            let mode = transfer_to.map_or(DeleteMode::DeleteData, DeleteMode::TransferTo);
+            state
+                .user_delete(actor, &name, &mode)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            writeln!(out, "user {name} deleted")?;
+        }
+    }
+    Ok(())
+}
+
+async fn fsck(
+    state: &AppState,
+    actor: &Actor<'_>,
+    a: &FsckArgs,
+    out: &mut dyn Write,
+) -> anyhow::Result<i32> {
+    let r = state
+        .fsck(
+            actor,
+            FsckOptions {
+                repair: a.repair,
+                verify_checksums: a.verify,
+                min_orphan_age_secs: a.min_orphan_age,
+            },
+        )
+        .await?;
+    let verb = if a.repair { "removed/fixed" } else { "found" };
+    writeln!(out, "blobs checked: {}", r.blobs_checked)?;
+    for (id, examples) in &r.missing_blobs {
+        writeln!(
+            out,
+            "DAMAGE   blob {id} is missing on disk (used by: {})",
+            examples.join(", ")
+        )?;
+    }
+    for id in &r.corrupt_blobs {
+        writeln!(
+            out,
+            "DAMAGE   blob {id} differs from its recorded size or checksum"
+        )?;
+    }
+    for id in &r.orphan_blobs {
+        writeln!(out, "orphan   blob file {id} {verb}")?;
+    }
+    for m in &r.usage_mismatches {
+        writeln!(
+            out,
+            "usage    {}: stored {} but files add up to {} ({verb})",
+            m.user, m.stored, m.actual
+        )?;
+    }
+    for d in &r.orphan_session_dirs {
+        writeln!(out, "orphan   upload directory {d} {verb}")?;
+    }
+    for t in &r.sessions_without_dir {
+        writeln!(out, "orphan   upload session {t} without data {verb}")?;
+    }
+    if r.is_clean() {
+        writeln!(out, "ok")?;
+        Ok(0)
+    } else {
+        writeln!(
+            out,
+            "problems remain{}",
+            if a.repair {
+                ""
+            } else {
+                " (run with --repair to fix what can be fixed)"
+            }
+        )?;
+        Ok(1)
+    }
+}
+
+async fn import(
+    state: &AppState,
+    actor: &Actor<'_>,
+    a: ImportArgs,
+    out: &mut dyn Write,
+) -> anyhow::Result<()> {
+    let r = state
+        .import_tree(
+            &actor.clone(),
+            &a.path,
+            &a.user,
+            &ImportOptions {
+                overwrite: a.overwrite,
+                dest: a.dest,
+            },
+        )
+        .await
+        .map_err(|e| anyhow::anyhow!("import failed: {e}"))?;
+    writeln!(
+        out,
+        "imported {} files ({}), created {} folders, skipped {} existing",
+        r.files,
+        format_size(i64::try_from(r.bytes).unwrap_or(i64::MAX)),
+        r.dirs,
+        r.skipped_existing
+    )?;
+    for (path, why) in &r.skipped {
+        writeln!(out, "skipped  {path}: {why}")?;
+    }
+    if r.skipped_total as usize > r.skipped.len() {
+        writeln!(
+            out,
+            "... and {} more skipped",
+            r.skipped_total as usize - r.skipped.len()
+        )?;
+    }
+    Ok(())
+}
+
+// ---- helpers ------------------------------------------------------------------
+
+/// `10G`, `1.5T`, `500M`, `2048`, `unlimited` / `none`.
+pub fn parse_quota(s: &str) -> anyhow::Result<Option<i64>> {
+    let s = s.trim();
+    if s.eq_ignore_ascii_case("unlimited") || s.eq_ignore_ascii_case("none") {
+        return Ok(None);
+    }
+    let (num, mult) = match s.chars().last() {
+        Some(c) if c.is_ascii_alphabetic() => {
+            let m: f64 = match c.to_ascii_uppercase() {
+                'K' => 1024.0,
+                'M' => 1024.0 * 1024.0,
+                'G' => 1024.0 * 1024.0 * 1024.0,
+                'T' => 1024.0 * 1024.0 * 1024.0 * 1024.0,
+                'B' => 1.0,
+                _ => bail!("unknown size unit in {s:?} (use K, M, G, T)"),
+            };
+            (&s[..s.len() - 1], m)
+        }
+        _ => (s, 1.0),
+    };
+    let n: f64 = num
+        .trim()
+        .parse()
+        .with_context(|| format!("not a size: {s:?}"))?;
+    if !n.is_finite() || n < 0.0 {
+        bail!("a quota must not be negative");
+    }
+    let bytes = n * mult;
+    if bytes > 9.0e18 {
+        bail!("quota too large");
+    }
+    #[allow(clippy::cast_possible_truncation)]
+    Ok(Some(bytes as i64))
+}
+
+pub fn format_size(bytes: i64) -> String {
+    const UNITS: [&str; 5] = ["B", "KiB", "MiB", "GiB", "TiB"];
+    let mut v = bytes as f64;
+    let mut i = 0;
+    while v >= 1024.0 && i < UNITS.len() - 1 {
+        v /= 1024.0;
+        i += 1;
+    }
+    if i == 0 {
+        format!("{bytes} B")
+    } else {
+        format!("{v:.1} {}", UNITS[i])
+    }
+}
+
+/// Days since 1970-01-01 of a civil date (Howard Hinnant's algorithm).
+fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    era * 146_097 + doe - 719_468
+}
+
+fn civil_from_days(z: i64) -> (i64, i64, i64) {
+    let z = z + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z - era * 146_097;
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    (if m <= 2 { y + 1 } else { y }, m, d)
+}
+
+pub fn rfc3339(secs: i64) -> String {
+    let days = secs.div_euclid(86_400);
+    let rem = secs.rem_euclid(86_400);
+    let (y, m, d) = civil_from_days(days);
+    format!(
+        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
+        rem / 3600,
+        rem % 3600 / 60,
+        rem % 60
+    )
+}
+
+/// `YYYY-MM-DD`, `YYYY-MM-DDTHH:MM:SSZ` or unix seconds.
+pub fn parse_since(s: &str) -> anyhow::Result<i64> {
+    let s = s.trim();
+    if let Ok(n) = s.parse::<i64>() {
+        return Ok(n);
+    }
+    let bad = || {
+        anyhow::anyhow!("not a date: {s:?} (use 2026-01-31, 2026-01-31T12:00:00Z or unix seconds)")
+    };
+    let (date, time) = s.split_once('T').unwrap_or((s, "00:00:00Z"));
+    let mut dp = date.split('-');
+    let (Some(y), Some(m), Some(d), None) = (dp.next(), dp.next(), dp.next(), dp.next()) else {
+        return Err(bad());
+    };
+    let (y, m, d): (i64, i64, i64) = (
+        y.parse().map_err(|_| bad())?,
+        m.parse().map_err(|_| bad())?,
+        d.parse().map_err(|_| bad())?,
+    );
+    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
+        return Err(bad());
+    }
+    let time = time.trim_end_matches('Z');
+    let mut tp = time.split(':');
+    let (h, mi, sec): (i64, i64, i64) = (
+        tp.next().unwrap_or("0").parse().map_err(|_| bad())?,
+        tp.next().unwrap_or("0").parse().map_err(|_| bad())?,
+        tp.next().unwrap_or("0").parse().map_err(|_| bad())?,
+    );
+    if !(0..24).contains(&h) || !(0..60).contains(&mi) || !(0..61).contains(&sec) {
+        return Err(bad());
+    }
+    Ok(days_from_civil(y, m, d) * 86_400 + h * 3600 + mi * 60 + sec)
+}
+
+/// One JSON object per event; `details` stays an object.
+pub fn event_line(e: &rostdav_meta::Event) -> String {
+    let details: serde_json::Value =
+        serde_json::from_str(&e.details).unwrap_or(serde_json::Value::Null);
+    serde_json::json!({
+        "id": e.id, "ts": e.ts, "time": rfc3339(e.ts), "actor": e.actor,
+        "action": e.action, "target": e.target, "ip": e.ip, "details": details,
+    })
+    .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn quota_parsing() {
+        assert_eq!(parse_quota("unlimited").expect("q"), None);
+        assert_eq!(parse_quota("NONE").expect("q"), None);
+        assert_eq!(parse_quota("1024").expect("q"), Some(1024));
+        assert_eq!(
+            parse_quota("10G").expect("q"),
+            Some(10 * 1024 * 1024 * 1024)
+        );
+        assert_eq!(parse_quota("1.5m").expect("q"), Some(1_572_864));
+        assert_eq!(parse_quota("0").expect("q"), Some(0));
+        for bad in ["", "abc", "-5", "10X", "1e30T", "NaN"] {
+            assert!(parse_quota(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn size_formatting() {
+        assert_eq!(format_size(0), "0 B");
+        assert_eq!(format_size(1023), "1023 B");
+        assert_eq!(format_size(1536), "1.5 KiB");
+        assert_eq!(format_size(5 * 1024 * 1024 * 1024), "5.0 GiB");
+    }
+
+    #[test]
+    fn dates_roundtrip() {
+        assert_eq!(rfc3339(0), "1970-01-01T00:00:00Z");
+        assert_eq!(rfc3339(1_700_000_000), "2023-11-14T22:13:20Z");
+        assert_eq!(
+            parse_since("2023-11-14T22:13:20Z").expect("d"),
+            1_700_000_000
+        );
+        assert_eq!(parse_since("2023-11-14").expect("d"), 1_699_920_000);
+        assert_eq!(parse_since("1700000000").expect("d"), 1_700_000_000);
+        assert_eq!(parse_since("2024-02-29").expect("leap"), 1_709_164_800);
+        for t in [-86_400, 0, 951_782_400, 4_102_444_800] {
+            assert_eq!(parse_since(&rfc3339(t)).expect("rt"), t);
+        }
+        for bad in [
+            "",
+            "yesterday",
+            "2026-13-01",
+            "2026-01-32",
+            "2026-01",
+            "2026-01-01T25:00:00Z",
+        ] {
+            assert!(parse_since(bad).is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn event_lines_are_json_with_object_details() {
+        let e = rostdav_meta::Event {
+            id: 3,
+            ts: 1_700_000_000,
+            actor: "cli".into(),
+            action: "admin.user_created".into(),
+            target: "anna".into(),
+            ip: String::new(),
+            details: "{\"admin\":true}".into(),
+        };
+        let v: serde_json::Value = serde_json::from_str(&event_line(&e)).expect("json");
+        assert_eq!(v["details"]["admin"], true);
+        assert_eq!(v["time"], "2023-11-14T22:13:20Z");
+        assert_eq!(v["action"], "admin.user_created");
+    }
+}

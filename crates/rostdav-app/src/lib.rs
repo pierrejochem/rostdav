@@ -151,6 +151,12 @@ impl AppState {
         format!("{node_id:08}{}", self.inner.instance_id)
     }
 
+    /// Removes temporary files left by an interrupted run. Only the server calls
+    /// this at start-up: the CLI runs next to a live server, whose uploads must not be touched.
+    pub async fn sweep_tmp(&self) -> Result<usize> {
+        self.inner.store.sweep_tmp().await
+    }
+
     /// Orderly shutdown.
     pub async fn shutdown(&self) {
         self.inner.db.close().await;

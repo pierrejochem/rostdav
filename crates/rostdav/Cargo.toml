@@ -1,6 +1,6 @@
 [package]
 name = "rostdav"
-description = "Schlanker, Nextcloud-App-kompatibler Dateiserver"
+description = "Lean file server compatible with the Nextcloud apps"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

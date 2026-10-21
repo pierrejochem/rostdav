@@ -8,10 +8,10 @@ use rostdav::config::Config;
 #[command(
     name = "rostdav",
     version,
-    about = "Schlanker, Nextcloud-App-kompatibler Dateiserver"
+    about = "Lean file server compatible with the Nextcloud apps"
 )]
 struct Cli {
-    /// Pfad zur Konfigurationsdatei (Standard: ./rostdav.toml, falls vorhanden).
+    /// Path to the configuration file (default: ./rostdav.toml if present).
     #[arg(long, short, global = true, env = "ROSTDAV_CONFIG")]
     config: Option<PathBuf>,
 
@@ -23,30 +23,11 @@ struct Cli {
 enum Command {
     /// Starts the server.
     Serve,
-    /// Administration (users).
+    /// Administration: users, consistency check, import, event log.
     #[command(subcommand)]
-    Admin(AdminCommand),
+    Admin(rostdav::cli::AdminCommand),
     /// Prints the effective configuration (without secrets).
     CheckConfig,
-}
-
-#[derive(Subcommand)]
-enum AdminCommand {
-    /// User management.
-    #[command(subcommand)]
-    User(UserCommand),
-}
-
-#[derive(Subcommand)]
-enum UserCommand {
-    /// Creates a user. The password is read as one line from stdin
-    /// (never as an argument, so it does not end up in process lists or shell history).
-    Add {
-        name: String,
-        /// The user is granted administrator rights.
-        #[arg(long)]
-        admin: bool,
-    },
 }
 
 #[tokio::main]
@@ -60,28 +41,25 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Command::Serve => serve(cfg).await,
-        Command::Admin(AdminCommand::User(UserCommand::Add { name, admin })) => {
-            user_add(cfg, &name, admin).await
-        }
+        Command::Admin(cmd) => admin(cfg, cmd).await,
     }
 }
 
-async fn user_add(cfg: Config, name: &str, admin: bool) -> anyhow::Result<()> {
-    use std::io::BufRead;
-
-    let mut line = String::new();
-    std::io::stdin()
-        .lock()
-        .read_line(&mut line)
-        .context("could not read password from stdin")?;
-    let password = line.trim_end_matches(['\r', '\n']);
-
+async fn admin(cfg: Config, cmd: rostdav::cli::AdminCommand) -> anyhow::Result<()> {
     let state = rostdav::build_state(&cfg).await?;
-    let result = state.add_user(name, password, admin).await;
+    let code = rostdav::cli::run(
+        &state,
+        cmd,
+        &mut std::io::stdin().lock(),
+        &mut std::io::stdout().lock(),
+    )
+    .await;
     state.shutdown().await;
-    let user = result.map_err(|e| anyhow::anyhow!("user not created: {e}"))?;
-    println!("user {} created", user.name);
-    Ok(())
+    match code {
+        Ok(0) => Ok(()),
+        Ok(c) => std::process::exit(c),
+        Err(e) => Err(e),
+    }
 }
 
 async fn serve(cfg: Config) -> anyhow::Result<()> {
@@ -93,6 +71,10 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
     );
 
     let state = rostdav::build_state(&cfg).await?;
+    let swept = state.sweep_tmp().await.context("cleaning up tmp/ failed")?;
+    if swept > 0 {
+        tracing::warn!(swept, "removed incomplete writes");
+    }
     let app = rostdav::http::router_with(
         state.clone(),
         &rostdav::http::HttpOptions::from_config(&cfg),

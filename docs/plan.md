@@ -62,7 +62,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 
 | # | Contents | Depends on |
 |---|---|---|
-| M7 | Admin CLI complete, event log | M4 |
+| M7 ✅ | Admin CLI complete, event log (2026-10-22) | M4 |
 | M8 | Versioning incl. versions DAV endpoint and restore | M5 |
 | M9 | Shares: users, then public links (OCS Sharing API, mount points) | M5 |
 | M10 | Trash (trashbin DAV endpoint) | M5 |
