@@ -237,6 +237,15 @@ impl Db {
         Ok(())
     }
 
+    /// `(quota_bytes, used_bytes)` of a user.
+    pub async fn quota_info(&self, owner_id: i64) -> Result<(Option<i64>, i64)> {
+        sqlx::query_as("SELECT quota_bytes, used_bytes FROM users WHERE id = ?")
+            .bind(owner_id)
+            .fetch_one(self.pool())
+            .await
+            .map_err(db_err)
+    }
+
     /// Bytes the owner may still add, or `None` without a quota.
     pub async fn quota_headroom(&self, owner_id: i64) -> Result<Option<i64>> {
         let (quota, used): (Option<i64>, i64) =

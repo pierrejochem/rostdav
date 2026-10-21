@@ -37,7 +37,11 @@ const MAX_XML_BODY: usize = 64 * 1024;
 
 /// Routes of this layer.
 pub fn router() -> Router<AppState> {
-    Router::new().route("/remote.php/dav/files/{*rest}", any(entry))
+    Router::new()
+        .route("/remote.php/dav/files/{*rest}", any(entry))
+        .route("/remote.php/webdav", any(entry))
+        .route("/remote.php/webdav/", any(entry))
+        .route("/remote.php/webdav/{*rest}", any(entry))
 }
 
 async fn entry(State(state): State<AppState>, req: Request) -> Response {
@@ -55,10 +59,11 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
         .get::<ClientIp>()
         .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |c| c.0);
     let principal = authenticate(&state, req.headers(), ip).await?;
-    let target = Target::parse(req.uri().path())?;
+    let principal_name = Name::parse(&principal.name)?;
+    let target = Target::parse_any(req.uri().path(), &principal_name)?;
     // The user in the URL must be the authenticated user; checked on the
     // NFC key so equivalent spellings match.
-    if target.user.key() != Name::parse(&principal.name)?.key() {
+    if target.user.key() != principal_name.key() {
         return Err(Error::Forbidden.into());
     }
 
@@ -328,7 +333,7 @@ async fn transfer(
     let dest_raw = header_str(headers, "destination")
         .ok_or(Error::BadRequest("missing Destination header"))?;
     let host = header_str(headers, header::HOST);
-    let dest = match parse_destination(dest_raw, host) {
+    let dest = match parse_destination(dest_raw, host, &t.user) {
         Ok(d) => d,
         Err(DestinationError::Foreign) => return Ok(empty(StatusCode::BAD_GATEWAY)),
         Err(DestinationError::Invalid(e)) => return Err(e.into()),

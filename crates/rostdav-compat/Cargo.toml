@@ -11,6 +11,9 @@ publish.workspace = true
 rostdav-core.workspace = true
 rostdav-app.workspace = true
 axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
 
 [lints]
 workspace = true

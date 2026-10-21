@@ -1,5 +1,8 @@
 //! HTTP router and shared middleware.
 
+use std::net::{IpAddr, SocketAddr};
+use std::sync::Arc;
+
 use axum::Json;
 use axum::Router;
 use axum::extract::State;
@@ -17,8 +20,43 @@ use tracing::Level;
 
 const REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
 
-/// Builds the complete router including middleware.
+/// Settings the HTTP layer needs besides the application state.
+#[derive(Clone, Debug, Default)]
+pub struct HttpOptions {
+    pub trusted_proxies: Vec<IpAddr>,
+    pub public_url: Option<String>,
+    pub reported_version: Option<String>,
+    pub product_name: Option<String>,
+}
+
+impl HttpOptions {
+    pub fn from_config(cfg: &crate::config::Config) -> Self {
+        Self {
+            trusted_proxies: cfg.server.trusted_proxies.clone(),
+            public_url: cfg.server.public_url.clone(),
+            reported_version: Some(cfg.compat.reported_version.clone()),
+            product_name: Some(cfg.compat.product_name.clone()),
+        }
+    }
+}
+
+/// Builds the router with default options (tests, health checks).
 pub fn router(state: AppState) -> Router {
+    router_with(state, &HttpOptions::default())
+}
+
+/// Builds the complete router including middleware.
+pub fn router_with(state: AppState, opts: &HttpOptions) -> Router {
+    let mut compat = rostdav_compat::CompatConfig::default();
+    compat.public_url.clone_from(&opts.public_url);
+    if let Some(v) = &opts.reported_version {
+        compat.version.clone_from(v);
+    }
+    if let Some(n) = &opts.product_name {
+        compat.product_name.clone_from(n);
+    }
+    let proxies = Arc::new(opts.trusted_proxies.clone());
+
     let middleware = ServiceBuilder::new()
         .layer(SetSensitiveRequestHeadersLayer::new([header::AUTHORIZATION, header::COOKIE]))
         .layer(SetRequestIdLayer::new(REQUEST_ID, MakeRequestUuid))
@@ -28,8 +66,8 @@ pub fn router(state: AppState) -> Router {
                 .get(&REQUEST_ID)
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("-");
-            // Only the path, never the query: tokens may appear there later.
-            tracing::info_span!("request", method = %req.method(), path = %req.uri().path(), request_id)
+            // Only the path, never the query, and secrets in paths are masked.
+            tracing::info_span!("request", method = %req.method(), path = %loggable_path(req.uri().path()), request_id)
         }).on_response(DefaultOnResponse::new().level(Level::INFO)))
         .layer(PropagateRequestIdLayer::new(REQUEST_ID))
         .layer(SetResponseHeaderLayer::overriding(
@@ -45,10 +83,56 @@ pub fn router(state: AppState) -> Router {
         .route("/healthz", get(healthz))
         .route("/readyz", get(readyz))
         .merge(rostdav_dav::router())
-        .merge(rostdav_compat::router())
+        .merge(rostdav_compat::router(compat))
         .merge(rostdav_web::router())
         .layer(middleware)
+        .layer(axum::middleware::from_fn_with_state(proxies, client_ip))
         .with_state(state)
+}
+
+/// Masks tokens that are part of a URL path before it is logged.
+pub fn loggable_path(path: &str) -> std::borrow::Cow<'_, str> {
+    const FLOW: &str = "/login/v2/flow/";
+    match path.find(FLOW) {
+        Some(i) if path.len() > i + FLOW.len() => {
+            std::borrow::Cow::Owned(format!("{}{FLOW}<redacted>", &path[..i]))
+        }
+        _ => std::borrow::Cow::Borrowed(path),
+    }
+}
+
+/// Determines the client address: the socket peer, or the right-most
+/// `X-Forwarded-For` entry that is not a trusted proxy when the peer is one.
+pub fn resolve_client_ip(peer: IpAddr, forwarded_for: Option<&str>, trusted: &[IpAddr]) -> IpAddr {
+    if !trusted.contains(&peer) {
+        return peer;
+    }
+    forwarded_for
+        .into_iter()
+        .flat_map(|v| v.split(',').rev())
+        .filter_map(|e| e.trim().parse::<IpAddr>().ok())
+        .find(|ip| !trusted.contains(ip))
+        .unwrap_or(peer)
+}
+
+async fn client_ip(
+    State(trusted): State<Arc<Vec<IpAddr>>>,
+    mut req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let peer = req
+        .extensions()
+        .get::<axum::extract::ConnectInfo<SocketAddr>>()
+        .map(|c| c.0.ip());
+    if let Some(peer) = peer {
+        let xff = req
+            .headers()
+            .get("x-forwarded-for")
+            .and_then(|v| v.to_str().ok());
+        let ip = resolve_client_ip(peer, xff, &trusted);
+        req.extensions_mut().insert(rostdav_core::ClientIp(ip));
+    }
+    next.run(req).await
 }
 
 /// Process is alive. Deliberately checks no dependencies.
@@ -68,5 +152,66 @@ async fn readyz(State(state): State<AppState>) -> impl IntoResponse {
                 Json(json!({ "status": "unavailable" })),
             )
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ip(s: &str) -> IpAddr {
+        s.parse().expect("ip")
+    }
+
+    #[test]
+    fn untrusted_peer_cannot_spoof_forwarded_for() {
+        assert_eq!(
+            resolve_client_ip(ip("203.0.113.9"), Some("1.2.3.4"), &[ip("10.0.0.1")]),
+            ip("203.0.113.9")
+        );
+        assert_eq!(
+            resolve_client_ip(ip("203.0.113.9"), Some("1.2.3.4"), &[]),
+            ip("203.0.113.9")
+        );
+    }
+
+    #[test]
+    fn trusted_proxy_chain_uses_rightmost_untrusted() {
+        let trusted = [ip("10.0.0.1"), ip("10.0.0.2")];
+        assert_eq!(
+            resolve_client_ip(
+                ip("10.0.0.1"),
+                Some("6.6.6.6, 198.51.100.7, 10.0.0.2"),
+                &trusted
+            ),
+            ip("198.51.100.7")
+        );
+        // a client-forged left entry is ignored
+        assert_eq!(
+            resolve_client_ip(ip("10.0.0.1"), Some("6.6.6.6, 198.51.100.7"), &trusted),
+            ip("198.51.100.7")
+        );
+        assert_eq!(
+            resolve_client_ip(ip("10.0.0.1"), None, &trusted),
+            ip("10.0.0.1")
+        );
+        assert_eq!(
+            resolve_client_ip(ip("10.0.0.1"), Some("garbage, 10.0.0.2"), &trusted),
+            ip("10.0.0.1")
+        );
+    }
+
+    #[test]
+    fn flow_tokens_are_masked_in_logs() {
+        assert_eq!(
+            loggable_path("/login/v2/flow/SECRET"),
+            "/login/v2/flow/<redacted>"
+        );
+        assert_eq!(
+            loggable_path("/index.php/login/v2/flow/SECRET"),
+            "/index.php/login/v2/flow/<redacted>"
+        );
+        assert_eq!(loggable_path("/login/v2/flow"), "/login/v2/flow");
+        assert_eq!(loggable_path("/healthz"), "/healthz");
     }
 }

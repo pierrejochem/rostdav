@@ -93,7 +93,10 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
     );
 
     let state = rostdav::build_state(&cfg).await?;
-    let app = rostdav::http::router(state.clone());
+    let app = rostdav::http::router_with(
+        state.clone(),
+        &rostdav::http::HttpOptions::from_config(&cfg),
+    );
 
     spawn_garbage_collection(state.clone());
 
@@ -102,10 +105,13 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
         .with_context(|| format!("could not bind address {}", cfg.server.listen))?;
     tracing::info!(listen = %cfg.server.listen, "ready");
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
-        .await
-        .context("server exited with error")?;
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await
+    .context("server exited with error")?;
 
     state.shutdown().await;
     tracing::info!("stopped");

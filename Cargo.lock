@@ -1446,6 +1446,9 @@ dependencies = [
  "axum",
  "rostdav-app",
  "rostdav-core",
+ "serde",
+ "serde_json",
+ "tracing",
 ]
 
 [[package]]
@@ -1506,6 +1509,8 @@ dependencies = [
  "axum",
  "rostdav-app",
  "rostdav-core",
+ "serde",
+ "tracing",
 ]
 
 [[package]]

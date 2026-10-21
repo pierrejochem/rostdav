@@ -183,6 +183,30 @@ impl AppState {
     }
 }
 
+/// Account facts shown to clients (OCS user endpoint).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UserInfo {
+    pub id: String,
+    pub display_name: String,
+    pub is_admin: bool,
+    /// Total quota in bytes, `None` = unlimited.
+    pub quota_total: Option<i64>,
+    pub used: i64,
+}
+
+impl AppState {
+    pub async fn user_info(&self, p: &Principal) -> Result<UserInfo> {
+        let (quota_total, used) = self.inner.db.quota_info(p.user_id).await?;
+        Ok(UserInfo {
+            id: p.name.clone(),
+            display_name: p.name.clone(),
+            is_admin: p.is_admin,
+            quota_total,
+            used,
+        })
+    }
+}
+
 fn retry(retry_after_secs: u64) -> Error {
     Error::RateLimited { retry_after_secs }
 }

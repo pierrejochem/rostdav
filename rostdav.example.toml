@@ -5,6 +5,10 @@
 [server]
 # HTTP without TLS; in production behind a reverse proxy.
 listen = "127.0.0.1:8080"
+# Externally visible URL; set it when running behind a TLS-terminating proxy.
+# public_url = "https://cloud.example.org"
+# Reverse proxies whose X-Forwarded-For header is trusted (client IP for rate limiting).
+# trusted_proxies = ["127.0.0.1"]
 
 [storage]
 # Contains blobs/, tmp/, uploads/ and db/. Created with mode 0700.
@@ -13,6 +17,11 @@ data_dir = "./data"
 [database]
 # If omitted: sqlite://<data_dir>/db/rostdav.sqlite
 # url = "sqlite:///srv/rostdav/db/rostdav.sqlite"
+
+[compat]
+# What clients are told about the server (status.php, capabilities).
+# reported_version = "35.0.2.2"
+# product_name = "Rostdav"
 
 [limits]
 # Maximum size of a single upload in bytes (default: 16 GiB).

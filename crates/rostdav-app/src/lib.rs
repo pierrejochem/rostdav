@@ -12,7 +12,7 @@ mod password;
 mod ratelimit;
 mod secrets;
 
-pub use auth::{APP_PASSWORD_LEN, Action, Principal, Via, authorize};
+pub use auth::{APP_PASSWORD_LEN, Action, Principal, UserInfo, Via, authorize};
 pub use files::Listing;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};

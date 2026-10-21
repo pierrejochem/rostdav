@@ -4,7 +4,7 @@
 //! configuration file (`rostdav.toml`), built-in defaults. Later, the command
 //! line (on top) and database settings from the UI (at the bottom) will be added.
 
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::path::{Path, PathBuf};
 
 use figment::Figment;
@@ -18,7 +18,27 @@ pub struct Config {
     pub storage: Storage,
     pub database: Database,
     pub limits: Limits,
+    pub compat: Compat,
     pub log: Log,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Compat {
+    /// Version reported to clients (`status.php`, capabilities): `major.minor.micro[.build]`.
+    pub reported_version: String,
+    /// `productname` reported to clients.
+    pub product_name: String,
+}
+
+impl Default for Compat {
+    fn default() -> Self {
+        Self {
+            // Version of the reference server the fixtures were recorded from.
+            reported_version: "35.0.2.2".into(),
+            product_name: "Rostdav".into(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -41,12 +61,19 @@ impl Default for Limits {
 pub struct Server {
     /// Address on which Rostdav speaks HTTP. TLS is handled by the reverse proxy.
     pub listen: SocketAddr,
+    /// Externally visible base URL, e.g. `https://cloud.example.org`. Used in
+    /// links handed to clients. If unset, `http://<Host header>` is used.
+    pub public_url: Option<String>,
+    /// Reverse proxies whose `X-Forwarded-For` header is trusted.
+    pub trusted_proxies: Vec<IpAddr>,
 }
 
 impl Default for Server {
     fn default() -> Self {
         Self {
             listen: SocketAddr::from(([127, 0, 0, 1], 8080)),
+            public_url: None,
+            trusted_proxies: Vec::new(),
         }
     }
 }
