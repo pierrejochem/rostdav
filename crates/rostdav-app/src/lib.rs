@@ -14,7 +14,7 @@ mod secrets;
 
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, Via, authorize};
 pub use files::Listing;
-pub use login_flow::{Confirmation, Granted, StartedFlow};
+pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 
 use rostdav_core::Result;
@@ -34,12 +34,6 @@ struct Inner {
     limiter: ratelimit::RateLimiter,
     /// 32-byte key for stateless tickets and CSRF values (stored in `settings`).
     server_key: [u8; 32],
-}
-
-pub(crate) fn now_secs() -> i64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
 }
 
 /// Operating limits.
@@ -519,10 +513,15 @@ mod tests {
 
     // ---- Login Flow v2 --------------------------------------------------------
 
-    async fn flow_through_login(st: &AppState, user: &str, pw: &str) -> Result<Confirmation> {
-        let f = st.start_login_flow("Test Phone").await.expect("start");
-        let csrf = st.flow_csrf(&f.login_token, "login");
-        st.flow_login(&f.login_token, &csrf, user, pw, IP).await
+    async fn allow(st: &AppState, f: &StartedFlow, user: &str, pw: &str) -> Result<()> {
+        st.flow_allow(
+            &f.login_token,
+            &st.flow_csrf(&f.login_token, "allow"),
+            user,
+            pw,
+            IP,
+        )
+        .await
     }
 
     #[tokio::test]
@@ -546,32 +545,9 @@ mod tests {
             Some("Test Phone")
         );
 
-        let c = st
-            .flow_login(
-                &f.login_token,
-                &st.flow_csrf(&f.login_token, "login"),
-                "anna",
-                "korrekt-pferd-batterie",
-                IP,
-            )
+        allow(&st, &f, "anna", "korrekt-pferd-batterie")
             .await
-            .expect("login");
-        assert_eq!(c.user_name, "anna");
-        assert!(
-            st.poll_login_flow(&f.poll_token)
-                .await
-                .expect("poll")
-                .is_none(),
-            "not granted yet"
-        );
-
-        st.flow_grant(
-            &f.login_token,
-            &st.flow_csrf(&f.login_token, "grant"),
-            &c.ticket,
-        )
-        .await
-        .expect("grant");
+            .expect("allow");
         let g = st
             .poll_login_flow(&f.poll_token)
             .await
@@ -605,27 +581,24 @@ mod tests {
         let (_d, st) = state().await;
         let anna = login(&st, "anna").await;
         let f = st.start_login_flow("Phone").await.expect("start");
-        let good = st.flow_csrf(&f.login_token, "login");
-        assert!(matches!(
-            st.flow_login(&f.login_token, "nope", "anna", "korrekt-pferd-batterie", IP)
-                .await,
-            Err(Error::Forbidden)
-        ));
-        // csrf of another purpose or another flow does not work
         let other = st.start_login_flow("Other").await.expect("start");
         for bad in [
-            st.flow_csrf(&f.login_token, "grant"),
-            st.flow_csrf(&other.login_token, "login"),
+            "".to_owned(),
+            "nope".to_owned(),
+            st.flow_csrf(&other.login_token, "allow"),
         ] {
             assert!(matches!(
-                st.flow_login(&f.login_token, &bad, "anna", "korrekt-pferd-batterie", IP)
+                st.flow_allow(&f.login_token, &bad, "anna", "korrekt-pferd-batterie", IP)
                     .await,
                 Err(Error::Forbidden)
             ));
         }
         assert!(matches!(
-            st.flow_login(&f.login_token, &good, "anna", "falsch-falsch-falsch", IP)
-                .await,
+            allow(&st, &f, "anna", "falsch-falsch-falsch").await,
+            Err(Error::Unauthenticated)
+        ));
+        assert!(matches!(
+            allow(&st, &f, "niemand", "korrekt-pferd-batterie").await,
             Err(Error::Unauthenticated)
         ));
         // an app password is not accepted on the login form
@@ -634,53 +607,20 @@ mod tests {
             .await
             .expect("app");
         assert!(matches!(
-            st.flow_login(&f.login_token, &good, "anna", &app, IP).await,
+            allow(&st, &f, "anna", &app).await,
             Err(Error::Unauthenticated)
         ));
         // unknown flow
-        let bogus = st.flow_csrf("bogus", "login");
+        let bogus = StartedFlow {
+            poll_token: String::new(),
+            login_token: "bogus".into(),
+        };
         assert!(matches!(
-            st.flow_login("bogus", &bogus, "anna", "korrekt-pferd-batterie", IP)
-                .await,
+            allow(&st, &bogus, "anna", "korrekt-pferd-batterie").await,
             Err(Error::NotFound)
         ));
-    }
-
-    #[tokio::test]
-    async fn login_flow_ticket_cannot_be_forged_or_reused() {
-        let (_d, st) = state().await;
-        login(&st, "anna").await;
-        let bob = login(&st, "bob").await;
-        let c = flow_through_login(&st, "anna", "korrekt-pferd-batterie")
-            .await
-            .expect("c");
-        // second flow
-        let f2 = st.start_login_flow("Phone 2").await.expect("start");
-        let grant2 = st.flow_csrf(&f2.login_token, "grant");
-        // a ticket for flow 1 does not work on flow 2
-        assert!(matches!(
-            st.flow_grant(&f2.login_token, &grant2, &c.ticket).await,
-            Err(Error::Forbidden)
-        ));
-        // tampering with the user id
-        let (body, sig) = c.ticket.rsplit_once('.').expect("ticket");
-        let mut parts: Vec<&str> = body.split('.').collect();
-        let bob_id = bob.user_id.to_string();
-        parts[1] = &bob_id;
-        let forged = format!("{}.{sig}", parts.join("."));
-        let f3 = st.start_login_flow("Phone 3").await.expect("start");
-        let _ = f3;
-        for t in [forged.as_str(), "", "a.b.c.d", "1.2.3.sig"] {
-            assert!(
-                matches!(
-                    st.flow_grant(&f2.login_token, &grant2, t).await,
-                    Err(Error::Forbidden)
-                ),
-                "{t:?}"
-            );
-        }
         assert!(
-            st.poll_login_flow(&f2.poll_token)
+            st.poll_login_flow(&f.poll_token)
                 .await
                 .expect("poll")
                 .is_none()
@@ -688,26 +628,39 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn login_flow_double_grant_creates_one_credential() {
+    async fn login_flow_deny_closes_flow_without_credentials() {
+        let (_d, st) = state().await;
+        login(&st, "anna").await;
+        let f = st.start_login_flow("Phone").await.expect("start");
+        assert!(matches!(
+            st.flow_deny(&f.login_token, "bad").await,
+            Err(Error::Forbidden)
+        ));
+        st.flow_deny(&f.login_token, &st.flow_csrf(&f.login_token, "allow"))
+            .await
+            .expect("deny");
+        assert!(matches!(
+            allow(&st, &f, "anna", "korrekt-pferd-batterie").await,
+            Err(Error::NotFound)
+        ));
+        assert!(
+            st.poll_login_flow(&f.poll_token)
+                .await
+                .expect("poll")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn login_flow_double_submit_creates_one_credential() {
         let (_d, st) = state().await;
         let anna = login(&st, "anna").await;
         let f = st.start_login_flow("Phone").await.expect("start");
-        let c = st
-            .flow_login(
-                &f.login_token,
-                &st.flow_csrf(&f.login_token, "login"),
-                "anna",
-                "korrekt-pferd-batterie",
-                IP,
-            )
-            .await
-            .expect("login");
-        let grant = st.flow_csrf(&f.login_token, "grant");
-        st.flow_grant(&f.login_token, &grant, &c.ticket)
+        allow(&st, &f, "anna", "korrekt-pferd-batterie")
             .await
             .expect("first");
         assert!(matches!(
-            st.flow_grant(&f.login_token, &grant, &c.ticket).await,
+            allow(&st, &f, "anna", "korrekt-pferd-batterie").await,
             Err(Error::NotFound)
         ));
         assert_eq!(

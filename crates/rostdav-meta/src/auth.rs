@@ -179,6 +179,16 @@ impl Db {
         Ok(row.map(|(id, client_name)| LoginFlow { id, client_name }))
     }
 
+    /// Deletes a flow that has not been granted yet.
+    pub async fn delete_open_flow(&self, login_hash: &str) -> Result<()> {
+        sqlx::query("DELETE FROM login_flows WHERE login_hash = ? AND user_id IS NULL")
+            .bind(login_hash)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(())
+    }
+
     /// Marks an open flow as granted. Returns `false` if it was no longer open.
     pub async fn grant_flow(&self, flow_id: i64, user_id: i64, app_password: &str) -> Result<bool> {
         let r = sqlx::query(

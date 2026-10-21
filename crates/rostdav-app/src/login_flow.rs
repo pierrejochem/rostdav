@@ -1,7 +1,7 @@
 //! Login Flow v2 (ADR 0003).
 //!
-//! The state between the login page and the confirmation page is carried in a
-//! signed *ticket*, so no cookies or sessions are needed.
+//! The browser page is one form (sign in and allow, or deny); its CSRF value
+//! is a MAC over the flow's login token, so no cookies or sessions are needed.
 
 use std::net::IpAddr;
 
@@ -12,21 +12,12 @@ use crate::secrets::{hash_token, mac, mac_eq, random_token};
 
 const TOKEN_LEN: usize = 128;
 const FLOW_TTL_SECS: i64 = 20 * 60;
-const TICKET_TTL_SECS: i64 = 5 * 60;
 const MAX_CLIENT_NAME: usize = 128;
 
 #[derive(Debug, Clone)]
 pub struct StartedFlow {
     pub poll_token: String,
     pub login_token: String,
-}
-
-/// What the login page shows after a successful login.
-#[derive(Debug, Clone)]
-pub struct Confirmation {
-    pub user_name: String,
-    pub client_name: String,
-    pub ticket: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -91,79 +82,43 @@ impl AppState {
         }
     }
 
-    /// Step 1: verifies the account password and returns the confirmation data.
-    pub async fn flow_login(
+    /// The user signed in and allowed access: create the app password and hand
+    /// it to the poller. Browser logins accept the account password only.
+    pub async fn flow_allow(
         &self,
         login_token: &str,
         csrf: &str,
         user: &str,
         password: &str,
         ip: IpAddr,
-    ) -> Result<Confirmation> {
-        self.check_csrf(login_token, "login", csrf)?;
+    ) -> Result<()> {
+        self.check_csrf(login_token, "allow", csrf)?;
         let flow = self
             .inner
             .db
             .open_flow_by_login(&hash_token(login_token))
             .await?
             .ok_or(Error::NotFound)?;
-        // Browser logins accept the account password only.
         let p = self.authenticate_with(user, password, ip, false).await?;
-        let expiry = crate::now_secs() + TICKET_TTL_SECS;
-        let body = format!("{}.{}.{expiry}", flow.id, p.user_id);
-        let sig = mac(&self.inner.server_key, &["ticket", login_token, &body]);
-        Ok(Confirmation {
-            user_name: p.name,
-            client_name: flow.client_name,
-            ticket: format!("{body}.{sig}"),
-        })
-    }
-
-    /// Step 2: the user confirmed; create the app password and hand it to the poller.
-    pub async fn flow_grant(&self, login_token: &str, csrf: &str, ticket: &str) -> Result<()> {
-        self.check_csrf(login_token, "grant", csrf)?;
-        let (body, sig) = ticket.rsplit_once('.').ok_or(Error::Forbidden)?;
-        let expected = mac(&self.inner.server_key, &["ticket", login_token, body]);
-        if !mac_eq(&expected, sig) {
-            return Err(Error::Forbidden);
-        }
-        let mut parts = body.split('.');
-        let (Some(flow_id), Some(user_id), Some(expiry), None) =
-            (parts.next(), parts.next(), parts.next(), parts.next())
-        else {
-            return Err(Error::Forbidden);
-        };
-        let (Ok(flow_id), Ok(user_id), Ok(expiry)) = (
-            flow_id.parse::<i64>(),
-            user_id.parse::<i64>(),
-            expiry.parse::<i64>(),
-        ) else {
-            return Err(Error::Forbidden);
-        };
-        if expiry < crate::now_secs() {
-            return Err(Error::Forbidden);
-        }
-        let flow = self
-            .inner
-            .db
-            .open_flow_by_login(&hash_token(login_token))
-            .await?
-            .filter(|f| f.id == flow_id)
-            .ok_or(Error::NotFound)?;
-        self.inner
-            .db
-            .find_user_by_id(user_id)
-            .await?
-            .ok_or(Error::Forbidden)?;
 
         let (pw_id, token) = self
-            .create_app_password_with_id(user_id, &flow.client_name)
+            .create_app_password_with_id(p.user_id, &flow.client_name)
             .await?;
-        if !self.inner.db.grant_flow(flow.id, user_id, &token).await? {
-            // Lost a race (double click): do not leave an unused credential behind.
-            self.inner.db.revoke_app_password(user_id, pw_id).await?;
+        if !self.inner.db.grant_flow(flow.id, p.user_id, &token).await? {
+            // Lost a race (double submit): do not leave an unused credential behind.
+            self.inner.db.revoke_app_password(p.user_id, pw_id).await?;
             return Err(Error::NotFound);
         }
+        Ok(())
+    }
+
+    /// The user pressed "Deny": the flow is closed and the poller never gets credentials.
+    pub async fn flow_deny(&self, login_token: &str, csrf: &str) -> Result<()> {
+        self.check_csrf(login_token, "allow", csrf)?;
+        self.inner
+            .db
+            .delete_open_flow(&hash_token(login_token))
+            .await?;
         Ok(())
     }
 

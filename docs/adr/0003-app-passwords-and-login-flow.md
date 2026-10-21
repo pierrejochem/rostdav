@@ -20,8 +20,7 @@ Nextcloud apps sign in through Login Flow v2 and afterwards send `username` + *a
 ### Login Flow v2
 
 - `POST /index.php/login/v2` (also `/login/v2`) creates a flow with two random 128-character tokens: the *poll token* (given to the app) and the *login token* (in the URL opened in the browser). Only their BLAKE3 hashes are stored. A flow expires after 20 minutes.
-- Browser step 1: `GET /login/v2/flow/{loginToken}` shows a login form. `POST` checks the credentials (rate limited).
-- Browser step 2: after a correct login Rostdav shows the client name and a "Grant access" button. The step between the two pages is **stateless**: a *ticket* carries `(flow id, user id, expiry)` and an HMAC (BLAKE3 keyed hash, key = `settings.server_key`, 32 random bytes created on first start). A CSRF value for each form is an HMAC over the login token and the form's purpose. No cookies or sessions exist yet (they arrive with the web UI, M11).
+- Browser: `GET /login/v2/flow/{loginToken}` shows one page (design: `design/mockups/web-ui/Login.dc.html`) with the client name, user name and password fields, "Sign in and allow access" and "Deny". `POST` to the same URL with the CSRF value checks the account password (rate limited; app passwords are not accepted here) and grants, or closes the flow on "Deny". The CSRF value is a BLAKE3 keyed hash (key = `settings.server_key`, 32 random bytes created on first start) over the purpose and the login token. No cookies or sessions exist yet (they arrive with the web UI, M11). Two-factor login (M12) will add a second step; its design (`Login2FA.dc.html`) will need a signed ticket then.
 - On grant the app password is created; its clear value is kept in `login_flows.app_password` until the first successful poll (or expiry) and then deleted. While it is stored, anyone with read access to the database could use it; encrypting it with the server key is a possible hardening.
 - `POST /login/v2/poll` with the poll token answers 404 while pending or unknown, and 200 `{server, loginName, appPassword}` once, then the flow is deleted.
 - Pages send `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'`, `Cache-Control: no-store`.
@@ -29,7 +28,7 @@ Nextcloud apps sign in through Login Flow v2 and afterwards send `username` + *a
 ### Brute-force protection
 
 - In-memory sliding window per client IP and per user name: 10 failed credential checks in 15 minutes block further attempts for that key until the window ends (HTTP 429 with `Retry-After`). Successful logins clear the user key, not the IP key.
-- Applies to Basic auth on WebDAV/OCS, the login form and the poll endpoint (per IP).
+- Applies to Basic auth on WebDAV/OCS and the login form. The poll endpoint is not limited: its 128-character token cannot be guessed.
 - The client IP is the socket peer unless that peer is listed in `server.trusted_proxies`; then the right-most `X-Forwarded-For` entry that is not a trusted proxy is used.
 - State is lost on restart and not shared between instances; acceptable for a single-process server, revisit for PostgreSQL deployments.
 
