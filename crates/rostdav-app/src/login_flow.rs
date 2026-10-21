@@ -6,6 +6,7 @@
 use std::net::IpAddr;
 
 use rostdav_core::{Error, Result};
+use serde_json::json;
 
 use crate::AppState;
 use crate::secrets::{hash_token, mac, mac_eq, random_token};
@@ -109,6 +110,16 @@ impl AppState {
             self.inner.db.revoke_app_password(p.user_id, pw_id).await?;
             return Err(Error::NotFound);
         }
+        self.audit(&p.name, "auth.login", "login_flow", Some(ip), json!({}))
+            .await;
+        self.audit(
+            &p.name,
+            "device.connected",
+            &flow.client_name,
+            Some(ip),
+            json!({}),
+        )
+        .await;
         Ok(())
     }
 

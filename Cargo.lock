@@ -1435,6 +1435,7 @@ dependencies = [
  "rostdav-core",
  "rostdav-meta",
  "rostdav-storage",
+ "serde_json",
  "tempfile",
  "tokio",
  "tracing",

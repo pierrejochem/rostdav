@@ -205,6 +205,55 @@ impl LocalStore {
         Ok(removed)
     }
 
+    /// Last modification of a blob file (unix seconds); `None` if the file is missing.
+    pub async fn blob_modified(&self, id: &BlobId) -> Result<Option<i64>> {
+        match tokio::fs::metadata(self.blob_path(id)).await {
+            Ok(m) => Ok(Some(
+                m.modified()
+                    .ok()
+                    .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+                    .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(0)),
+            )),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+            Err(e) => Err(Error::internal(e)),
+        }
+    }
+
+    /// Size and BLAKE3 of a stored blob, read from disk (integrity check).
+    pub async fn verify_blob(&self, id: &BlobId) -> Result<Option<(u64, String)>> {
+        let mut f = match tokio::fs::File::open(self.blob_path(id)).await {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => return Err(Error::internal(e)),
+        };
+        let mut h = blake3::Hasher::new();
+        let mut size = 0u64;
+        let mut buf = vec![0u8; 256 * 1024];
+        loop {
+            let n = f.read(&mut buf).await.map_err(Error::internal)?;
+            if n == 0 {
+                break;
+            }
+            size += n as u64;
+            h.update(&buf[..n]);
+        }
+        Ok(Some((size, h.finalize().to_hex().to_string())))
+    }
+
+    /// Session directories below `uploads/`.
+    pub async fn list_session_dirs(&self) -> Result<Vec<BlobId>> {
+        let mut rd = tokio::fs::read_dir(self.root().join("uploads"))
+            .await
+            .map_err(Error::internal)?;
+        let mut out = Vec::new();
+        while let Some(e) = rd.next_entry().await.map_err(Error::internal)? {
+            if let Some(id) = e.file_name().to_str().and_then(|n| BlobId::parse(n).ok()) {
+                out.push(id);
+            }
+        }
+        Ok(out)
+    }
+
     /// Checks whether the temporary directory is writable.
     pub async fn check_writable(&self) -> Result<()> {
         let probe = self.root.join("tmp").join(".ready-probe");

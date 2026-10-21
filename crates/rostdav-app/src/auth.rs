@@ -7,6 +7,7 @@ use std::net::IpAddr;
 use std::sync::OnceLock;
 
 use base64::Engine;
+use serde_json::json;
 
 use rostdav_core::{Error, Name, Result};
 use rostdav_meta::Node;
@@ -115,6 +116,9 @@ impl AppState {
                 .find_app_password(u.id, &hash_token(password))
                 .await?
             {
+                if u.disabled {
+                    return Err(Error::Unauthenticated);
+                }
                 self.inner.db.touch_app_password(id).await?;
                 self.inner.limiter.clear(&user_key);
                 return Ok(Principal {
@@ -135,6 +139,18 @@ impl AppState {
             .await
             .map_err(Error::internal)?;
         match user {
+            Some(u) if ok && u.disabled => {
+                // Correct password of a disabled account: refuse, but do not punish the address.
+                self.audit(
+                    &u.name,
+                    "auth.login_failed",
+                    "",
+                    Some(ip),
+                    json!({"reason": "disabled"}),
+                )
+                .await;
+                Err(Error::Unauthenticated)
+            }
             Some(u) if ok => {
                 self.inner.limiter.clear(&user_key);
                 Ok(Principal {
@@ -145,8 +161,15 @@ impl AppState {
                 })
             }
             _ => {
-                self.inner.limiter.record_failure(&ip_key);
-                self.inner.limiter.record_failure(&user_key);
+                let by_ip = self.inner.limiter.record_failure(&ip_key);
+                let by_user = self.inner.limiter.record_failure(&user_key);
+                self.audit(name, "auth.login_failed", "", Some(ip), json!({}))
+                    .await;
+                if by_ip || by_user {
+                    let which = if by_user { "user" } else { "address" };
+                    self.audit(name, "auth.locked", "", Some(ip), json!({"key": which}))
+                        .await;
+                }
                 Err(Error::Unauthenticated)
             }
         }
@@ -175,7 +198,24 @@ impl AppState {
     pub async fn revoke_current_app_password(&self, p: &Principal) -> Result<()> {
         match p.via {
             Via::AppPassword(id) => {
+                let device = self
+                    .inner
+                    .db
+                    .list_app_passwords(p.user_id)
+                    .await?
+                    .into_iter()
+                    .find(|d| d.id == id)
+                    .map(|d| d.name)
+                    .unwrap_or_default();
                 self.inner.db.revoke_app_password(p.user_id, id).await?;
+                self.audit(
+                    &p.name,
+                    "device.revoked",
+                    &device,
+                    None,
+                    json!({"how": "sign-out"}),
+                )
+                .await;
                 Ok(())
             }
             Via::AccountPassword => Err(Error::BadRequest("not signed in with an app password")),

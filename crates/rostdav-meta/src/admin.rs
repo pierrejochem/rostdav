@@ -256,10 +256,24 @@ impl Db {
         ip: &str,
         details: &str,
     ) -> Result<()> {
+        self.record_event_at(now_secs(), actor, action, target, ip, details)
+            .await
+    }
+
+    /// Like [`record_event`](Self::record_event) with an explicit time (tests, imports).
+    pub async fn record_event_at(
+        &self,
+        ts: i64,
+        actor: &str,
+        action: &str,
+        target: &str,
+        ip: &str,
+        details: &str,
+    ) -> Result<()> {
         sqlx::query(
             "INSERT INTO events (ts, actor, action, target, ip, details) VALUES (?, ?, ?, ?, ?, ?)",
         )
-        .bind(now_secs())
+        .bind(ts)
         .bind(actor)
         .bind(action)
         .bind(target)

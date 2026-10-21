@@ -5,6 +5,10 @@
 
 use std::sync::Arc;
 
+mod admin;
+#[cfg(test)]
+mod admin_tests;
+mod audit;
 mod auth;
 mod files;
 mod login_flow;
@@ -13,6 +17,8 @@ mod ratelimit;
 mod secrets;
 mod uploads;
 
+pub use admin::{Actor, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport};
+pub use audit::AuditOptions;
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, UserInfo, Via, authorize};
 pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, normalize_checksum};
 pub use login_flow::{Granted, StartedFlow};
@@ -20,7 +26,7 @@ pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use uploads::UploadListing;
 
 use rostdav_core::Result;
-use rostdav_meta::{Db, NewUser, User};
+use rostdav_meta::Db;
 use rostdav_storage::LocalStore;
 
 /// Shared state of all requests.
@@ -32,7 +38,7 @@ pub struct AppState {
 struct Inner {
     db: Db,
     store: LocalStore,
-    limits: Limits,
+    config: AppConfig,
     limiter: ratelimit::RateLimiter,
     /// Instance ID used in Nextcloud-style file IDs (`oc:id`), e.g. `oc` + 10 characters.
     instance_id: String,
@@ -44,6 +50,13 @@ pub(crate) fn now_secs() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
+}
+
+/// Runtime settings that are not part of the stored state.
+#[derive(Clone, Debug, Default)]
+struct AppConfig {
+    limits: Limits,
+    audit: AuditOptions,
 }
 
 /// Operating limits.
@@ -84,7 +97,7 @@ impl AppState {
             inner: Arc::new(Inner {
                 db,
                 store,
-                limits: Limits::default(),
+                config: AppConfig::default(),
                 limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
                 instance_id,
                 server_key,
@@ -92,20 +105,37 @@ impl AppState {
         })
     }
 
-    #[must_use]
-    pub fn with_limits(self, limits: Limits) -> Self {
+    fn reconfigured(&self, config: AppConfig) -> Self {
         // Called during start-up, before the state is shared.
         let old = &*self.inner;
         Self {
             inner: Arc::new(Inner {
                 db: old.db.clone(),
                 store: old.store.clone(),
-                limits,
+                config,
                 limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
                 instance_id: old.instance_id.clone(),
                 server_key: old.server_key,
             }),
         }
+    }
+
+    #[must_use]
+    pub fn with_limits(self, limits: Limits) -> Self {
+        let config = AppConfig {
+            limits,
+            ..self.inner.config.clone()
+        };
+        self.reconfigured(config)
+    }
+
+    #[must_use]
+    pub fn with_audit(self, audit: AuditOptions) -> Self {
+        let config = AppConfig {
+            audit,
+            ..self.inner.config.clone()
+        };
+        self.reconfigured(config)
     }
 
     /// Readiness check: the database responds and the data directory is writable.
@@ -114,35 +144,6 @@ impl AppState {
         db?;
         store?;
         Ok(())
-    }
-
-    /// Creates a user (admin CLI). The password is hashed here.
-    pub async fn add_user(&self, name: &str, password: &str, is_admin: bool) -> Result<User> {
-        let password_hash = hash_password(password)?;
-        self.inner
-            .db
-            .create_user(NewUser {
-                name,
-                password_hash: &password_hash,
-                is_admin,
-            })
-            .await
-    }
-
-    /// Sets or clears a user's quota (admin operation).
-    pub async fn set_quota(&self, user: &str, quota_bytes: Option<i64>) -> Result<()> {
-        let u = self
-            .inner
-            .db
-            .find_user(user)
-            .await?
-            .ok_or(rostdav_core::Error::NotFound)?;
-        if quota_bytes.is_some_and(|q| q < 0) {
-            return Err(rostdav_core::Error::BadRequest(
-                "quota must not be negative",
-            ));
-        }
-        self.inner.db.set_quota(u.id, quota_bytes).await
     }
 
     /// Nextcloud-style file ID (`oc:id`, `OC-FileId`): 8-digit node ID + instance ID.

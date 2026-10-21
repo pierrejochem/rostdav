@@ -177,13 +177,13 @@ impl AppState {
         let freed = existing.map_or(0, |n| n.size.max(0)).unsigned_abs();
         let headroom = self.inner.db.quota_headroom(p.user_id).await?;
         let quota_limit = headroom.map(|h| h.unsigned_abs().saturating_add(freed));
-        let max = quota_limit.map_or(self.inner.limits.max_upload_bytes, |q| {
-            q.min(self.inner.limits.max_upload_bytes)
+        let max = quota_limit.map_or(self.inner.config.limits.max_upload_bytes, |q| {
+            q.min(self.inner.config.limits.max_upload_bytes)
         });
 
         let stored = match self.inner.store.put(body, max).await {
             Err(Error::TooLarge)
-                if quota_limit.is_some_and(|q| q < self.inner.limits.max_upload_bytes) =>
+                if quota_limit.is_some_and(|q| q < self.inner.config.limits.max_upload_bytes) =>
             {
                 return Err(Error::QuotaExceeded);
             }

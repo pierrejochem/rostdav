@@ -34,8 +34,9 @@ impl RateLimiter {
         self.check_at(key, Instant::now())
     }
 
-    pub fn record_failure(&self, key: &str) {
-        self.record_failure_at(key, Instant::now());
+    /// Counts a failure; `true` if this failure just blocked the key.
+    pub fn record_failure(&self, key: &str) -> bool {
+        self.record_failure_at(key, Instant::now())
     }
 
     pub fn clear(&self, key: &str) {
@@ -61,15 +62,15 @@ impl RateLimiter {
         }
     }
 
-    fn record_failure_at(&self, key: &str, now: Instant) {
+    fn record_failure_at(&self, key: &str, now: Instant) -> bool {
         let Ok(mut m) = self.entries.lock() else {
-            return;
+            return false;
         };
         if m.len() >= MAX_ENTRIES {
             let window = self.window;
             m.retain(|_, e| now.saturating_duration_since(e.window_start) < window);
             if m.len() >= MAX_ENTRIES {
-                return; // under attack with many keys: do not grow without bound
+                return false; // under attack with many keys: do not grow without bound
             }
         }
         let e = m.entry(key.to_owned()).or_insert(Entry {
@@ -81,6 +82,7 @@ impl RateLimiter {
             e.window_start = now;
         }
         e.failures += 1;
+        e.failures == self.max_failures
     }
 }
 
