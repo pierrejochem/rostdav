@@ -83,7 +83,13 @@ async fn status(
         "productname": cfg.product_name,
         "extendedSupport": false,
     });
-    json_response(body)
+    // The reference server sends plain `application/json` here (fixture 01-discovery/01-status).
+    let mut r = json_response(body);
+    r.headers_mut().insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/json"),
+    );
+    r
 }
 
 pub(crate) fn json_response(body: serde_json::Value) -> Response {

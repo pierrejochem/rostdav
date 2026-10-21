@@ -15,15 +15,15 @@
 
 | Flow | Status | Contract test | Device test | Source |
 |---|---|---|---|---|
-| Add server (`status.php`) | open | – | – | |
-| Sign-in via Login Flow v2 | open | – | – | |
+| Add server (`status.php`) | contract test green | `crates/rostdav/tests/signin.rs` | – | `01-discovery/01-status` |
+| Sign-in via Login Flow v2 | contract test green (shapes only) | `signin.rs` | – | `02-login-flow-v2/` |
 | List folder | open | – | – | |
 | Upload file (small) | open | – | – | |
 | Upload file (> 100 MB, chunked upload v2) | open | – | – | |
 | Download | open | – | – | |
 | Rename, move | open | – | – | |
 | Delete | open | – | – | |
-| Sign out / revoke app password | open | – | – | |
+| Sign out / revoke app password | contract test green | `signin.rs` | – | `07-logout/` |
 
 Status: `open` · `implemented` · `contract test green` · `device test passed`
 
@@ -98,6 +98,14 @@ Initial list from section 3.2 of the instructions. None of this is confirmed unt
 | `/remote.php/dav/files/{userId}/` | Files | yes | `04-webdav/` |
 | `/remote.php/webdav/` | Legacy path | yes (answers) | `04-webdav/33`; whether the app still uses it: open |
 | `/remote.php/dav/uploads/{userId}/{transferId}/` | Chunked Upload | yes | `05-chunked-upload/` |
+
+## Implemented in M4 and known gaps
+
+- `status.php`, `capabilities` (only `version` and `core.{pollinterval, webdav-root}`), `cloud/user` (subset of the reference fields; tests fail on any field the reference does not have), `DELETE core/apppassword`, Login Flow v2 start/poll/page. Contract tests compare against the fixtures above.
+- Not recorded, therefore chosen by us: the body of the 429 response (OCS failure code 429, `Retry-After` set), the v1 variant of the 401 body (same as v2), the 400 answer for sign-out with the account password.
+- The reference redirects `/login/v2/flow/{token}` (303) to a Vue login page and needs a second step to grant; Rostdav serves one form (allow/deny) directly. Whether the app cares is open until M6.
+- Capabilities deliberately omit `files`, `dav` (chunking), sharing, notifications, etc. until implemented (M5+). Whether the Android app starts without `files.*` capabilities is open until M6.
+- `/remote.php/webdav/` is served (maps to the signed-in user) because `core.webdav-root` points to it.
 
 ## Not supported
 
