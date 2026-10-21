@@ -35,6 +35,7 @@ tracing-subscriber.workspace = true
 tempfile.workspace = true
 http-body-util = "0.1"
 base64.workspace = true
+quick-xml.workspace = true
 rostdav-app.workspace = true
 figment = { workspace = true, features = ["test"] }
 

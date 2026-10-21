@@ -8,7 +8,7 @@ A lean, self-hosted file server in Rust with WebDAV that works with the official
 
 ## Status
 
-**Phase 3, M0–M4 implemented:** runnable server with WebDAV (RFC 4918 class 1) under `/remote.php/dav/files/<user>/`, `status.php`, OCS capabilities and user endpoints, Login Flow v2 with app passwords, and rate limiting on all sign-in paths. Nextcloud WebDAV extensions (`oc:`/`nc:` properties, chunked upload) are next (M5). Progress: [docs/plan.md](docs/plan.md).
+**Phase 3, M0–M5 implemented:** runnable server with WebDAV (RFC 4918 class 1) under `/remote.php/dav/files/<user>/`, `status.php`, OCS capabilities and user endpoints, Login Flow v2 with app passwords, and rate limiting on all sign-in paths. The Nextcloud WebDAV extensions (`oc:`/`nc:` properties, upload headers, chunked upload v2, quota) are in (M5); the end-to-end test with the real app is next (M6). Progress: [docs/plan.md](docs/plan.md).
 
 ## Quick start
 

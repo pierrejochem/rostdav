@@ -46,10 +46,11 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 - **Result:** implemented with contract tests against the fixtures (`crates/rostdav/tests/signin.rs`); design in [ADR 0003](adr/0003-app-passwords-and-login-flow.md), which still needs review (approval point 3). Real-app verification is part of M6.
 - **Acceptance:** contract tests against fixtures green; revoking an app password results in 401
 
-### M5 – Nextcloud WebDAV extensions
+### M5 – Nextcloud WebDAV extensions ✅ (2026-10-22)
 - `oc:`/`nc:` properties, upload headers (`X-OC-MTime`, `OC-Checksum`, `OC-FileId`, `OC-ETag`)
 - Chunked upload v2, quota properties and HTTP 507
 - Preview and avatar endpoints cleanly answered with 404
+- **Result:** implemented and checked against the fixtures in `crates/rostdav/tests/nextcloud_dav.rs` (property sets, headers, Sabre error classes, name rules, chunk flow incl. a 105 MiB upload). Differences that remain are listed in `docs/compatibility.md`. Verified with the real app only in M6.
 - **Acceptance:** contract tests green; upload > 100 MB via chunks
 
 ### M6 – End-to-end with the app

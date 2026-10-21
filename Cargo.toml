@@ -67,3 +67,5 @@ dbg_macro = "warn"
 opt-level = 3
 [profile.dev.package.blake2]
 opt-level = 3
+[profile.dev.package.blake3]
+opt-level = 3

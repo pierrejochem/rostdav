@@ -256,16 +256,23 @@ fn fill_simple(request: &PropfindRequest, rb: &mut ResponseBuilder, e: &Simple<'
     use crate::xml::DAV_NS;
     let wanted: Vec<(String, String)> = match request {
         PropfindRequest::Props(l) => l.clone(),
-        PropfindRequest::AllProp | PropfindRequest::PropName => [
-            "getlastmodified",
-            "getcontentlength",
-            "resourcetype",
-            "getetag",
-            "getcontenttype",
-        ]
-        .iter()
-        .map(|n| (DAV_NS.to_owned(), (*n).to_owned()))
-        .collect(),
+        PropfindRequest::AllProp | PropfindRequest::PropName => {
+            let names: &[&str] = if e.dir {
+                &["getlastmodified", "resourcetype"]
+            } else {
+                &[
+                    "getlastmodified",
+                    "getcontentlength",
+                    "resourcetype",
+                    "getetag",
+                    "getcontenttype",
+                ]
+            };
+            names
+                .iter()
+                .map(|n| (DAV_NS.to_owned(), (*n).to_owned()))
+                .collect()
+        }
     };
     for (ns, local) in wanted {
         let v: Option<String> = if ns != DAV_NS {

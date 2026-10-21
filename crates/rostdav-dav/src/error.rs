@@ -77,7 +77,7 @@ impl IntoResponse for DavError {
         let (class, msg) = self.sabre();
         let body = format!(
             "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\{class}</s:exception>\n  <s:message>{}</s:message>\n</d:error>\n",
-            crate::xml::escape(&msg)
+            crate::xml::escape_text(&msg)
         );
         let mut resp = (status, body).into_response();
         resp.headers_mut().insert(

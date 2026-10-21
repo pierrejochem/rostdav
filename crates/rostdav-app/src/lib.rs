@@ -129,6 +129,22 @@ impl AppState {
             .await
     }
 
+    /// Sets or clears a user's quota (admin operation).
+    pub async fn set_quota(&self, user: &str, quota_bytes: Option<i64>) -> Result<()> {
+        let u = self
+            .inner
+            .db
+            .find_user(user)
+            .await?
+            .ok_or(rostdav_core::Error::NotFound)?;
+        if quota_bytes.is_some_and(|q| q < 0) {
+            return Err(rostdav_core::Error::BadRequest(
+                "quota must not be negative",
+            ));
+        }
+        self.inner.db.set_quota(u.id, quota_bytes).await
+    }
+
     /// Nextcloud-style file ID (`oc:id`, `OC-FileId`): 8-digit node ID + instance ID.
     pub fn file_id(&self, node_id: i64) -> String {
         format!("{node_id:08}{}", self.inner.instance_id)

@@ -151,6 +151,11 @@ pub fn escape(s: &str) -> String {
     out
 }
 
+/// Escapes text for element content only (quotes stay as they are).
+pub fn escape_text(s: &str) -> String {
+    escape(s).replace("&quot;", "\"").replace("&apos;", "'")
+}
+
 /// One `<d:response>` under construction.
 pub struct ResponseBuilder {
     href: String,
@@ -216,8 +221,9 @@ impl ResponseBuilder {
 }
 
 pub fn multistatus(responses: &[ResponseBuilder]) -> String {
-    let mut out =
-        String::from("<?xml version=\"1.0\" encoding=\"utf-8\"?><d:multistatus xmlns:d=\"DAV:\">");
+    let mut out = String::from(
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?><d:multistatus xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\">",
+    );
     for r in responses {
         r.write(&mut out);
     }

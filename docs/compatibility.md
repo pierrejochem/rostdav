@@ -17,12 +17,12 @@
 |---|---|---|---|---|
 | Add server (`status.php`) | contract test green | `crates/rostdav/tests/signin.rs` | – | `01-discovery/01-status` |
 | Sign-in via Login Flow v2 | contract test green (shapes only) | `signin.rs` | – | `02-login-flow-v2/` |
-| List folder | open | – | – | |
-| Upload file (small) | open | – | – | |
-| Upload file (> 100 MB, chunked upload v2) | open | – | – | |
-| Download | open | – | – | |
-| Rename, move | open | – | – | |
-| Delete | open | – | – | |
+| List folder | contract test green (property sets) | `nextcloud_dav.rs` | – | `04-webdav/01`, `16` |
+| Upload file (small) | contract test green | `crates/rostdav/tests/nextcloud_dav.rs` | – | `04-webdav/10`, `08-m5-probes/` |
+| Upload file (> 100 MB, chunked upload v2) | contract test green (105 MiB) | `nextcloud_dav.rs` | – | `05-chunked-upload/`, `08-m5-probes/` |
+| Download | contract test green | `dav.rs`, `nextcloud_dav.rs` | – | `04-webdav/17`–`19` |
+| Rename, move | contract test green | `nextcloud_dav.rs` | – | `04-webdav/23`–`26` |
+| Delete | contract test green | `dav.rs` | – | `04-webdav/27`–`29` |
 | Sign out / revoke app password | contract test green | `signin.rs` | – | `07-logout/` |
 
 Status: `open` · `implemented` · `contract test green` · `device test passed`
@@ -106,6 +106,34 @@ Initial list from section 3.2 of the instructions. None of this is confirmed unt
 - The reference redirects `/login/v2/flow/{token}` (303) to a Vue login page and needs a second step to grant; Rostdav serves one form (allow/deny) directly. Whether the app cares is open until M6.
 - Capabilities deliberately omit `files`, `dav` (chunking), sharing, notifications, etc. until implemented (M5+). Whether the Android app starts without `files.*` capabilities is open until M6.
 - `/remote.php/webdav/` is served (maps to the signed-in user) because `core.webdav-root` points to it.
+
+## Implemented in M5 and known gaps
+
+Values and sets come from the fixtures; `crates/rostdav/tests/nextcloud_dav.rs` compares them.
+
+- **Properties:** `oc:id` (8-digit file ID + instance ID, e.g. `00000042ocabc123def4`), `oc:fileid`, `oc:size` (folders: sum below), `oc:permissions` (`RGDNVCK` folders, `RGDNVW` files, owner only), `oc:favorite` (`0`), `oc:owner-id`, `oc:owner-display-name`, `oc:share-types` (empty), `oc:checksums` (files with a client checksum), `oc:downloadURL` (files, empty), `nc:has-preview` (`false`: no previews exist), `nc:mount-type` (empty), `nc:creation_time` (`0`), `nc:upload_time` (files), `d:quota-used-bytes` / `d:quota-available-bytes` (folders only, `-3` = unlimited). Unknown properties, `nc:is-encrypted` and folder-only/file-only mismatches answer 404 in their own `propstat`. `allprop` returns the reference's sets (`04-webdav/03`: folders get quota properties, no content length).
+- **Headers:** `PUT` returns `OC-FileId`, `ETag`, `OC-ETag` (and `X-OC-MTime: accepted` when sent); `MKCOL` and `COPY` return `OC-FileId`; `MOVE` returns `OC-ETag`, `ETag`, `OC-FileId`; `GET`/`HEAD` add `OC-ETag`.
+- **`X-OC-MTime`** sets the modification time. **`OC-Checksum`** is stored verbatim and reported; like the reference (`08-m5-probes/03`–`09`) it is **not verified**, any algorithm and even wrong digests are accepted. Values that are not `ALGO:hex` are ignored.
+- **Errors:** Sabre XML bodies (`<d:error><s:exception>Sabre\DAV\Exception\…</s:exception><s:message>…</s:message></d:error>`). Exception classes seen in the fixtures: `NotFound`, `Conflict`, `MethodNotAllowed`, `PreconditionFailed`, `BadRequest`, `NotAuthenticated`. Not recorded and taken from Sabre's class names: `Forbidden`, `InsufficientStorage` (507), `PayloadTooLarge`, `Locked`, `TooManyRequests`, `ServiceUnavailable`.
+- **Aligned with the reference** (differences found in M3, fixed here): `PUT` into a missing parent → 404 (`MKCOL` stays 409); another user's URL space → 404; the host of `Destination` is ignored; `.part`/`.filepart` names, `\`, control characters and over-long names → 400 with the reference messages.
+- **Chunked upload v2** (`/remote.php/dav/uploads/<user>/<id>`): `MKCOL` 201 (405 if it exists), `PUT <chunk>` 201/204, `PROPFIND` lists `.file` and chunks, `MOVE .file` with `Destination`, `Overwrite`, `OC-Total-Length`, `X-OC-MTime` assembles (201, or 204 when replacing), `DELETE` 204, other users' sessions are 404, listing all sessions is 405. Chunks are joined in natural name order (numbers by value). Capabilities advertise `dav.chunking = "1.0"`, `files.chunked_upload.{max_size, max_parallel_count}` and `files.forbidden_filename_extensions`. Sessions older than 24 h are removed by the garbage collector.
+- **Previews and avatars:** `core/preview` and `avatar` answer 404 without body. The reference serves an avatar image; Rostdav has none. How the app reacts is open until M6.
+
+Known differences that remain, all open for M6:
+
+| Reference | Rostdav | Why |
+|---|---|---|
+| `GET` on a folder → 200 HTML | 405 | no web UI yet |
+| `PROPFIND Depth: infinity` → 207, no entries | 403 `propfind-finite-depth` | RFC 4918 allows refusing; avoids unbounded work |
+| `OPTIONS`: `DAV: 1, 3, extended-mkcol, …`; `Allow` incl. `PROPPATCH, REPORT, LOCK, UNLOCK` | `DAV: 1` | only advertise what is implemented |
+| Failed assembly with `Overwrite: F` (412) destroys the session | session is kept | safer for retries |
+| Chunk assembly with a missing `Destination` → 500 | 400 | reference answer is an internal error |
+| `X-OC-MTime` garbage → 500 | 400 | same |
+| `.htaccess` upload → 500 "Invalid path" | allowed | not a PHP server |
+| `nc:has-preview` true for text files | `false` | no previews |
+| `nc:creation_time` `0` | `0` | same, upload time is separate |
+| `PROPPATCH`, `REPORT`, `SEARCH`, `LOCK` | 405 | not implemented |
+| Chunk file names: anything | `[A-Za-z0-9_-]{1,32}` | names must never form paths |
 
 ## Not supported
 

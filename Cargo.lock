@@ -1407,6 +1407,7 @@ dependencies = [
  "clap",
  "figment",
  "http-body-util",
+ "quick-xml",
  "rostdav-app",
  "rostdav-compat",
  "rostdav-core",
