@@ -11,7 +11,8 @@ Die verbindlichen Arbeitsregeln stehen in [AGENTS.md](AGENTS.md). Die vollständ
 ## Aktueller Stand
 
 - M0 abgeschlossen (Gerüst, Konfiguration, Logs, Health-Endpunkte, CI).
-- **Nächster Freigabepunkt: 2 – Datenbankschema** (ADR 0002). Vor dem ersten Schema-Commit Freigabe einholen.
+- Freigabepunkt 2 erteilt (ADR 0002 akzeptiert). M1 abgeschlossen (Schema, BlobStore, Namensregeln, `admin user add`).
+- Nächster Meilenstein: M2 – WebDAV-Kern.
 
 ## Befehle
 

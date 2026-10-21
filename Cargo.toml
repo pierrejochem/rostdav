@@ -46,6 +46,7 @@ tempfile = "3"
 unicode-normalization = "0.1"
 percent-encoding = "2"
 blake3 = "1"
+argon2 = { version = "0.5", features = ["std"] }
 ulid = "1"
 
 [workspace.lints.rust]

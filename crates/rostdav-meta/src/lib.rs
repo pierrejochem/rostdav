@@ -56,6 +56,14 @@ impl Db {
         Ok(())
     }
 
+    /// Anzahl der in der Datenbank registrierten Blobs.
+    pub async fn count_blobs(&self) -> Result<i64> {
+        sqlx::query_scalar("SELECT count(*) FROM blobs")
+            .fetch_one(&self.pool)
+            .await
+            .map_err(Error::internal)
+    }
+
     pub(crate) fn pool(&self) -> &SqlitePool {
         &self.pool
     }

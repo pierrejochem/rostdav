@@ -23,8 +23,30 @@ struct Cli {
 enum Command {
     /// Startet den Server.
     Serve,
+    /// Verwaltung (Benutzer).
+    #[command(subcommand)]
+    Admin(AdminCommand),
     /// Gibt die wirksame Konfiguration aus (ohne Geheimnisse).
     CheckConfig,
+}
+
+#[derive(Subcommand)]
+enum AdminCommand {
+    /// Benutzerverwaltung.
+    #[command(subcommand)]
+    User(UserCommand),
+}
+
+#[derive(Subcommand)]
+enum UserCommand {
+    /// Legt einen Benutzer an. Das Passwort wird als eine Zeile von stdin gelesen
+    /// (nie als Argument, damit es nicht in Prozesslisten oder der Shell-History landet).
+    Add {
+        name: String,
+        /// Benutzer erhält Administratorrechte.
+        #[arg(long)]
+        admin: bool,
+    },
 }
 
 #[tokio::main]
@@ -38,7 +60,28 @@ async fn main() -> anyhow::Result<()> {
             Ok(())
         }
         Command::Serve => serve(cfg).await,
+        Command::Admin(AdminCommand::User(UserCommand::Add { name, admin })) => {
+            user_add(cfg, &name, admin).await
+        }
     }
+}
+
+async fn user_add(cfg: Config, name: &str, admin: bool) -> anyhow::Result<()> {
+    use std::io::BufRead;
+
+    let mut line = String::new();
+    std::io::stdin()
+        .lock()
+        .read_line(&mut line)
+        .context("Passwort konnte nicht von stdin gelesen werden")?;
+    let password = line.trim_end_matches(['\r', '\n']);
+
+    let state = rostdav::build_state(&cfg).await?;
+    let result = state.add_user(name, password, admin).await;
+    state.shutdown().await;
+    let user = result.map_err(|e| anyhow::anyhow!("Benutzer nicht angelegt: {e}"))?;
+    println!("Benutzer {} angelegt", user.name);
+    Ok(())
 }
 
 async fn serve(cfg: Config) -> anyhow::Result<()> {

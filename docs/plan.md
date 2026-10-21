@@ -17,7 +17,7 @@ Priorisiert nach dem kleinsten testbaren Nutzen. Jeder Meilenstein endet mit gr�
 - CI: `cargo fmt --check`, `clippy -D warnings`, Tests, `cargo deny` / `cargo audit`
 - **Abnahme:** Server startet, Health-Endpunkte antworten, CI grün
 
-### M1 – Metadaten und Speicher
+### M1 – Metadaten und Speicher ✅ (2026-10-21)
 - Freigabepunkt 2: Schema nach [ADR 0002](adr/0002-speichermodell.md)
 - Migrationen, `BlobStore` mit atomarem Ablegen, Pfadvalidierung und -auflösung
 - `rostdav admin user add` (CLI), Argon2id

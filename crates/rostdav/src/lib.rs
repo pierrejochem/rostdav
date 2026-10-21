@@ -22,5 +22,13 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
     let db = Db::open(&url)
         .await
         .context("Datenbank konnte nicht geöffnet werden")?;
+    db.migrate().await.context("Migrationen fehlgeschlagen")?;
+    let swept = store
+        .sweep_tmp()
+        .await
+        .context("Aufräumen von tmp/ fehlgeschlagen")?;
+    if swept > 0 {
+        tracing::warn!(swept, "unvollständige Schreibvorgänge entfernt");
+    }
     Ok(AppState::new(db, store))
 }
