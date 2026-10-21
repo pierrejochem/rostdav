@@ -3,8 +3,10 @@
 //! Schema and migrations per ADR 0002. Repositories are added as the
 //! milestones require them.
 
+mod nodes;
 mod users;
 
+pub use nodes::{NewBlob, Node, NodeKind, WriteCondition, Written};
 pub use users::{NewUser, User};
 
 use std::path::Path;
