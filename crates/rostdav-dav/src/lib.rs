@@ -12,6 +12,7 @@ mod props;
 mod range;
 mod target;
 mod uploads;
+mod versions;
 mod xml;
 
 use axum::Router;
@@ -28,6 +29,7 @@ use rostdav_meta::{Node, NodeKind, WriteCondition};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::{ReaderStream, StreamReader};
 use uploads::{UPLOADS_PREFIX, UploadTarget};
+use versions::{VERSIONS_PREFIX, VersionsTarget};
 
 use error::DavError;
 use range::{RangeOutcome, parse_range};
@@ -48,6 +50,7 @@ pub fn router() -> Router<AppState> {
         .route("/remote.php/webdav/", any(entry))
         .route("/remote.php/webdav/{*rest}", any(entry))
         .route("/remote.php/dav/uploads/{*rest}", any(entry))
+        .route("/remote.php/dav/versions/{*rest}", any(entry))
 }
 
 async fn entry(State(state): State<AppState>, req: Request) -> Response {
@@ -69,6 +72,14 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
     let (parts, body) = req.into_parts();
     let headers = &parts.headers;
     let method = parts.method.as_str();
+
+    if parts.uri.path().starts_with(VERSIONS_PREFIX) {
+        let t = VersionsTarget::parse(parts.uri.path())?;
+        if t.user.key() != principal_name.key() {
+            return Err(Error::NotFound.into());
+        }
+        return versions::handle(&state, &principal, method, &t, headers, body).await;
+    }
 
     if parts.uri.path().starts_with(UPLOADS_PREFIX) {
         let t = UploadTarget::parse(parts.uri.path())?;

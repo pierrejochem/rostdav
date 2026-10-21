@@ -223,6 +223,17 @@ pub async fn capabilities(
     let (major, minor, micro, short) = cfg.version_parts();
     // Only what Rostdav implements. Chunked upload, sharing, notifications,
     // versions and trash are deliberately absent (docs/compatibility.md).
+    let mut files = json!({
+        "chunked_upload": {
+            "max_size": cfg.max_chunk_bytes,
+            "max_parallel_count": 5,
+        },
+        "forbidden_filename_extensions": rostdav_app::FORBIDDEN_EXTENSIONS,
+    });
+    if cfg.versioning {
+        files["versioning"] = json!(true);
+        files["version_deletion"] = json!(true);
+    }
     ocs.ok(&json!({
         "version": {
             "major": major, "minor": minor, "micro": micro,
@@ -234,13 +245,7 @@ pub async fn capabilities(
                 "webdav-root": "remote.php/webdav",
             },
             "dav": { "chunking": "1.0" },
-            "files": {
-                "chunked_upload": {
-                    "max_size": cfg.max_chunk_bytes,
-                    "max_parallel_count": 5,
-                },
-                "forbidden_filename_extensions": rostdav_app::FORBIDDEN_EXTENSIONS,
-            },
+            "files": files,
         },
     }))
 }

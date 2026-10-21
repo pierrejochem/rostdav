@@ -135,6 +135,26 @@ Known differences that remain, all open for M6:
 | `PROPPATCH`, `REPORT`, `SEARCH`, `LOCK` | 405 | not implemented |
 | Chunk file names: anything | `[A-Za-z0-9_-]{1,32}` | names must never form paths |
 
+## Implemented in M8: versions
+
+Source: `tests/fixtures/nextcloud/09-versions/` (recorded with `scripts/record_nextcloud_extra.py versions`), compared by `crates/rostdav/tests/versions.rs`.
+
+- **Policy:** an overwrite (PUT, chunked assembly, import) keeps the previous content as a version unless it is identical (same checksum). Versions count toward the user's quota (documented decision, `docs/instructions.md` 2.4), also in `quota-used-bytes` of the root folder. Limits: `[versioning]` (`max_versions` per file, `max_age_days`, `max_quota_share_percent`), applied on write and by the background cleanup. Copies get no history; a move keeps it; deleting a file deletes its versions (trash comes in M10).
+- **Capabilities:** `files.versioning` and `files.version_deletion` are advertised only while versioning is enabled. `files.version_labeling` is not: `PROPPATCH` is not implemented.
+- **Endpoint** `/remote.php/dav/versions/<user>/`: collection with `versions/` and `restore/`; `versions/<file id>/` lists one entry per archived version **and the live content**, ascending by name; the name of a version is the modification time of its content (moved to the next free second if two versions of a file share a time). Entries have `getlastmodified`, `getcontentlength`, `getcontenttype`, `getetag` (the plain name, unquoted, as in the reference), `resourcetype` and `nc:version-author`; `nc:version-label` and `oc:fileid` answer 404. `GET`/`HEAD` return the content with `ETag`/`OC-ETag` = name and support ranges. `DELETE` removes an archived version (404 if it does not exist). `MOVE` to `.../restore/target` restores: the version becomes the live content (with its modification time) and the replaced content is archived. File IDs are the plain numeric IDs (`oc:fileid`), not the padded `oc:id`.
+- **Errors:** another user's space or file, unknown file or version, non-numeric names → 404; `PUT`/`MKCOL` below `versions/` → 403.
+
+| Reference | Rostdav | Why |
+|---|---|---|
+| `GET` of the live entry → 404 (but `HEAD` → 200) | 200 with the content | looks like an oversight; harmless |
+| `DELETE` of the live entry → 204 and unclear effect | 403 | the live file must not vanish this way |
+| `MOVE` to any destination other than `restore/target` → 201 and the version is moved out as a file | 400 | not needed; avoids surprising data movement |
+| `MOVE` without `Destination` → 500 (`TypeError`) | 400 | |
+| `Depth: infinity` → 207 | 403 | as for files |
+| `PROPPATCH` of `nc:version-label` | 405 | not implemented |
+| Versions of a deleted file stay reachable through the trash | gone with the file | M10 |
+| Identical re-upload still creates a version (not recorded) | no new version | saves space |
+
 ## Not supported
 
 | Feature | App behavior without support | Source |

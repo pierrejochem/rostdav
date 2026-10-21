@@ -18,6 +18,8 @@ pub struct PropCtx<'a> {
     pub principal: &'a Principal,
     /// `quota-available-bytes`: `-3` = unlimited.
     pub quota_available: i64,
+    /// Everything the user stores, versions included (shown for the root folder).
+    pub used: i64,
 }
 
 impl<'a> PropCtx<'a> {
@@ -28,6 +30,7 @@ impl<'a> PropCtx<'a> {
             state,
             principal,
             quota_available,
+            used: info.used,
         })
     }
 }
@@ -132,7 +135,15 @@ fn value_of(
                 .essence_str()
                 .to_owned(),
         ),
-        (DAV_NS, "quota-used-bytes") if is_dir => text(size.unwrap_or(0).to_string()),
+        // The root reports the whole usage (versions count toward the quota); other folders their content.
+        (DAV_NS, "quota-used-bytes") if is_dir => text(
+            if node.parent_id.is_none() {
+                ctx.used
+            } else {
+                size.unwrap_or(0)
+            }
+            .to_string(),
+        ),
         (DAV_NS, "quota-available-bytes") if is_dir => text(ctx.quota_available.to_string()),
 
         (OC_NS, "id") => text(ctx.state.file_id(node.id)),

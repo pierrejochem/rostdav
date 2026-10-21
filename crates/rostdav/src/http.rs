@@ -57,6 +57,7 @@ pub fn router_with(state: AppState, opts: &HttpOptions) -> Router {
     if let Some(n) = &opts.product_name {
         compat.product_name.clone_from(n);
     }
+    compat.versioning = state.versioning_enabled();
     if let Some(m) = opts.max_chunk_bytes {
         compat.max_chunk_bytes = m;
     }

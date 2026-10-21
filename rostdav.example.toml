@@ -29,6 +29,15 @@ data_dir = "./data"
 # Delete events older than this many days (0 = keep everything):
 # retention_days = 365
 
+[versioning]
+# Keep the previous content of overwritten files (counts toward the quota).
+# enabled = true
+# Versions kept per file (0 = unlimited), maximum age in days (0 = keep),
+# and the share of a user's quota that versions may use (0 = no limit).
+# max_versions = 50
+# max_age_days = 365
+# max_quota_share_percent = 50
+
 [limits]
 # Maximum size of a single upload in bytes (default: 16 GiB).
 # max_upload_bytes = 17179869184

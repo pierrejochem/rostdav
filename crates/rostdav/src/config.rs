@@ -20,7 +20,33 @@ pub struct Config {
     pub limits: Limits,
     pub compat: Compat,
     pub audit: Audit,
+    pub versioning: Versioning,
     pub log: Log,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Versioning {
+    /// Keep the previous content when a file is overwritten.
+    pub enabled: bool,
+    /// Archived versions kept per file; 0 = unlimited.
+    pub max_versions: u32,
+    /// Versions older than this many days are deleted; 0 = keep.
+    pub max_age_days: u32,
+    /// Versions of a user may use at most this percentage of the quota (users
+    /// without quota are not limited); 0 = no limit.
+    pub max_quota_share_percent: u32,
+}
+
+impl Default for Versioning {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_versions: 50,
+            max_age_days: 365,
+            max_quota_share_percent: 50,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -30,6 +30,12 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
             max_upload_bytes: cfg.limits.max_upload_bytes,
             max_chunk_bytes: cfg.limits.max_chunk_bytes,
         })
+        .with_versioning(rostdav_app::VersioningOptions {
+            enabled: cfg.versioning.enabled,
+            max_versions: cfg.versioning.max_versions,
+            max_age_days: cfg.versioning.max_age_days,
+            max_quota_share_percent: cfg.versioning.max_quota_share_percent,
+        })
         .with_audit(rostdav_app::AuditOptions {
             anonymize_ip: cfg.audit.anonymize_ip,
             retention_days: cfg.audit.retention_days,

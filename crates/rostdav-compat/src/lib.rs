@@ -25,6 +25,8 @@ pub struct CompatConfig {
     pub product_name: String,
     /// Advertised maximum size of one upload chunk in bytes.
     pub max_chunk_bytes: u64,
+    /// Advertise file versioning (`files.versioning`, `files.version_deletion`).
+    pub versioning: bool,
 }
 
 impl Default for CompatConfig {
@@ -34,6 +36,7 @@ impl Default for CompatConfig {
             version: "35.0.2.2".into(),
             product_name: "Rostdav".into(),
             max_chunk_bytes: 100 * 1024 * 1024,
+            versioning: false,
         }
     }
 }

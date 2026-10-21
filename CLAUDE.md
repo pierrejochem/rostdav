@@ -12,7 +12,7 @@ The binding working rules are in [AGENTS.md](AGENTS.md). The full project instru
 
 - M0 complete (skeleton, configuration, logs, health endpoints, CI).
 - Approval point 2 granted (ADR 0002 accepted). M1 complete (schema, BlobStore, naming rules, `admin user add`).
-- M2 (WebDAV core) complete. M3: server side recorded (Nextcloud 35.0.2, synthetic requests), real-app capture open. M4 (sign-in) implemented; ADR 0003 (app passwords, Login Flow v2, rate limiting) is **Proposed** and needs review (approval point 3). M5 (Nextcloud WebDAV extensions, chunked upload v2) implemented. M7 (admin CLI, event log, fsck, import) implemented. M6 (real app on the Android emulator) is postponed to the end by the project owner. Next: M8 – versioning.
+- M2 (WebDAV core) complete. M3: server side recorded (Nextcloud 35.0.2, synthetic requests), real-app capture open. M4 (sign-in) implemented; ADR 0003 (app passwords, Login Flow v2, rate limiting) is **Proposed** and needs review (approval point 3). M5 (Nextcloud WebDAV extensions, chunked upload v2) implemented. M7 (admin CLI, event log, fsck, import) implemented. M6 (real app on the Android emulator) is postponed to the end by the project owner. M8 (versioning) implemented. Next: M9 – shares.
 
 ## Commands
 
