@@ -33,6 +33,9 @@ pub enum Error {
     TooLarge,
     #[error("bad request: {0}")]
     BadRequest(&'static str),
+    /// Like [`Error::BadRequest`] with a message built at run time (shown to clients).
+    #[error("bad request: {0}")]
+    Invalid(String),
     #[error("temporarily unavailable")]
     Unavailable,
     #[error("internal error")]

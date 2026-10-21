@@ -26,6 +26,8 @@ data_dir = "./data"
 [limits]
 # Maximum size of a single upload in bytes (default: 16 GiB).
 # max_upload_bytes = 17179869184
+# Maximum size of one chunk of a chunked upload (default: 100 MiB).
+# max_chunk_bytes = 104857600
 
 [log]
 # "json" for production, "pretty" for development.

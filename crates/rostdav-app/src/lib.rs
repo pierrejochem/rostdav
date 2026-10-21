@@ -11,11 +11,13 @@ mod login_flow;
 mod password;
 mod ratelimit;
 mod secrets;
+mod uploads;
 
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, UserInfo, Via, authorize};
-pub use files::Listing;
+pub use files::{Listing, PutOptions, normalize_checksum};
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
+pub use uploads::UploadListing;
 
 use rostdav_core::Result;
 use rostdav_meta::{Db, NewUser, User};
@@ -32,8 +34,16 @@ struct Inner {
     store: LocalStore,
     limits: Limits,
     limiter: ratelimit::RateLimiter,
+    /// Instance ID used in Nextcloud-style file IDs (`oc:id`), e.g. `oc` + 10 characters.
+    instance_id: String,
     /// 32-byte key for stateless tickets and CSRF values (stored in `settings`).
     server_key: [u8; 32],
+}
+
+pub(crate) fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
 }
 
 /// Operating limits.
@@ -41,12 +51,15 @@ struct Inner {
 pub struct Limits {
     /// Maximum size of a single upload in bytes.
     pub max_upload_bytes: u64,
+    /// Maximum size of one chunk of a chunked upload in bytes.
+    pub max_chunk_bytes: u64,
 }
 
 impl Default for Limits {
     fn default() -> Self {
         Self {
             max_upload_bytes: 16 * 1024 * 1024 * 1024,
+            max_chunk_bytes: 100 * 1024 * 1024,
         }
     }
 }
@@ -57,6 +70,13 @@ impl AppState {
         let key = db
             .setting_or_init("server_key", || secrets::random_bytes::<32>().to_vec())
             .await?;
+        let instance = db
+            .setting_or_init("instance_id", || {
+                format!("oc{}", secrets::random_token(10).to_ascii_lowercase()).into_bytes()
+            })
+            .await?;
+        let instance_id = String::from_utf8(instance)
+            .map_err(|_| rostdav_core::Error::BadRequest("stored instance id is invalid"))?;
         let server_key: [u8; 32] = key.try_into().map_err(|_| {
             rostdav_core::Error::BadRequest("stored server key has the wrong length")
         })?;
@@ -66,6 +86,7 @@ impl AppState {
                 store,
                 limits: Limits::default(),
                 limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
+                instance_id,
                 server_key,
             }),
         })
@@ -81,6 +102,7 @@ impl AppState {
                 store: old.store.clone(),
                 limits,
                 limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
+                instance_id: old.instance_id.clone(),
                 server_key: old.server_key,
             }),
         }
@@ -105,6 +127,11 @@ impl AppState {
                 is_admin,
             })
             .await
+    }
+
+    /// Nextcloud-style file ID (`oc:id`, `OC-FileId`): 8-digit node ID + instance ID.
+    pub fn file_id(&self, node_id: i64) -> String {
+        format!("{node_id:08}{}", self.inner.instance_id)
     }
 
     /// Orderly shutdown.
@@ -249,7 +276,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn missing_parent_is_conflict_not_not_found() {
+    async fn missing_parent_is_conflict_for_mkcol_and_not_found_for_put() {
         let (_d, st) = state().await;
         let anna = login(&st, "anna").await;
         let r = st
@@ -261,7 +288,10 @@ mod tests {
                 &WriteCondition::None,
             )
             .await;
-        assert!(matches!(r, Err(Error::Conflict(_))));
+        assert!(
+            matches!(r, Err(Error::NotFound)),
+            "PUT into a missing parent: 404 like the reference"
+        );
         assert!(matches!(
             st.mkcol(&anna, &lp("/a/b")).await,
             Err(Error::Conflict(_))
@@ -321,7 +351,7 @@ mod tests {
                 &WriteCondition::None,
             )
             .await;
-        assert!(matches!(w, Err(Error::Conflict(_))), "bob has no /private");
+        assert!(matches!(w, Err(Error::NotFound)), "bob has no /private");
 
         // bob's own file of the same name does not touch anna's
         st.mkcol(&bob, &lp("/private")).await.expect("bob mkcol");
@@ -367,6 +397,7 @@ mod tests {
         let (_d, st) = state().await;
         let st = st.with_limits(Limits {
             max_upload_bytes: 8,
+            ..Limits::default()
         });
         let anna = login(&st, "anna").await;
         let big = st
@@ -672,5 +703,247 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    // ---- chunked uploads ------------------------------------------------------
+
+    #[tokio::test]
+    async fn chunked_upload_assembles_in_order_and_cleans_up() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        st.mkcol(&anna, &lp("/Docs")).await.expect("mkcol");
+        st.upload_create(&anna, "t1").await.expect("create");
+        assert!(matches!(
+            st.upload_create(&anna, "t1").await,
+            Err(Error::AlreadyExists)
+        ));
+        assert!(
+            !st.upload_chunk(&anna, "t1", "00002", &b"world"[..])
+                .await
+                .expect("c2")
+        );
+        assert!(
+            !st.upload_chunk(&anna, "t1", "00001", &b"hello "[..])
+                .await
+                .expect("c1")
+        );
+        let l = st.upload_list(&anna, "t1").await.expect("list");
+        assert_eq!((l.chunks.len(), l.total()), (2, 11));
+
+        // wrong total length keeps the session
+        let err = st
+            .upload_assemble(&anna, "t1", &lp("/Docs/f.txt"), true, Some(50), None)
+            .await;
+        assert!(
+            matches!(&err, Err(Error::Invalid(m)) if m == "Chunks on server do not sum up to 50 but to 11 bytes"),
+            "{err:?}"
+        );
+        assert!(st.upload_list(&anna, "t1").await.is_ok());
+
+        let w = st
+            .upload_assemble(
+                &anna,
+                "t1",
+                &lp("/Docs/f.txt"),
+                true,
+                Some(11),
+                Some(1_700_000_000),
+            )
+            .await
+            .expect("assemble");
+        assert!(!w.replaced);
+        assert_eq!((w.node.size, w.node.mtime), (11, 1_700_000_000));
+        let (_, mut f) = st.read(&anna, &lp("/Docs/f.txt")).await.expect("read");
+        let mut out = String::new();
+        f.read_to_string(&mut out).await.expect("r");
+        assert_eq!(out, "hello world");
+        assert!(
+            matches!(st.upload_list(&anna, "t1").await, Err(Error::NotFound)),
+            "session consumed"
+        );
+        assert_eq!(
+            std::fs::read_dir(st.inner.store.root().join("uploads"))
+                .expect("d")
+                .count(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn chunked_upload_errors_and_isolation() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        let bob = login(&st, "bob").await;
+        st.put(
+            &anna,
+            &lp("/exists"),
+            &b"old"[..],
+            None,
+            &WriteCondition::None,
+        )
+        .await
+        .expect("put");
+        st.upload_create(&anna, "t").await.expect("create");
+        st.upload_chunk(&anna, "t", "1", &b"new"[..])
+            .await
+            .expect("chunk");
+
+        // bob cannot see, feed or assemble anna's session
+        assert!(matches!(
+            st.upload_list(&bob, "t").await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.upload_chunk(&bob, "t", "2", &b"x"[..]).await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.upload_assemble(&bob, "t", &lp("/stolen"), true, None, None)
+                .await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.upload_delete(&bob, "t").await,
+            Err(Error::NotFound)
+        ));
+
+        // invalid ids and chunk names
+        for bad in ["", "..", "a/b", "a b", &"x".repeat(129)] {
+            assert!(st.upload_create(&anna, bad).await.is_err(), "{bad:?}");
+        }
+        for bad in ["", ".file", "../x", "a/b"] {
+            assert!(
+                st.upload_chunk(&anna, "t", bad, &b"x"[..]).await.is_err(),
+                "{bad:?}"
+            );
+        }
+
+        // overwrite = false on an existing file, parent missing, directory target
+        assert!(matches!(
+            st.upload_assemble(&anna, "t", &lp("/exists"), false, None, None)
+                .await,
+            Err(Error::PreconditionFailed)
+        ));
+        assert!(matches!(
+            st.upload_assemble(&anna, "t", &lp("/no/parent"), true, None, None)
+                .await,
+            Err(Error::Conflict(_))
+        ));
+        st.mkcol(&anna, &lp("/dir")).await.expect("mkcol");
+        assert!(matches!(
+            st.upload_assemble(&anna, "t", &lp("/dir"), true, None, None)
+                .await,
+            Err(Error::Conflict(_))
+        ));
+        // session survived all failures; overwrite works and replaces
+        let w = st
+            .upload_assemble(&anna, "t", &lp("/exists"), true, None, None)
+            .await
+            .expect("ok");
+        assert!(w.replaced);
+        st.upload_delete(&anna, "other").await.expect_err("missing");
+    }
+
+    #[tokio::test]
+    async fn chunked_upload_respects_limits_quota_and_expiry() {
+        let (_d, st) = state().await;
+        let st = st.with_limits(Limits {
+            max_upload_bytes: 20,
+            max_chunk_bytes: 8,
+        });
+        let anna = login(&st, "anna").await;
+        st.upload_create(&anna, "t").await.expect("create");
+        assert!(
+            matches!(
+                st.upload_chunk(&anna, "t", "1", &[0u8; 9][..]).await,
+                Err(Error::TooLarge)
+            ),
+            "chunk limit"
+        );
+        st.upload_chunk(&anna, "t", "1", &[0u8; 8][..])
+            .await
+            .expect("1");
+        st.upload_chunk(&anna, "t", "2", &[0u8; 8][..])
+            .await
+            .expect("2");
+        assert!(
+            matches!(
+                st.upload_chunk(&anna, "t", "3", &[0u8; 8][..]).await,
+                Err(Error::TooLarge)
+            ),
+            "total limit"
+        );
+        st.upload_chunk(&anna, "t", "3", &[0u8; 4][..])
+            .await
+            .expect("3");
+
+        st.inner
+            .db
+            .set_quota(anna.user_id, Some(10))
+            .await
+            .expect("quota");
+        let w = st
+            .upload_assemble(&anna, "t", &lp("/f"), true, None, None)
+            .await;
+        assert!(matches!(w, Err(Error::QuotaExceeded)), "{w:?}");
+        assert_eq!(
+            st.inner.store.list_blobs().await.expect("l").len(),
+            0,
+            "no blob left"
+        );
+
+        // expiry removes the session and its chunks
+        assert_eq!(st.expire_uploads(3600).await.expect("e"), 0);
+        assert_eq!(st.expire_uploads(-1).await.expect("e"), 1);
+        assert!(matches!(
+            st.upload_list(&anna, "t").await,
+            Err(Error::NotFound)
+        ));
+        assert_eq!(
+            std::fs::read_dir(st.inner.store.root().join("uploads"))
+                .expect("d")
+                .count(),
+            0
+        );
+    }
+
+    #[tokio::test]
+    async fn put_ext_records_checksum_and_mtime_and_reports_missing_parent_as_not_found() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        let opts = PutOptions {
+            mtime: Some(1_500_000_000),
+            client_checksum: normalize_checksum("SHA1:a9993e364706816aba3e25717850c26c9cd0d89d"),
+            cond: None,
+        };
+        let w = st
+            .put_ext(&anna, &lp("/f"), &b"abc"[..], &opts)
+            .await
+            .expect("put");
+        assert_eq!(w.node.mtime, 1_500_000_000);
+        assert_eq!(
+            w.node.client_checksum.as_deref(),
+            Some("SHA1:a9993e364706816aba3e25717850c26c9cd0d89d")
+        );
+        assert!(w.node.upload_time > 0);
+        // replacing without a checksum clears the old one
+        let w = st
+            .put_ext(&anna, &lp("/f"), &b"abd"[..], &PutOptions::default())
+            .await
+            .expect("put");
+        assert_eq!(w.node.client_checksum, None);
+        assert!(matches!(
+            st.put_ext(&anna, &lp("/nope/f"), &b"x"[..], &PutOptions::default())
+                .await,
+            Err(Error::NotFound)
+        ));
+        assert_eq!(normalize_checksum("nocolon"), None);
+        assert_eq!(normalize_checksum("SHA1:xyz"), None);
+        assert_eq!(
+            normalize_checksum(" MD5:AbC123 "),
+            Some("MD5:AbC123".into())
+        );
+        assert_eq!(st.file_id(7).len(), 8 + 12);
+        assert!(st.file_id(7).starts_with("00000007oc"));
     }
 }

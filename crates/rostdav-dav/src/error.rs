@@ -25,7 +25,7 @@ impl DavError {
             Error::Locked => StatusCode::LOCKED,
             Error::RateLimited { .. } => StatusCode::TOO_MANY_REQUESTS,
             Error::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
-            Error::BadRequest(_) => StatusCode::BAD_REQUEST,
+            Error::BadRequest(_) | Error::Invalid(_) => StatusCode::BAD_REQUEST,
             Error::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
             Error::Internal(_) => StatusCode::INTERNAL_SERVER_ERROR,
         }

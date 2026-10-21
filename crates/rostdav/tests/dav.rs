@@ -288,7 +288,11 @@ async fn put_preconditions() {
 async fn put_errors() {
     let e = env().await;
     let r = put(&e, &format!("{A}/nodir/f"), "x").await;
-    assert_eq!(r.status, StatusCode::CONFLICT);
+    assert_eq!(
+        r.status,
+        StatusCode::NOT_FOUND,
+        "reference: PUT into a missing parent is 404"
+    );
     call("MKCOL", &format!("{A}/d"), "anna").send(&e).await;
     let r = put(&e, &format!("{A}/d"), "x").await;
     assert_eq!(r.status, StatusCode::CONFLICT);

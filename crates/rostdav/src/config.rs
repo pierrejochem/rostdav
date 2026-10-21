@@ -46,12 +46,15 @@ impl Default for Compat {
 pub struct Limits {
     /// Maximum size of a single upload in bytes.
     pub max_upload_bytes: u64,
+    /// Maximum size of one chunk of a chunked upload in bytes.
+    pub max_chunk_bytes: u64,
 }
 
 impl Default for Limits {
     fn default() -> Self {
         Self {
             max_upload_bytes: 16 * 1024 * 1024 * 1024,
+            max_chunk_bytes: 100 * 1024 * 1024,
         }
     }
 }

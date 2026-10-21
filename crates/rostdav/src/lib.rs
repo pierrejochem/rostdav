@@ -30,5 +30,6 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
         .context("initializing the application state failed")?;
     Ok(state.with_limits(rostdav_app::Limits {
         max_upload_bytes: cfg.limits.max_upload_bytes,
+        max_chunk_bytes: cfg.limits.max_chunk_bytes,
     }))
 }

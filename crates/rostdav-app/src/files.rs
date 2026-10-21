@@ -12,6 +12,27 @@ use tokio::io::AsyncRead;
 use crate::AppState;
 use crate::auth::{Action, Principal, authorize};
 
+/// What a client may attach to an upload.
+#[derive(Clone, Debug, Default)]
+pub struct PutOptions {
+    /// `X-OC-MTime`
+    pub mtime: Option<i64>,
+    /// `OC-Checksum`, stored verbatim (see [`normalize_checksum`]).
+    pub client_checksum: Option<String>,
+    pub cond: Option<WriteCondition>,
+}
+
+/// Accepts `ALGO:hexdigest` and returns it unchanged; anything else is ignored.
+pub fn normalize_checksum(raw: &str) -> Option<String> {
+    let raw = raw.trim();
+    let (algo, digest) = raw.split_once(':')?;
+    let ok = (1..=16).contains(&algo.len())
+        && algo.bytes().all(|b| b.is_ascii_alphanumeric())
+        && (1..=128).contains(&digest.len())
+        && digest.bytes().all(|b| b.is_ascii_hexdigit());
+    ok.then(|| raw.to_owned())
+}
+
 /// A directory with its children.
 #[derive(Debug)]
 pub struct Listing {
@@ -37,7 +58,7 @@ impl AppState {
     }
 
     /// Splits a path into its (existing, authorized, directory) parent and the final name.
-    async fn parent_of<'a>(
+    pub(crate) async fn parent_of<'a>(
         &self,
         p: &Principal,
         path: &'a LogicalPath,
@@ -105,7 +126,32 @@ impl AppState {
     where
         R: AsyncRead + Unpin,
     {
-        let (parent, name) = self.parent_of(p, path).await?;
+        let opts = PutOptions {
+            mtime,
+            client_checksum: None,
+            cond: Some(cond.clone()),
+        };
+        self.put_ext(p, path, body, &opts).await
+    }
+
+    /// [`put`](Self::put) with mtime, client checksum and precondition.
+    ///
+    /// A missing parent is [`Error::NotFound`] (the reference answers 404 for PUT).
+    pub async fn put_ext<R>(
+        &self,
+        p: &Principal,
+        path: &LogicalPath,
+        body: R,
+        opts: &PutOptions,
+    ) -> Result<Written>
+    where
+        R: AsyncRead + Unpin,
+    {
+        let cond = opts.cond.clone().unwrap_or(WriteCondition::None);
+        let (parent, name) = match self.parent_of(p, path).await {
+            Err(Error::Conflict("parent does not exist")) => return Err(Error::NotFound),
+            other => other?,
+        };
 
         // Limit the stream by the upload limit and the remaining quota
         // (a replaced file's old size is freed by the commit).
@@ -134,7 +180,14 @@ impl AppState {
         match self
             .inner
             .db
-            .commit_file(parent.id, name, &blob, mtime, cond)
+            .commit_file_ext(
+                parent.id,
+                name,
+                &blob,
+                opts.mtime,
+                opts.client_checksum.as_deref(),
+                &cond,
+            )
             .await
         {
             Ok(w) => Ok(w),
@@ -198,6 +251,9 @@ impl AppState {
         for id in &ids {
             self.inner.store.delete_blob(&BlobId::parse(id)?).await?;
         }
-        Ok(ids.len())
+        let expired = self
+            .expire_uploads(crate::uploads::SESSION_MAX_AGE_SECS)
+            .await?;
+        Ok(ids.len() + expired)
     }
 }
