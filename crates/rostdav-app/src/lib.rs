@@ -7,10 +7,14 @@ use std::sync::Arc;
 
 mod auth;
 mod files;
+mod login_flow;
 mod password;
+mod ratelimit;
+mod secrets;
 
-pub use auth::{Action, Principal, authorize};
+pub use auth::{APP_PASSWORD_LEN, Action, Principal, Via, authorize};
 pub use files::Listing;
+pub use login_flow::{Confirmation, Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 
 use rostdav_core::Result;
@@ -27,6 +31,15 @@ struct Inner {
     db: Db,
     store: LocalStore,
     limits: Limits,
+    limiter: ratelimit::RateLimiter,
+    /// 32-byte key for stateless tickets and CSRF values (stored in `settings`).
+    server_key: [u8; 32],
+}
+
+pub(crate) fn now_secs() -> i64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
 }
 
 /// Operating limits.
@@ -45,25 +58,36 @@ impl Default for Limits {
 }
 
 impl AppState {
-    pub fn new(db: Db, store: LocalStore) -> Self {
-        Self {
+    /// Builds the state; creates the server key on first start.
+    pub async fn new(db: Db, store: LocalStore) -> Result<Self> {
+        let key = db
+            .setting_or_init("server_key", || secrets::random_bytes::<32>().to_vec())
+            .await?;
+        let server_key: [u8; 32] = key.try_into().map_err(|_| {
+            rostdav_core::Error::BadRequest("stored server key has the wrong length")
+        })?;
+        Ok(Self {
             inner: Arc::new(Inner {
                 db,
                 store,
                 limits: Limits::default(),
+                limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
+                server_key,
             }),
-        }
+        })
     }
 
     #[must_use]
     pub fn with_limits(self, limits: Limits) -> Self {
         // Called during start-up, before the state is shared.
-        let inner = &*self.inner;
+        let old = &*self.inner;
         Self {
             inner: Arc::new(Inner {
-                db: inner.db.clone(),
-                store: inner.store.clone(),
+                db: old.db.clone(),
+                store: old.store.clone(),
                 limits,
+                limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
+                server_key: old.server_key,
             }),
         }
     }
@@ -108,7 +132,7 @@ mod tests {
         let url = Db::default_url(store.root());
         let db = Db::open(&url).await.expect("db");
         db.migrate().await.expect("migrate");
-        (dir, AppState::new(db, store))
+        (dir, AppState::new(db, store).await.expect("state"))
     }
 
     #[tokio::test]
@@ -148,6 +172,8 @@ mod tests {
     use rostdav_meta::WriteCondition;
     use tokio::io::AsyncReadExt;
 
+    const IP: std::net::IpAddr = std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST);
+
     fn lp(s: &str) -> LogicalPath {
         LogicalPath::from_url_path(s).expect("path")
     }
@@ -156,7 +182,7 @@ mod tests {
         st.add_user(name, "korrekt-pferd-batterie", false)
             .await
             .expect("add");
-        st.authenticate(name, "korrekt-pferd-batterie")
+        st.authenticate(name, "korrekt-pferd-batterie", IP)
             .await
             .expect("auth")
     }
@@ -173,7 +199,10 @@ mod tests {
             ("../anna", "korrekt-pferd-batterie"),
         ] {
             assert!(
-                matches!(st.authenticate(u, pw).await, Err(Error::Unauthenticated)),
+                matches!(
+                    st.authenticate(u, pw, IP).await,
+                    Err(Error::Unauthenticated)
+                ),
                 "{u:?}"
             );
         }
@@ -393,5 +422,302 @@ mod tests {
         let left = st.inner.store.list_blobs().await.expect("l");
         assert_eq!(left.len(), 2);
         assert!(left.contains(&inflight.id));
+    }
+
+    #[tokio::test]
+    async fn app_password_signs_in_only_its_own_user_and_can_be_revoked() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        login(&st, "bob").await;
+        let token = st
+            .create_app_password(anna.user_id, "Phone")
+            .await
+            .expect("token");
+        assert_eq!(token.len(), APP_PASSWORD_LEN);
+
+        let p = st
+            .authenticate("anna", &token, IP)
+            .await
+            .expect("app password");
+        assert!(matches!(p.via, Via::AppPassword(_)));
+        assert_eq!(p.user_id, anna.user_id);
+        assert!(matches!(
+            st.authenticate("bob", &token, IP).await,
+            Err(Error::Unauthenticated)
+        ));
+
+        // the stored value is a hash, not the token
+        let stored = st
+            .inner
+            .db
+            .list_app_passwords(anna.user_id)
+            .await
+            .expect("list");
+        assert_eq!(stored.len(), 1);
+        assert!(stored[0].last_used_at.is_some());
+
+        st.revoke_current_app_password(&p).await.expect("revoke");
+        assert!(matches!(
+            st.authenticate("anna", &token, IP).await,
+            Err(Error::Unauthenticated)
+        ));
+        // the account password still works and cannot be "revoked" this way
+        let acct = st
+            .authenticate("anna", "korrekt-pferd-batterie", IP)
+            .await
+            .expect("acct");
+        assert_eq!(acct.via, Via::AccountPassword);
+        assert!(st.revoke_current_app_password(&acct).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn basic_header_parsing_and_rate_limit() {
+        let (_d, st) = state().await;
+        login(&st, "anna").await;
+        let hdr = |u: &str, p: &str| {
+            use base64::Engine;
+            format!(
+                "Basic {}",
+                base64::engine::general_purpose::STANDARD.encode(format!("{u}:{p}"))
+            )
+        };
+        assert!(
+            st.authenticate_basic(&hdr("anna", "korrekt-pferd-batterie"), IP)
+                .await
+                .is_ok()
+        );
+        for bad in ["", "Basic", "Bearer x", "Basic !!!", "Basic YWJj"] {
+            assert!(
+                matches!(
+                    st.authenticate_basic(bad, IP).await,
+                    Err(Error::Unauthenticated)
+                ),
+                "{bad}"
+            );
+        }
+        // that was 5 failures from IP; 5 more block the address
+        let other = std::net::IpAddr::V4(std::net::Ipv4Addr::new(10, 0, 0, 9));
+        for _ in 0..10 {
+            let _ = st
+                .authenticate_basic(&hdr("anna", "falsch-falsch-falsch"), other)
+                .await;
+        }
+        let blocked = st
+            .authenticate_basic(&hdr("anna", "korrekt-pferd-batterie"), other)
+            .await;
+        assert!(
+            matches!(blocked, Err(Error::RateLimited { retry_after_secs }) if retry_after_secs > 0)
+        );
+        // the correct password from a clean address is blocked by the per-user key too
+        let third = std::net::IpAddr::V4(std::net::Ipv4Addr::new(10, 0, 0, 10));
+        assert!(matches!(
+            st.authenticate_basic(&hdr("anna", "korrekt-pferd-batterie"), third)
+                .await,
+            Err(Error::RateLimited { .. })
+        ));
+    }
+
+    // ---- Login Flow v2 --------------------------------------------------------
+
+    async fn flow_through_login(st: &AppState, user: &str, pw: &str) -> Result<Confirmation> {
+        let f = st.start_login_flow("Test Phone").await.expect("start");
+        let csrf = st.flow_csrf(&f.login_token, "login");
+        st.flow_login(&f.login_token, &csrf, user, pw, IP).await
+    }
+
+    #[tokio::test]
+    async fn login_flow_happy_path_yields_working_app_password_once() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        let f = st.start_login_flow("Test Phone\u{7}").await.expect("start");
+        assert_eq!(f.poll_token.len(), 128);
+        assert_ne!(f.poll_token, f.login_token);
+        assert!(
+            st.poll_login_flow(&f.poll_token)
+                .await
+                .expect("poll")
+                .is_none()
+        );
+        assert_eq!(
+            st.login_flow_client(&f.login_token)
+                .await
+                .expect("c")
+                .as_deref(),
+            Some("Test Phone")
+        );
+
+        let c = st
+            .flow_login(
+                &f.login_token,
+                &st.flow_csrf(&f.login_token, "login"),
+                "anna",
+                "korrekt-pferd-batterie",
+                IP,
+            )
+            .await
+            .expect("login");
+        assert_eq!(c.user_name, "anna");
+        assert!(
+            st.poll_login_flow(&f.poll_token)
+                .await
+                .expect("poll")
+                .is_none(),
+            "not granted yet"
+        );
+
+        st.flow_grant(
+            &f.login_token,
+            &st.flow_csrf(&f.login_token, "grant"),
+            &c.ticket,
+        )
+        .await
+        .expect("grant");
+        let g = st
+            .poll_login_flow(&f.poll_token)
+            .await
+            .expect("poll")
+            .expect("granted");
+        assert_eq!(g.login_name, "anna");
+        assert_eq!(g.app_password.len(), APP_PASSWORD_LEN);
+        assert!(
+            st.poll_login_flow(&f.poll_token)
+                .await
+                .expect("poll")
+                .is_none(),
+            "only once"
+        );
+        let p = st
+            .authenticate("anna", &g.app_password, IP)
+            .await
+            .expect("auth");
+        assert_eq!(p.user_id, anna.user_id);
+        assert!(
+            st.login_flow_client(&f.login_token)
+                .await
+                .expect("c")
+                .is_none(),
+            "flow closed"
+        );
+    }
+
+    #[tokio::test]
+    async fn login_flow_rejects_bad_csrf_credentials_and_app_passwords() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        let f = st.start_login_flow("Phone").await.expect("start");
+        let good = st.flow_csrf(&f.login_token, "login");
+        assert!(matches!(
+            st.flow_login(&f.login_token, "nope", "anna", "korrekt-pferd-batterie", IP)
+                .await,
+            Err(Error::Forbidden)
+        ));
+        // csrf of another purpose or another flow does not work
+        let other = st.start_login_flow("Other").await.expect("start");
+        for bad in [
+            st.flow_csrf(&f.login_token, "grant"),
+            st.flow_csrf(&other.login_token, "login"),
+        ] {
+            assert!(matches!(
+                st.flow_login(&f.login_token, &bad, "anna", "korrekt-pferd-batterie", IP)
+                    .await,
+                Err(Error::Forbidden)
+            ));
+        }
+        assert!(matches!(
+            st.flow_login(&f.login_token, &good, "anna", "falsch-falsch-falsch", IP)
+                .await,
+            Err(Error::Unauthenticated)
+        ));
+        // an app password is not accepted on the login form
+        let app = st
+            .create_app_password(anna.user_id, "x")
+            .await
+            .expect("app");
+        assert!(matches!(
+            st.flow_login(&f.login_token, &good, "anna", &app, IP).await,
+            Err(Error::Unauthenticated)
+        ));
+        // unknown flow
+        let bogus = st.flow_csrf("bogus", "login");
+        assert!(matches!(
+            st.flow_login("bogus", &bogus, "anna", "korrekt-pferd-batterie", IP)
+                .await,
+            Err(Error::NotFound)
+        ));
+    }
+
+    #[tokio::test]
+    async fn login_flow_ticket_cannot_be_forged_or_reused() {
+        let (_d, st) = state().await;
+        login(&st, "anna").await;
+        let bob = login(&st, "bob").await;
+        let c = flow_through_login(&st, "anna", "korrekt-pferd-batterie")
+            .await
+            .expect("c");
+        // second flow
+        let f2 = st.start_login_flow("Phone 2").await.expect("start");
+        let grant2 = st.flow_csrf(&f2.login_token, "grant");
+        // a ticket for flow 1 does not work on flow 2
+        assert!(matches!(
+            st.flow_grant(&f2.login_token, &grant2, &c.ticket).await,
+            Err(Error::Forbidden)
+        ));
+        // tampering with the user id
+        let (body, sig) = c.ticket.rsplit_once('.').expect("ticket");
+        let mut parts: Vec<&str> = body.split('.').collect();
+        let bob_id = bob.user_id.to_string();
+        parts[1] = &bob_id;
+        let forged = format!("{}.{sig}", parts.join("."));
+        let f3 = st.start_login_flow("Phone 3").await.expect("start");
+        let _ = f3;
+        for t in [forged.as_str(), "", "a.b.c.d", "1.2.3.sig"] {
+            assert!(
+                matches!(
+                    st.flow_grant(&f2.login_token, &grant2, t).await,
+                    Err(Error::Forbidden)
+                ),
+                "{t:?}"
+            );
+        }
+        assert!(
+            st.poll_login_flow(&f2.poll_token)
+                .await
+                .expect("poll")
+                .is_none()
+        );
+    }
+
+    #[tokio::test]
+    async fn login_flow_double_grant_creates_one_credential() {
+        let (_d, st) = state().await;
+        let anna = login(&st, "anna").await;
+        let f = st.start_login_flow("Phone").await.expect("start");
+        let c = st
+            .flow_login(
+                &f.login_token,
+                &st.flow_csrf(&f.login_token, "login"),
+                "anna",
+                "korrekt-pferd-batterie",
+                IP,
+            )
+            .await
+            .expect("login");
+        let grant = st.flow_csrf(&f.login_token, "grant");
+        st.flow_grant(&f.login_token, &grant, &c.ticket)
+            .await
+            .expect("first");
+        assert!(matches!(
+            st.flow_grant(&f.login_token, &grant, &c.ticket).await,
+            Err(Error::NotFound)
+        ));
+        assert_eq!(
+            st.inner
+                .db
+                .list_app_passwords(anna.user_id)
+                .await
+                .expect("l")
+                .len(),
+            1
+        );
     }
 }

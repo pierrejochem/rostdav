@@ -23,6 +23,7 @@ impl DavError {
             Error::PreconditionFailed => StatusCode::PRECONDITION_FAILED,
             Error::QuotaExceeded => StatusCode::INSUFFICIENT_STORAGE,
             Error::Locked => StatusCode::LOCKED,
+            Error::RateLimited { .. } => StatusCode::TOO_MANY_REQUESTS,
             Error::TooLarge => StatusCode::PAYLOAD_TOO_LARGE,
             Error::BadRequest(_) => StatusCode::BAD_REQUEST,
             Error::Unavailable => StatusCode::SERVICE_UNAVAILABLE,
@@ -43,6 +44,11 @@ impl IntoResponse for DavError {
                 header::WWW_AUTHENTICATE,
                 HeaderValue::from_static("Basic realm=\"Rostdav\", charset=\"UTF-8\""),
             );
+        }
+        if let Error::RateLimited { retry_after_secs } = self.0 {
+            if let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string()) {
+                resp.headers_mut().insert(header::RETRY_AFTER, v);
+            }
         }
         if status == StatusCode::METHOD_NOT_ALLOWED {
             resp.headers_mut().insert(
@@ -69,6 +75,12 @@ mod tests {
         assert_eq!(s(Error::PreconditionFailed), 412);
         assert_eq!(s(Error::QuotaExceeded), 507);
         assert_eq!(s(Error::TooLarge), 413);
+        assert_eq!(
+            s(Error::RateLimited {
+                retry_after_secs: 5
+            }),
+            429
+        );
         assert_eq!(s(Error::BadRequest("x")), 400);
     }
 

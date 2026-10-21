@@ -16,9 +16,10 @@ use axum::extract::{Request, State};
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::any;
-use base64::Engine;
+use std::net::{IpAddr, Ipv4Addr};
+
 use rostdav_app::{AppState, Principal};
-use rostdav_core::{Error, Name, Result};
+use rostdav_core::{ClientIp, Error, Name, Result};
 use rostdav_meta::{Node, NodeKind, WriteCondition};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::{ReaderStream, StreamReader};
@@ -49,7 +50,11 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
     if req.method() == Method::OPTIONS {
         return Ok(options());
     }
-    let principal = authenticate(&state, req.headers()).await?;
+    let ip = req
+        .extensions()
+        .get::<ClientIp>()
+        .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |c| c.0);
+    let principal = authenticate(&state, req.headers(), ip).await?;
     let target = Target::parse(req.uri().path())?;
     // The user in the URL must be the authenticated user; checked on the
     // NFC key so equivalent spellings match.
@@ -88,22 +93,13 @@ fn method_not_allowed() -> Response {
     r
 }
 
-/// HTTP Basic with the account password (app passwords follow in M4).
-async fn authenticate(state: &AppState, headers: &HeaderMap) -> Result<Principal> {
+/// HTTP Basic with an app password or the account password.
+async fn authenticate(state: &AppState, headers: &HeaderMap, ip: IpAddr) -> Result<Principal> {
     let value = headers
         .get(header::AUTHORIZATION)
         .and_then(|v| v.to_str().ok())
         .ok_or(Error::Unauthenticated)?;
-    let (scheme, b64) = value.split_once(' ').ok_or(Error::Unauthenticated)?;
-    if !scheme.eq_ignore_ascii_case("basic") {
-        return Err(Error::Unauthenticated);
-    }
-    let decoded = base64::engine::general_purpose::STANDARD
-        .decode(b64.trim())
-        .map_err(|_| Error::Unauthenticated)?;
-    let decoded = String::from_utf8(decoded).map_err(|_| Error::Unauthenticated)?;
-    let (user, password) = decoded.split_once(':').ok_or(Error::Unauthenticated)?;
-    state.authenticate(user, password).await
+    state.authenticate_basic(value, ip).await
 }
 
 // ---- helpers ---------------------------------------------------------------

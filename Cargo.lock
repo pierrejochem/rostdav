@@ -1429,6 +1429,8 @@ name = "rostdav-app"
 version = "0.1.0"
 dependencies = [
  "argon2",
+ "base64",
+ "blake3",
  "rostdav-core",
  "rostdav-meta",
  "rostdav-storage",
@@ -1460,7 +1462,6 @@ name = "rostdav-dav"
 version = "0.1.0"
 dependencies = [
  "axum",
- "base64",
  "futures-core",
  "httpdate",
  "mime_guess",

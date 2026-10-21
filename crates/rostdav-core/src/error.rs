@@ -25,6 +25,8 @@ pub enum Error {
     PreconditionFailed,
     #[error("storage quota exceeded")]
     QuotaExceeded,
+    #[error("too many attempts")]
+    RateLimited { retry_after_secs: u64 },
     #[error("locked")]
     Locked,
     #[error("request too large")]

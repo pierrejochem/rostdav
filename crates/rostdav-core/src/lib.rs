@@ -14,3 +14,9 @@ pub const PRODUCT_NAME: &str = "Rostdav";
 
 /// Version dieses Builds.
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+/// Address of the client as determined by the HTTP layer (socket peer, or the
+/// forwarded address when the peer is a trusted proxy). Inserted into request
+/// extensions; protocol crates read it for rate limiting.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ClientIp(pub std::net::IpAddr);
