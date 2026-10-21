@@ -215,7 +215,8 @@ impl Db {
                  SELECT id FROM nodes WHERE parent_id = ?1
                  UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
              )
-             SELECT COALESCE(SUM(size), 0) FROM nodes WHERE id IN (SELECT id FROM sub)",
+             SELECT COALESCE((SELECT SUM(size) FROM nodes WHERE id IN (SELECT id FROM sub)), 0)
+                  + COALESCE((SELECT SUM(size) FROM versions WHERE node_id IN (SELECT id FROM sub)), 0)",
         )
         .bind(folder)
         .fetch_one(&mut *tx)
@@ -330,7 +331,11 @@ impl Db {
     /// Paths of nodes that reference a blob (for reporting damage).
     pub async fn nodes_using_blob(&self, blob_id: &str) -> Result<Vec<(String, String)>> {
         sqlx::query_as(
-            "SELECT u.name, n.name FROM nodes n JOIN users u ON u.id = n.owner_id WHERE n.blob_id = ? LIMIT 20",
+            "SELECT u.name, n.name FROM nodes n JOIN users u ON u.id = n.owner_id WHERE n.blob_id = ?1
+             UNION
+             SELECT u.name, n.name || ' (version ' || v.version_time || ')' FROM versions v
+               JOIN nodes n ON n.id = v.node_id JOIN users u ON u.id = n.owner_id WHERE v.blob_id = ?1
+             LIMIT 20",
         )
         .bind(blob_id)
         .fetch_all(self.pool())
@@ -342,6 +347,7 @@ impl Db {
         let rows: Vec<(i64, String, i64, i64)> = sqlx::query_as(
             "SELECT u.id, u.name, u.used_bytes,
                     COALESCE((SELECT SUM(size) FROM nodes n WHERE n.owner_id = u.id AND n.kind = 'file'), 0)
+                    + COALESCE((SELECT SUM(v.size) FROM versions v JOIN nodes n ON n.id = v.node_id WHERE n.owner_id = u.id), 0)
              FROM users u",
         )
         .fetch_all(self.pool())

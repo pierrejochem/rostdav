@@ -7,11 +7,13 @@ mod admin;
 mod auth;
 mod nodes;
 mod users;
+mod versions;
 
 pub use admin::{Event, UsageMismatch, UserSummary};
 pub use auth::{AppPassword, LoginFlow, MAX_UPLOAD_SESSIONS_PER_USER, PollResult, UploadSession};
-pub use nodes::{NewBlob, Node, NodeKind, WriteCondition, Written};
+pub use nodes::{CommitOpts, NewBlob, Node, NodeKind, VersionPolicy, WriteCondition, Written};
 pub use users::{NewUser, User};
+pub use versions::Version;
 
 use std::path::Path;
 use std::str::FromStr;

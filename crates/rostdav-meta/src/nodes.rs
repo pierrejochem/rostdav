@@ -48,6 +48,24 @@ pub struct NewBlob {
     pub checksum: String,
 }
 
+/// Whether and how replaced content is kept as versions.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct VersionPolicy {
+    pub enabled: bool,
+    /// Keep at most this many archived versions per file; 0 = unlimited.
+    pub max_versions: u32,
+}
+
+/// Everything a commit may carry besides the blob.
+#[derive(Clone, Debug, Default)]
+pub struct CommitOpts {
+    pub mtime: Option<i64>,
+    pub client_checksum: Option<String>,
+    pub versioning: VersionPolicy,
+    /// User who made the change (shown as version author).
+    pub author: Option<i64>,
+}
+
 /// Precondition of a write, evaluated inside the transaction.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WriteCondition {
@@ -65,9 +83,9 @@ pub struct Written {
     pub replaced: bool,
 }
 
-const COLS: &str = "id, owner_id, parent_id, name, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time";
+pub(crate) const COLS: &str = "id, owner_id, parent_id, name, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time";
 
-type Row = (
+pub(crate) type Row = (
     i64,
     i64,
     Option<i64>,
@@ -82,7 +100,7 @@ type Row = (
     i64,
 );
 
-fn to_node(r: Row) -> Result<Node> {
+pub(crate) fn to_node(r: Row) -> Result<Node> {
     let kind = match r.4.as_str() {
         "file" => NodeKind::File,
         "dir" => NodeKind::Dir,
@@ -104,14 +122,14 @@ fn to_node(r: Row) -> Result<Node> {
     })
 }
 
-fn db_err(e: sqlx::Error) -> Error {
+pub(crate) fn db_err(e: sqlx::Error) -> Error {
     match &e {
         sqlx::Error::Database(d) if d.is_unique_violation() => Error::AlreadyExists,
         _ => Error::internal(e),
     }
 }
 
-async fn fetch(conn: &mut SqliteConnection, id: i64) -> Result<Option<Node>> {
+pub(crate) async fn fetch(conn: &mut SqliteConnection, id: i64) -> Result<Option<Node>> {
     let row: Option<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM nodes WHERE id = ?"))
         .bind(id)
         .fetch_optional(conn)
@@ -120,7 +138,7 @@ async fn fetch(conn: &mut SqliteConnection, id: i64) -> Result<Option<Node>> {
     row.map(to_node).transpose()
 }
 
-async fn require(conn: &mut SqliteConnection, id: i64) -> Result<Node> {
+pub(crate) async fn require(conn: &mut SqliteConnection, id: i64) -> Result<Node> {
     fetch(conn, id).await?.ok_or(Error::NotFound)
 }
 
@@ -141,7 +159,7 @@ async fn find_child(
 }
 
 /// Renews ETag and mtime of `start` and all its ancestors.
-async fn touch_chain(conn: &mut SqliteConnection, start: i64, now: i64) -> Result<()> {
+pub(crate) async fn touch_chain(conn: &mut SqliteConnection, start: i64, now: i64) -> Result<()> {
     sqlx::query(
         "WITH RECURSIVE chain(id, parent_id) AS (
              SELECT id, parent_id FROM nodes WHERE id = ?1
@@ -193,7 +211,7 @@ async fn is_within(conn: &mut SqliteConnection, candidate: i64, ancestor: i64) -
 }
 
 /// Adjusts the owner's usage; refuses to exceed the quota when growing.
-async fn adjust_used(conn: &mut SqliteConnection, owner: i64, delta: i64) -> Result<()> {
+pub(crate) async fn adjust_used(conn: &mut SqliteConnection, owner: i64, delta: i64) -> Result<()> {
     if delta == 0 {
         return Ok(());
     }
@@ -225,7 +243,7 @@ async fn require_dir(conn: &mut SqliteConnection, id: i64) -> Result<Node> {
 }
 
 impl Db {
-    async fn write_tx(&self) -> Result<sqlx::Transaction<'static, sqlx::Sqlite>> {
+    pub(crate) async fn write_tx(&self) -> Result<sqlx::Transaction<'static, sqlx::Sqlite>> {
         // IMMEDIATE: take the write lock up front; a deferred read-then-write
         // transaction can fail with SQLITE_BUSY that busy_timeout cannot cure.
         self.pool()
@@ -367,8 +385,28 @@ impl Db {
         client_checksum: Option<&str>,
         cond: &WriteCondition,
     ) -> Result<Written> {
+        let opts = CommitOpts {
+            mtime,
+            client_checksum: client_checksum.map(str::to_owned),
+            ..CommitOpts::default()
+        };
+        self.commit_file_with(parent_id, name, blob, &opts, cond)
+            .await
+    }
+
+    /// The full commit: preconditions, optional archiving of the replaced
+    /// content as a version, quota, ancestor ETags.
+    pub async fn commit_file_with(
+        &self,
+        parent_id: i64,
+        name: &Name,
+        blob: &NewBlob,
+        opts: &CommitOpts,
+        cond: &WriteCondition,
+    ) -> Result<Written> {
         let now = now_secs();
-        let mtime = mtime.unwrap_or(now);
+        let mtime = opts.mtime.unwrap_or(now);
+        let client_checksum = opts.client_checksum.as_deref();
         let mut tx = self.write_tx().await?;
         let parent = require_dir(&mut tx, parent_id).await?;
         let existing = find_child(&mut tx, parent.id, name.key()).await?;
@@ -396,6 +434,19 @@ impl Db {
 
         let (id, delta, replaced) = match existing {
             Some(old) => {
+                // Identical content is not worth a version.
+                let keep = opts.versioning.enabled
+                    && old.checksum.as_deref() != Some(blob.checksum.as_str());
+                let mut delta = if keep {
+                    blob.size
+                } else {
+                    blob.size - old.size
+                };
+                if keep {
+                    crate::versions::archive(&mut tx, &old, opts.author, now).await?;
+                    delta -= crate::versions::trim(&mut tx, old.id, opts.versioning.max_versions)
+                        .await?;
+                }
                 sqlx::query(
                     "UPDATE nodes SET size = ?, mtime = ?, etag = ?, blob_id = ?, checksum = ?, client_checksum = ?,
                      upload_time = ?, updated_at = ?
@@ -413,7 +464,7 @@ impl Db {
                 .execute(&mut *tx)
                 .await
                 .map_err(db_err)?;
-                (old.id, blob.size - old.size, true)
+                (old.id, delta, true)
             }
             None => {
                 let id: i64 = sqlx::query_scalar(
@@ -458,7 +509,8 @@ impl Db {
         if if_match.is_some_and(|want| want != node.etag) {
             return Err(Error::PreconditionFailed);
         }
-        let freed = subtree_size(&mut tx, id).await?;
+        let freed = subtree_size(&mut tx, id).await?
+            + crate::versions::subtree_versions_size(&mut tx, id).await?;
         sqlx::query("DELETE FROM nodes WHERE id = ?")
             .bind(id)
             .execute(&mut *tx)
@@ -569,6 +621,7 @@ impl Db {
         sqlx::query_scalar(
             "DELETE FROM blobs
              WHERE id NOT IN (SELECT blob_id FROM nodes WHERE blob_id IS NOT NULL)
+               AND id NOT IN (SELECT blob_id FROM versions)
              RETURNING id",
         )
         .fetch_all(self.pool())
@@ -594,7 +647,8 @@ async fn clear_target(
     if !overwrite {
         return Err(Error::PreconditionFailed);
     }
-    let freed = subtree_size(tx, target.id).await?;
+    let freed = subtree_size(tx, target.id).await?
+        + crate::versions::subtree_versions_size(tx, target.id).await?;
     sqlx::query("DELETE FROM nodes WHERE id = ?")
         .bind(target.id)
         .execute(&mut *tx)
