@@ -26,7 +26,7 @@ Rostdav is a lean file server that supports the unmodified Nextcloud apps. Requi
 
 Also considered: **building on an existing project** (e.g. OxiCloud, Rust, MIT license, WebDAV present). Whether it supports the Nextcloud apps and how it implements metadata, file IDs and chunked upload has not been verified.
 
-## Decision (proposal)
+## Decision
 
 **Rust** with the following building blocks (current stable version at project start in each case, pinned via `Cargo.lock`):
 

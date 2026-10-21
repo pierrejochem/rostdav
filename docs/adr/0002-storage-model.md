@@ -7,7 +7,7 @@
 
 Requirements: stable file IDs across rename/move, separation of logical and physical paths, versioning, atomic writes, protection against path traversal, recursive folder ETags, consistent behavior on crashes.
 
-## Decision (proposal)
+## Decision
 
 ### Contents as immutable blobs
 
