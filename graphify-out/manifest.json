@@ -24,327 +24,309 @@
     "semantic_hash": ""
   },
   "Cargo.toml": {
-    "mtime": 1792616589.4542756,
-    "seen": 1792616685.2685142,
-    "ast_hash": "53e697b7a1a3715aa55c04f0726f20e8",
+    "mtime": 1792617606.7624376,
+    "seen": 1792617863.0878174,
+    "ast_hash": "cf643cac816762f272aa63264eaf08d3",
     "semantic_hash": ""
   },
   "crates/rostdav-app/Cargo.toml": {
-    "mtime": 1792616651.8211386,
-    "seen": 1792616685.2685156,
-    "ast_hash": "d99569d1e5f044aa2e550942f85abae9",
+    "mtime": 1792617225.4903016,
+    "seen": 1792617863.0878203,
+    "ast_hash": "eb214428e4d07cf88e34a82f11393ba7",
     "semantic_hash": ""
   },
   "crates/rostdav-app/src/lib.rs": {
-    "mtime": 1792616651.918804,
-    "seen": 1792616685.2685297,
-    "ast_hash": "d060aea07e46f2ea05cfa16ee3f1ac93",
+    "mtime": 1792617246.8146136,
+    "seen": 1792617863.0878265,
+    "ast_hash": "5a5408f54f368fa7610dee4904df90f0",
     "semantic_hash": ""
   },
   "crates/rostdav-app/src/password.rs": {
-    "mtime": 1792616615.2540152,
-    "seen": 1792616685.2685316,
-    "ast_hash": "9b07fd5d246d96fdb3cce35af7f88a09",
+    "mtime": 1792616856.6744368,
+    "seen": 1792617863.0878282,
+    "ast_hash": "9248778a5a337e49ef67224d3fc10760",
     "semantic_hash": ""
   },
   "crates/rostdav-compat/Cargo.toml": {
-    "mtime": 1792612262.0,
-    "seen": 1792616685.268533,
-    "ast_hash": "a558cb9971cb7ad4862bc3190f117572",
+    "mtime": 1792616856.6770325,
+    "seen": 1792617863.0878303,
+    "ast_hash": "a9abb6bfb65206321f569c1f490a02dd",
     "semantic_hash": ""
   },
   "crates/rostdav-compat/src/lib.rs": {
-    "mtime": 1792611713.0,
-    "seen": 1792616685.2685342,
-    "ast_hash": "0b5dfbe6b40db683b534af7bda09def8",
+    "mtime": 1792616856.6721745,
+    "seen": 1792617863.087832,
+    "ast_hash": "9206741bef1df984d1d340298edcba8e",
     "semantic_hash": ""
   },
   "crates/rostdav-core/Cargo.toml": {
-    "mtime": 1792616352.3273582,
-    "seen": 1792616685.2685359,
-    "ast_hash": "73cfb9397d263e2ba6fa73927befe7d0",
+    "mtime": 1792616856.6765335,
+    "seen": 1792617863.087834,
+    "ast_hash": "45543dbb2503b98cddf1502fe018ea5a",
     "semantic_hash": ""
   },
   "crates/rostdav-core/src/error.rs": {
-    "mtime": 1792611672.0,
-    "seen": 1792616685.2685378,
-    "ast_hash": "982c1a5dd6528ef66452de3afcf16ca2",
+    "mtime": 1792617192.7599797,
+    "seen": 1792617863.0878353,
+    "ast_hash": "231fbb0101a2d752d513d856f001154c",
     "semantic_hash": ""
   },
   "crates/rostdav-core/src/lib.rs": {
-    "mtime": 1792616352.3353262,
-    "seen": 1792616685.2685394,
-    "ast_hash": "6f9b392eab2b8c28a2ce8a765187d2c7",
+    "mtime": 1792616856.673709,
+    "seen": 1792617863.0878372,
+    "ast_hash": "0af3473b2ccf8c3567c591692cecb0a1",
     "semantic_hash": ""
   },
   "crates/rostdav-core/src/path.rs": {
-    "mtime": 1792616352.3313584,
-    "seen": 1792616685.2685406,
-    "ast_hash": "9b76cea657784f865e6f7f38769249bf",
+    "mtime": 1792617353.458097,
+    "seen": 1792617863.087839,
+    "ast_hash": "7e94f0d39513390ed97b7083bd789fcf",
     "semantic_hash": ""
   },
   "crates/rostdav-dav/Cargo.toml": {
-    "mtime": 1792612262.0,
-    "seen": 1792616685.268542,
-    "ast_hash": "8c2b55970a7b8e0682a1cbdf4a164768",
+    "mtime": 1792617454.3678906,
+    "seen": 1792617863.0878406,
+    "ast_hash": "6a6f0ad601a3aed687cb720f0d6032fd",
     "semantic_hash": ""
   },
   "crates/rostdav-dav/src/lib.rs": {
-    "mtime": 1792611713.0,
-    "seen": 1792616685.2685432,
-    "ast_hash": "fdc75ff02a90f1e1d27e43fedd06c81c",
+    "mtime": 1792617542.8592923,
+    "seen": 1792617863.0878437,
+    "ast_hash": "03ff6cd48a9a15fd50e82277c3fc0cc8",
     "semantic_hash": ""
   },
   "crates/rostdav-meta/Cargo.toml": {
-    "mtime": 1792616541.4644277,
-    "seen": 1792616685.2685447,
-    "ast_hash": "d0d010ed9680947ed8b5e7fe5f8fae40",
+    "mtime": 1792616856.6767044,
+    "seen": 1792617863.0878494,
+    "ast_hash": "504fc7810a44116fe7eb7f9290d28b73",
     "semantic_hash": ""
   },
   "crates/rostdav-meta/src/lib.rs": {
-    "mtime": 1792616651.821577,
-    "seen": 1792616685.268546,
-    "ast_hash": "7e8ecfba3a0fc30b67e6b08b4aa522fd",
+    "mtime": 1792617085.598298,
+    "seen": 1792617863.0878513,
+    "ast_hash": "7a19555417ef10762d6d6e904adc89a7",
     "semantic_hash": ""
   },
   "crates/rostdav-meta/src/users.rs": {
-    "mtime": 1792616541.5664299,
-    "seen": 1792616685.2685475,
-    "ast_hash": "b262c14922688532ebfbb7ca1934c543",
+    "mtime": 1792616856.6719203,
+    "seen": 1792617863.0878549,
+    "ast_hash": "f54f3b3a80b2a539578cee31b8ce6b19",
     "semantic_hash": ""
   },
   "crates/rostdav-storage/Cargo.toml": {
-    "mtime": 1792616477.5678225,
-    "seen": 1792616685.268549,
-    "ast_hash": "9b3799e0c3e72bdf725880e52ea28ffb",
+    "mtime": 1792616856.6768665,
+    "seen": 1792617863.0878563,
+    "ast_hash": "3f966f335d6815cd7c4afe703ed7991e",
     "semantic_hash": ""
   },
   "crates/rostdav-storage/src/blob.rs": {
-    "mtime": 1792616477.5970535,
-    "seen": 1792616685.2685502,
-    "ast_hash": "5a8f90ef0874a5d7caf1928ed45c4d51",
+    "mtime": 1792616856.671629,
+    "seen": 1792617863.087858,
+    "ast_hash": "dd7b2be6384e5b5a357aca0a8d298c05",
     "semantic_hash": ""
   },
   "crates/rostdav-storage/src/lib.rs": {
-    "mtime": 1792616477.7670572,
-    "seen": 1792616685.2685516,
-    "ast_hash": "571136d1e1d1453cd1d3e07086c454d8",
+    "mtime": 1792616892.9172802,
+    "seen": 1792617863.0878596,
+    "ast_hash": "1bf6e7fe66b1a6c9bf1f9eae60bdcc6c",
     "semantic_hash": ""
   },
   "crates/rostdav-web/Cargo.toml": {
-    "mtime": 1792612262.0,
-    "seen": 1792616685.2685535,
-    "ast_hash": "f76c3b643910ba6fabf91eed06b63df2",
+    "mtime": 1792616856.6775358,
+    "seen": 1792617863.0878615,
+    "ast_hash": "21d6def98eeac477284bab1360917d70",
     "semantic_hash": ""
   },
   "crates/rostdav-web/src/lib.rs": {
-    "mtime": 1792611713.0,
-    "seen": 1792616685.2685547,
-    "ast_hash": "afd4e90731c73879e4a2eaccb6e6600c",
+    "mtime": 1792616856.67239,
+    "seen": 1792617863.0878632,
+    "ast_hash": "a2d2eea672aba183f7b17527439472aa",
     "semantic_hash": ""
   },
   "crates/rostdav/Cargo.toml": {
-    "mtime": 1792612262.0,
-    "seen": 1792616685.2685564,
-    "ast_hash": "3eb44ea9e07b47bb3f3881842cf126c7",
+    "mtime": 1792617542.8680487,
+    "seen": 1792617863.0878649,
+    "ast_hash": "7753e9b8689bb691c5d7cedfd739d407",
     "semantic_hash": ""
   },
   "crates/rostdav/src/config.rs": {
-    "mtime": 1792611939.0,
-    "seen": 1792616685.2685575,
-    "ast_hash": "1af2c00f260e2f18578f3159050d0e32",
+    "mtime": 1792617220.201449,
+    "seen": 1792617863.0878665,
+    "ast_hash": "6c216cc9a0e3a3298f10be73416353cd",
     "semantic_hash": ""
   },
   "crates/rostdav/src/http.rs": {
-    "mtime": 1792612006.0,
-    "seen": 1792616685.2685592,
-    "ast_hash": "6e2b2ee70da8ead42a7769cfdfd90ef5",
+    "mtime": 1792616892.912989,
+    "seen": 1792617863.0878685,
+    "ast_hash": "f79c85b9bb6a190a95f33735d1bca8ec",
     "semantic_hash": ""
   },
   "crates/rostdav/src/lib.rs": {
-    "mtime": 1792616615.2480152,
-    "seen": 1792616685.2685604,
-    "ast_hash": "bdc30c436a3c4f91286951354726475d",
+    "mtime": 1792617220.2018936,
+    "seen": 1792617863.08787,
+    "ast_hash": "69d6c186f48e2a6688336e3b7a318d44",
     "semantic_hash": ""
   },
   "crates/rostdav/src/main.rs": {
-    "mtime": 1792616615.1481533,
-    "seen": 1792616685.2685616,
-    "ast_hash": "ea5e3cce007929a5b016567b213794c8",
+    "mtime": 1792616856.6733916,
+    "seen": 1792617863.0878716,
+    "ast_hash": "cd170cc2e00817aa5552a49c8221dbb6",
     "semantic_hash": ""
   },
   "crates/rostdav/src/telemetry.rs": {
-    "mtime": 1792611884.0,
-    "seen": 1792616685.2685633,
-    "ast_hash": "2e1cc18c1f8e9375263951cd4dc0857f",
+    "mtime": 1792616856.673046,
+    "seen": 1792617863.087873,
+    "ast_hash": "7b292ca1251d75c48cf7675e97c04ec9",
     "semantic_hash": ""
   },
   "crates/rostdav/tests/health.rs": {
-    "mtime": 1792611765.0,
-    "seen": 1792616685.2685645,
-    "ast_hash": "33398bcf365122f8ea83a0b29ff78c03",
+    "mtime": 1792616856.6726274,
+    "seen": 1792617863.0878763,
+    "ast_hash": "16d98c1654544a81d84ce3e7a2f484d1",
     "semantic_hash": ""
   },
   "scripts/smoke.sh": {
-    "mtime": 1792613182.0,
-    "seen": 1792616685.2685657,
-    "ast_hash": "42de0f7cc0fde7c9f79c4b1d9a32faa9",
+    "mtime": 1792616856.6756318,
+    "seen": 1792617863.0878792,
+    "ast_hash": "5d85ca33e742c6b0718e80732d298bd1",
     "semantic_hash": ""
   },
   ".github/workflows/ci.yml": {
-    "mtime": 1792612029.0,
-    "seen": 1792616685.2685673,
-    "ast_hash": "3a15724ad55fa6a1b311532e89d79a79",
+    "mtime": 1792617841.2575345,
+    "seen": 1792617863.0878808,
+    "ast_hash": "4042c6a88714d8cd074451eae2720784",
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1792611509.0,
-    "seen": 1792616685.2685685,
-    "ast_hash": "be175d80e12bd52fcf7967e7712c2ae4",
+    "mtime": 1792616800.6163707,
+    "seen": 1792617863.0878828,
+    "ast_hash": "82b3fc08e138b76afdfbe40211010648",
     "semantic_hash": ""
   },
   "CLAUDE.md": {
-    "mtime": 1792616678.4232333,
-    "seen": 1792616685.26857,
-    "ast_hash": "13dd9a067d4bd3e8d38e5ebd8d47cfbc",
+    "mtime": 1792617846.8576121,
+    "seen": 1792617863.0878842,
+    "ast_hash": "dbfed12b7cccf66a8caad36a44f018f1",
     "semantic_hash": ""
   },
   "CONTRIBUTING.md": {
-    "mtime": 1792613126.0,
-    "seen": 1792616685.2685714,
-    "ast_hash": "a2264117f36d0fcc896fe6a622618c1c",
+    "mtime": 1792616800.6165102,
+    "seen": 1792617863.087886,
+    "ast_hash": "ae1753806de0caa38e0e639c5c298c60",
     "semantic_hash": ""
   },
   "README.md": {
-    "mtime": 1792613197.0,
-    "seen": 1792616685.268573,
-    "ast_hash": "4f94c04e7e71e68efb7fc19784a38487",
+    "mtime": 1792617860.3389492,
+    "seen": 1792617863.0878875,
+    "ast_hash": "eddb2ccff784eea1a6a31b221609d1ba",
     "semantic_hash": ""
   },
   "design/README.md": {
-    "mtime": 1792613120.0,
-    "seen": 1792616685.2685745,
-    "ast_hash": "bddda250a0483420138c3db299a4f21b",
+    "mtime": 1792616871.7885344,
+    "seen": 1792617863.0878894,
+    "ast_hash": "6e2c6f74dba0cc7b370d5eedee435dc8",
     "semantic_hash": ""
   },
   "design/mockups/logo/Main.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.268576,
-    "ast_hash": "906c7d707cd1e3d4b82b507530f09b27",
+    "mtime": 1792616813.2283597,
+    "seen": 1792617863.0878909,
+    "ast_hash": "5ba27ef395f7a7fac805b44f2d61ad24",
     "semantic_hash": ""
   },
   "design/mockups/logo/Palette.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.2685773,
-    "ast_hash": "9e8f1f0a1f6cf99d452a1c3298980a4d",
+    "mtime": 1792616813.2286978,
+    "seen": 1792617863.0878925,
+    "ast_hash": "cb544873e992e7f87f78344dc67af375",
     "semantic_hash": ""
   },
   "design/mockups/logo/Variants.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.2685785,
-    "ast_hash": "5dcd9179314618875b47dc811d033ad8",
+    "mtime": 1792616813.2290452,
+    "seen": 1792617863.087894,
+    "ast_hash": "136e4703956ad57bc6e9f087edb3d229",
     "semantic_hash": ""
   },
   "design/mockups/web-ui/Admin.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.2685802,
-    "ast_hash": "28ff2ee2f0ebba9900d32c69eeb136b2",
+    "mtime": 1792616867.3422303,
+    "seen": 1792617863.0879004,
+    "ast_hash": "0756bb30f9d9504d31e1dc99b5d448e1",
     "semantic_hash": ""
   },
   "design/mockups/web-ui/Devices.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.2685814,
-    "ast_hash": "70f7ef7dc79d7af0ee28fa895cfff0eb",
+    "mtime": 1792616867.341805,
+    "seen": 1792617863.087902,
+    "ast_hash": "58f2f9099c85262a0628cda406288fe9",
     "semantic_hash": ""
   },
   "design/mockups/web-ui/Login.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.268584,
-    "ast_hash": "f8ed9cfd4c3af7d4143eff66dbe9c0f7",
+    "mtime": 1792616813.2293813,
+    "seen": 1792617863.0879035,
+    "ast_hash": "bea903bc5c16f7581774b449399a4620",
     "semantic_hash": ""
   },
   "design/mockups/web-ui/Login2FA.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.2685852,
-    "ast_hash": "22bf055525da689f7a01775cdb11639b",
+    "mtime": 1792616813.2298667,
+    "seen": 1792617863.087905,
+    "ast_hash": "92d24ca8792b82437c1fa83b8874446c",
     "semantic_hash": ""
   },
   "design/mockups/web-ui/Main.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.2685866,
-    "ast_hash": "44dfca7ad34e16342dad207aa997031e",
+    "mtime": 1792616813.2314,
+    "seen": 1792617863.0879068,
+    "ast_hash": "6bd1aa785ca534f9b48dba62499ed498",
     "semantic_hash": ""
   },
   "design/mockups/web-ui/Settings.dc.html": {
-    "mtime": 1792613037.0,
-    "seen": 1792616685.2685883,
-    "ast_hash": "487a44133a6a7b07d2ae7a32af595ebc",
+    "mtime": 1792616856.41715,
+    "seen": 1792617863.0879085,
+    "ast_hash": "cf85e80d54fb9d6d795f55da0f5539de",
     "semantic_hash": ""
   },
   "docs/admin.md": {
-    "mtime": 1792613117.0,
-    "seen": 1792616685.2685895,
-    "ast_hash": "dadc22a58ccd1478571cdfd6f5a53012",
-    "semantic_hash": ""
-  },
-  "docs/adr/0001-technologie-stack.md": {
-    "mtime": 1792611641.0,
-    "seen": 1792616685.2685912,
-    "ast_hash": "f8d1ed1c46f7fc0426bac64c566bdba9",
-    "semantic_hash": ""
-  },
-  "docs/adr/0002-speichermodell.md": {
-    "mtime": 1792616319.4252667,
-    "seen": 1792616685.2685926,
-    "ast_hash": "60360c25d0171d6b2611843920022a7a",
-    "semantic_hash": ""
-  },
-  "docs/anweisung.md": {
-    "mtime": 1792611514.0,
-    "seen": 1792616685.268594,
-    "ast_hash": "f2dbf773366fd888554a3025d4b40a07",
+    "mtime": 1792616826.0661569,
+    "seen": 1792617863.0879102,
+    "ast_hash": "d6d2d88755484877c14228f593e404d5",
     "semantic_hash": ""
   },
   "docs/api.md": {
-    "mtime": 1792613101.0,
-    "seen": 1792616685.2685952,
-    "ast_hash": "a06e2eaa0de91b5aec2de0e426670b8b",
+    "mtime": 1792616826.0664313,
+    "seen": 1792617863.087915,
+    "ast_hash": "3acce6e5d7fa607ea7d005a5b6304321",
     "semantic_hash": ""
   },
   "docs/architecture.md": {
-    "mtime": 1792611477.0,
-    "seen": 1792616685.2685966,
-    "ast_hash": "1b95dc79487fafa7a01146bd56c0e6bc",
+    "mtime": 1792616896.2643864,
+    "seen": 1792617863.0879166,
+    "ast_hash": "d0ab837bdaee8cffa509c05fd6fa2a5c",
     "semantic_hash": ""
   },
   "docs/compatibility.md": {
-    "mtime": 1792613083.0,
-    "seen": 1792616685.2685983,
-    "ast_hash": "f55a47bb9e4ff3d5619c56b219f21503",
+    "mtime": 1792616826.0667725,
+    "seen": 1792617863.0879183,
+    "ast_hash": "572c4d14367af316b60e7058e898de74",
     "semantic_hash": ""
   },
   "docs/deployment.md": {
-    "mtime": 1792613110.0,
-    "seen": 1792616685.2685995,
-    "ast_hash": "2d1e2b6c8e1eae14281cb216a4191bc4",
+    "mtime": 1792616826.0669584,
+    "seen": 1792617863.0879204,
+    "ast_hash": "5a45f4c0f6984d19ca6b9a347cc24f96",
     "semantic_hash": ""
   },
   "docs/plan.md": {
-    "mtime": 1792616678.4229617,
-    "seen": 1792616685.268601,
-    "ast_hash": "f3f00af3c9056614ffb1c9dd92b2a270",
+    "mtime": 1792617846.8573618,
+    "seen": 1792617863.0879238,
+    "ast_hash": "2f512c35b93497511c8029a6f57f95e2",
     "semantic_hash": ""
   },
   "docs/security.md": {
-    "mtime": 1792613097.0,
-    "seen": 1792616685.2686024,
-    "ast_hash": "ec32e815f56d11d15a0bc037a8a6e2fd",
+    "mtime": 1792616896.2650774,
+    "seen": 1792617863.0879252,
+    "ast_hash": "99a94ce18a5575a1203120bc86fc1e43",
     "semantic_hash": ""
   },
   "docs/ui.md": {
-    "mtime": 1792613072.0,
-    "seen": 1792616685.2686036,
-    "ast_hash": "e41393c4a3ee79c16cf426feabe0f9ce",
+    "mtime": 1792616993.3463151,
+    "seen": 1792617863.0879269,
+    "ast_hash": "ef24c422197cc40ae910a81df8f675c3",
     "semantic_hash": ""
   },
   "assets/brand/favicon.svg": {
@@ -387,6 +369,78 @@
     "mtime": 1792613037.0,
     "seen": 1792616685.2686136,
     "ast_hash": "8b59e52c954af4616307af2a3df8ac80",
+    "semantic_hash": ""
+  },
+  "crates/rostdav-app/src/auth.rs": {
+    "mtime": 1792617225.483847,
+    "seen": 1792617863.0878227,
+    "ast_hash": "42ea1c7f1e23eab5c3cbb413ccfab57b",
+    "semantic_hash": ""
+  },
+  "crates/rostdav-app/src/files.rs": {
+    "mtime": 1792617220.3390381,
+    "seen": 1792617863.0878246,
+    "ast_hash": "acd19f289b2935271fbc8bc23ad7590a",
+    "semantic_hash": ""
+  },
+  "crates/rostdav-dav/src/error.rs": {
+    "mtime": 1792617384.1265981,
+    "seen": 1792617863.087842,
+    "ast_hash": "2cf180a2aefdbb09a6a3cc46a5b685e5",
+    "semantic_hash": ""
+  },
+  "crates/rostdav-dav/src/range.rs": {
+    "mtime": 1792617454.3550959,
+    "seen": 1792617863.087845,
+    "ast_hash": "1cff15cdd6e065d0f0c4a438f4817849",
+    "semantic_hash": ""
+  },
+  "crates/rostdav-dav/src/target.rs": {
+    "mtime": 1792617649.7064168,
+    "seen": 1792617863.0878468,
+    "ast_hash": "25ef00284c4ae21edd394cb0ba12261a",
+    "semantic_hash": ""
+  },
+  "crates/rostdav-dav/src/xml.rs": {
+    "mtime": 1792617791.8904614,
+    "seen": 1792617863.087848,
+    "ast_hash": "cb942657c244fea67053f25f43f3f57f",
+    "semantic_hash": ""
+  },
+  "crates/rostdav-meta/src/nodes.rs": {
+    "mtime": 1792617272.092481,
+    "seen": 1792617863.0878527,
+    "ast_hash": "65bd98f63b8aa10e592d58e0d765b782",
+    "semantic_hash": ""
+  },
+  "crates/rostdav/tests/dav.rs": {
+    "mtime": 1792617606.7563767,
+    "seen": 1792617863.0878747,
+    "ast_hash": "c34429718b1a1f1a1a194f73d0b93d23",
+    "semantic_hash": ""
+  },
+  "scripts/litmus.sh": {
+    "mtime": 1792617841.2495344,
+    "seen": 1792617863.0878778,
+    "ast_hash": "8acc042b2a7690413be429854d8244d1",
+    "semantic_hash": ""
+  },
+  "docs/adr/0001-technology-stack.md": {
+    "mtime": 1792617018.1589031,
+    "seen": 1792617863.0879116,
+    "ast_hash": "32d197b3e2a61e2bcf8d504e0f2d6cf3",
+    "semantic_hash": ""
+  },
+  "docs/adr/0002-storage-model.md": {
+    "mtime": 1792617018.159209,
+    "seen": 1792617863.0879133,
+    "ast_hash": "fe0ea44e247bea964cf624381c540c71",
+    "semantic_hash": ""
+  },
+  "docs/instructions.md": {
+    "mtime": 1792616985.177974,
+    "seen": 1792617863.0879219,
+    "ast_hash": "baccc7cc21217c75d4c3524df2894a9d",
     "semantic_hash": ""
   }
 }

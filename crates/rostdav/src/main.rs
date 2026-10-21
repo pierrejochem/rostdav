@@ -95,6 +95,8 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
     let state = rostdav::build_state(&cfg).await?;
     let app = rostdav::http::router(state.clone());
 
+    spawn_garbage_collection(state.clone());
+
     let listener = tokio::net::TcpListener::bind(cfg.server.listen)
         .await
         .with_context(|| format!("could not bind address {}", cfg.server.listen))?;
@@ -108,6 +110,21 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
     state.shutdown().await;
     tracing::info!("stopped");
     Ok(())
+}
+
+/// Periodically removes blobs that no node references any more.
+fn spawn_garbage_collection(state: rostdav_app::AppState) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(300));
+        loop {
+            tick.tick().await;
+            match state.collect_garbage().await {
+                Ok(0) => {}
+                Ok(n) => tracing::info!(removed = n, "unreferenced blobs removed"),
+                Err(err) => tracing::warn!(error = %err, "garbage collection failed"),
+            }
+        }
+    });
 }
 
 async fn shutdown_signal() {
