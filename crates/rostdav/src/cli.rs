@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use anyhow::{Context, bail};
 use clap::{Args, Subcommand};
 use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, ImportOptions};
+use rostdav_core::time::rfc3339;
 
 #[derive(Subcommand)]
 pub enum AdminCommand {
@@ -125,7 +126,12 @@ pub async fn run(
         AdminCommand::Fsck(a) => return fsck(state, &actor, &a, out).await,
         AdminCommand::Import(a) => import(state, &actor, a, out).await?,
         AdminCommand::Audit(AuditCommand::Export { since }) => {
-            let since = since.as_deref().map(parse_since).transpose()?.unwrap_or(0);
+            let since = since
+                .as_deref()
+                .map(rostdav_core::time::parse_since)
+                .transpose()
+                .map_err(|e| anyhow::anyhow!(e))?
+                .unwrap_or(0);
             for e in state.audit_events(&actor, since).await? {
                 writeln!(out, "{}", event_line(&e))?;
             }
@@ -422,76 +428,6 @@ pub fn format_size(bytes: i64) -> String {
     }
 }
 
-/// Days since 1970-01-01 of a civil date (Howard Hinnant's algorithm).
-fn days_from_civil(y: i64, m: i64, d: i64) -> i64 {
-    let y = if m <= 2 { y - 1 } else { y };
-    let era = y.div_euclid(400);
-    let yoe = y - era * 400;
-    let doy = (153 * (if m > 2 { m - 3 } else { m + 9 }) + 2) / 5 + d - 1;
-    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
-    era * 146_097 + doe - 719_468
-}
-
-fn civil_from_days(z: i64) -> (i64, i64, i64) {
-    let z = z + 719_468;
-    let era = z.div_euclid(146_097);
-    let doe = z - era * 146_097;
-    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
-    let y = yoe + era * 400;
-    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-    let mp = (5 * doy + 2) / 153;
-    let d = doy - (153 * mp + 2) / 5 + 1;
-    let m = if mp < 10 { mp + 3 } else { mp - 9 };
-    (if m <= 2 { y + 1 } else { y }, m, d)
-}
-
-pub fn rfc3339(secs: i64) -> String {
-    let days = secs.div_euclid(86_400);
-    let rem = secs.rem_euclid(86_400);
-    let (y, m, d) = civil_from_days(days);
-    format!(
-        "{y:04}-{m:02}-{d:02}T{:02}:{:02}:{:02}Z",
-        rem / 3600,
-        rem % 3600 / 60,
-        rem % 60
-    )
-}
-
-/// `YYYY-MM-DD`, `YYYY-MM-DDTHH:MM:SSZ` or unix seconds.
-pub fn parse_since(s: &str) -> anyhow::Result<i64> {
-    let s = s.trim();
-    if let Ok(n) = s.parse::<i64>() {
-        return Ok(n);
-    }
-    let bad = || {
-        anyhow::anyhow!("not a date: {s:?} (use 2026-01-31, 2026-01-31T12:00:00Z or unix seconds)")
-    };
-    let (date, time) = s.split_once('T').unwrap_or((s, "00:00:00Z"));
-    let mut dp = date.split('-');
-    let (Some(y), Some(m), Some(d), None) = (dp.next(), dp.next(), dp.next(), dp.next()) else {
-        return Err(bad());
-    };
-    let (y, m, d): (i64, i64, i64) = (
-        y.parse().map_err(|_| bad())?,
-        m.parse().map_err(|_| bad())?,
-        d.parse().map_err(|_| bad())?,
-    );
-    if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
-        return Err(bad());
-    }
-    let time = time.trim_end_matches('Z');
-    let mut tp = time.split(':');
-    let (h, mi, sec): (i64, i64, i64) = (
-        tp.next().unwrap_or("0").parse().map_err(|_| bad())?,
-        tp.next().unwrap_or("0").parse().map_err(|_| bad())?,
-        tp.next().unwrap_or("0").parse().map_err(|_| bad())?,
-    );
-    if !(0..24).contains(&h) || !(0..60).contains(&mi) || !(0..61).contains(&sec) {
-        return Err(bad());
-    }
-    Ok(days_from_civil(y, m, d) * 86_400 + h * 3600 + mi * 60 + sec)
-}
-
 /// One JSON object per event; `details` stays an object.
 pub fn event_line(e: &rostdav_meta::Event) -> String {
     let details: serde_json::Value =
@@ -529,32 +465,6 @@ mod tests {
         assert_eq!(format_size(1023), "1023 B");
         assert_eq!(format_size(1536), "1.5 KiB");
         assert_eq!(format_size(5 * 1024 * 1024 * 1024), "5.0 GiB");
-    }
-
-    #[test]
-    fn dates_roundtrip() {
-        assert_eq!(rfc3339(0), "1970-01-01T00:00:00Z");
-        assert_eq!(rfc3339(1_700_000_000), "2023-11-14T22:13:20Z");
-        assert_eq!(
-            parse_since("2023-11-14T22:13:20Z").expect("d"),
-            1_700_000_000
-        );
-        assert_eq!(parse_since("2023-11-14").expect("d"), 1_699_920_000);
-        assert_eq!(parse_since("1700000000").expect("d"), 1_700_000_000);
-        assert_eq!(parse_since("2024-02-29").expect("leap"), 1_709_164_800);
-        for t in [-86_400, 0, 951_782_400, 4_102_444_800] {
-            assert_eq!(parse_since(&rfc3339(t)).expect("rt"), t);
-        }
-        for bad in [
-            "",
-            "yesterday",
-            "2026-13-01",
-            "2026-01-32",
-            "2026-01",
-            "2026-01-01T25:00:00Z",
-        ] {
-            assert!(parse_since(bad).is_err(), "{bad}");
-        }
     }
 
     #[test]

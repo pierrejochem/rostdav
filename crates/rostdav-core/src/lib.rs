@@ -5,6 +5,7 @@
 
 pub mod error;
 pub mod path;
+pub mod time;
 
 pub use error::{Error, Result};
 pub use path::{LogicalPath, Name};
