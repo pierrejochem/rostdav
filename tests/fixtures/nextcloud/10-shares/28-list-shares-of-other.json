@@ -1,0 +1,122 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:05 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "x2a1xg5ohmQkBUl0pD1e"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "carl"
+      ],
+      [
+        "Content-Length",
+        "74"
+      ],
+      [
+        "Content-Type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 74,
+      "sha256": "585a6bd4dbea2f261fbd095ee9a1c4d2a88b1ad22c1c8ecdf6030e777367a03c",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":200,\"message\":\"OK\"},\"data\":[]}}"
+    }
+  }
+}

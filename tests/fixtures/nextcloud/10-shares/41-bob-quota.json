@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PROPFIND",
+    "path": "/remote.php/dav/files/bob/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/xml",
+      "Depth": "0",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 125,
+      "sha256": "a21ac7baf66d627bd6169e026efbf82ed62810dae640f9083af1ca1663df9761",
+      "text": "<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\"><d:prop><d:quota-used-bytes/><d:quota-available-bytes/></d:prop></d:propfind>"
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:10 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "bob"
+      ],
+      [
+        "Vary",
+        "Brief,Prefer"
+      ],
+      [
+        "DAV",
+        "1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, nc-paginate, nextcloud-checksum-update, nc-calendar-search, nc-enable-birthday-calendar, 2"
+      ],
+      [
+        "X-Request-Id",
+        "IxMwZi22ZoORQIaMn6Gx"
+      ],
+      [
+        "Content-Length",
+        "419"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 419,
+      "sha256": "30a781095e65dc6087ec1096c5ca736af7d3758b18f38fa2f6f1ff91b9315c16",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/files/bob/</d:href><d:propstat><d:prop><d:quota-used-bytes>65646129</d:quota-used-bytes><d:quota-available-bytes>-3</d:quota-available-bytes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}

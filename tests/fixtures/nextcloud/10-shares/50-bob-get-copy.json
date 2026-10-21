@@ -1,0 +1,133 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/remote.php/dav/files/bob/copy-of-hello.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:14 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "bob"
+      ],
+      [
+        "Last-Modified",
+        "Wed, 21 Oct 2026 22:29:09 GMT"
+      ],
+      [
+        "ETag",
+        "\"7835a36e299ec2aba54410fe640103b4\""
+      ],
+      [
+        "Content-Length",
+        "15"
+      ],
+      [
+        "X-Request-Id",
+        "HWb95FXVq5TK3T0uOl6O"
+      ],
+      [
+        "OC-ETag",
+        "\"7835a36e299ec2aba54410fe640103b4\""
+      ],
+      [
+        "Content-Disposition",
+        "attachment; filename*=UTF-8''copy-of-hello.txt; filename=\"copy-of-hello.txt\""
+      ],
+      [
+        "X-Accel-Buffering",
+        "no"
+      ],
+      [
+        "Content-Type",
+        "text/plain;charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 15,
+      "sha256": "c9eeb8ccef0e5004eaeda630843a2ba1840e2c94cf5ede117c0cdcf9a4ccc7c3",
+      "text": "changed by bob\n"
+    }
+  }
+}

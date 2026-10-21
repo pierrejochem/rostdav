@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PUT",
+    "path": "/ocs/v2.php/apps/files_sharing/api/v1/shares/1?format=json",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 14,
+      "sha256": "25946c68e15e787cbb4dfda75534d9d8329575a77d008bcd8625a8a4237d0d0e",
+      "text": "permissions=31"
+    }
+  },
+  "response": {
+    "status": 403,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:16 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "sGne3fFoUaVy7Ys0H4O3"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "bob"
+      ],
+      [
+        "Content-Length",
+        "120"
+      ],
+      [
+        "Content-Type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 120,
+      "sha256": "fc302c5e7af6685a57506f7230e59ff7068f917777d798842a3347785dab7c72",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"failure\",\"statuscode\":403,\"message\":\"You are not allowed to edit incoming shares\"},\"data\":[]}}"
+    }
+  }
+}

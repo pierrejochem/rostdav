@@ -1,0 +1,133 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/remote.php/dav/files/bob/{{folder}}/hello.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:06 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "bob"
+      ],
+      [
+        "Last-Modified",
+        "Wed, 21 Oct 2026 22:28:33 GMT"
+      ],
+      [
+        "ETag",
+        "\"c1bd0c308068d036d11e8e811668fc1f\""
+      ],
+      [
+        "Content-Length",
+        "13"
+      ],
+      [
+        "X-Request-Id",
+        "GmcNhhY6QQwFwzmO6Op1"
+      ],
+      [
+        "OC-ETag",
+        "\"c1bd0c308068d036d11e8e811668fc1f\""
+      ],
+      [
+        "Content-Disposition",
+        "attachment; filename*=UTF-8''hello.txt; filename=\"hello.txt\""
+      ],
+      [
+        "X-Accel-Buffering",
+        "no"
+      ],
+      [
+        "Content-Type",
+        "text/plain;charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 13,
+      "sha256": "53ac453ee8d4de3857755ae6a59d4cef402b0551ee16dab9a02cc4961274dfb6",
+      "text": "hello shared\n"
+    }
+  }
+}

@@ -1,0 +1,113 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PUT",
+    "path": "/public.php/webdav/up.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 18,
+      "sha256": "3f2511e77d674f91d92f6c87b0c69db91695f0b48842a7431f0bc6947602c09c",
+      "text": "uploaded via link\n"
+    }
+  },
+  "response": {
+    "status": 201,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:24 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "OC-FileId",
+        "00000312och35prclkve"
+      ],
+      [
+        "Content-Length",
+        "0"
+      ],
+      [
+        "ETag",
+        "\"fe1f9d8a9020cabd2457b689aaae2118\""
+      ],
+      [
+        "OC-ETag",
+        "\"fe1f9d8a9020cabd2457b689aaae2118\""
+      ],
+      [
+        "X-Request-Id",
+        "0eG8DYFyJAEEyTKvpcUG"
+      ],
+      [
+        "X-NC-Permissions",
+        "RGDNVW"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "empty": true
+    }
+  }
+}

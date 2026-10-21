@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PROPFIND",
+    "path": "/remote.php/dav/files/bob/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/xml",
+      "Depth": "1",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 389,
+      "sha256": "a32640611dc72bcf707282c46060b027a47a588d313455cbefbc142bb62f9f8e",
+      "text": "<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:prop><d:getlastmodified/><d:getcontentlength/><d:resourcetype/><d:getetag/><oc:id/><oc:fileid/><oc:size/><oc:permissions/><oc:owner-id/><oc:owner-display-name/><oc:share-types/><nc:mount-type/><nc:is-mount-root/><nc:share-attributes/><oc:shareid/></d:prop></d:propfind>"
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:32 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "bob"
+      ],
+      [
+        "Vary",
+        "Brief,Prefer"
+      ],
+      [
+        "DAV",
+        "1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, nc-paginate, nextcloud-checksum-update, nc-calendar-search, nc-enable-birthday-calendar, 2"
+      ],
+      [
+        "X-Request-Id",
+        "y8VFKgorCZYzP9OIFe0a"
+      ],
+      [
+        "Transfer-Encoding",
+        "chunked"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 8889,
+      "sha256": "0aadb03ad4399e85717bd22322574a7e7a6d75f8ebbf039f25535f33b596ba50",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/files/bob/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:29:13 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>&quot;6ad93cb9e0f7f&quot;</d:getetag><oc:id>00000231och35prclkve</oc:id><oc:fileid>231</oc:fileid><oc:size>65646144</oc:size><oc:permissions>RGDNVCK</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Nextcloud%20Manual.pdf</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:28:58 GMT</d:getlastmodified><d:getcontentlength>30411524</d:getcontentlength><d:resourcetype/><d:getetag>&quot;ab7e943887cb6636a688b98ece1cd8dc&quot;</d:getetag><oc:id>00000232och35prclkve</oc:id><oc:fileid>232</oc:fileid><oc:size>30411524</oc:size><oc:permissions>RGDNVW</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Nextcloud%20intro.mp4</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:28:59 GMT</d:getlastmodified><d:getcontentlength>3963036</d:getcontentlength><d:resourcetype/><d:getetag>&quot;afd9ac552f3a1801b1d90a96a69c383c&quot;</d:getetag><oc:id>00000233och35prclkve</oc:id><oc:fileid>233</oc:fileid><oc:size>3963036</oc:size><oc:permissions>RGDNVW</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Photos/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:28:59 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>&quot;6ad93cabde3b6&quot;</d:getetag><oc:id>00000234och35prclkve</oc:id><oc:fileid>234</oc:fileid><oc:size>5656463</oc:size><oc:permissions>RGDNVCK</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Reasons%20to%20use%20Nextcloud.pdf</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:28:59 GMT</d:getlastmodified><d:getcontentlength>976625</d:getcontentlength><d:resourcetype/><d:getetag>&quot;22c2546e4363c86cef3768ac5bf8b800&quot;</d:getetag><oc:id>00000244och35prclkve</oc:id><oc:fileid>244</oc:fileid><oc:size>976625</oc:size><oc:permissions>RGDNVW</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Nextcloud.png</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:29:00 GMT</d:getlastmodified><d:getcontentlength>50598</d:getcontentlength><d:resourcetype/><d:getetag>&quot;f8ddf37506ce3aa639a1e4ace8522117&quot;</d:getetag><oc:id>00000245och35prclkve</oc:id><oc:fileid>245</oc:fileid><oc:size>50598</oc:size><oc:permissions>RGDNVW</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Templates/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:29:01 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>&quot;6ad93cadbe9cb&quot;</d:getetag><oc:id>00000246och35prclkve</oc:id><oc:fileid>246</oc:fileid><oc:size>23476072</oc:size><oc:permissions>RGDNVCK</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Templates%20credits.md</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:29:01 GMT</d:getlastmodified><d:getcontentlength>3168</d:getcontentlength><d:resourcetype/><d:getetag>&quot;2acebda0d1ff0e5d7794f707c5f5a2da&quot;</d:getetag><oc:id>00000292och35prclkve</oc:id><oc:fileid>292</oc:fileid><oc:size>3168</oc:size><oc:permissions>RGDNVW</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Documents/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:29:01 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>&quot;6ad93cadf2b15&quot;</d:getetag><oc:id>00000293och35prclkve</oc:id><oc:fileid>293</oc:fileid><oc:size>1108446</oc:size><oc:permissions>RGDNVCK</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/Readme.md</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:29:02 GMT</d:getlastmodified><d:getcontentlength>197</d:getcontentlength><d:resourcetype/><d:getetag>&quot;7e7d40e55338cab2d2787566f20bc58e&quot;</d:getetag><oc:id>00000298och35prclkve</oc:id><oc:fileid>298</oc:fileid><oc:size>197</oc:size><oc:permissions>RGDNVW</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/copy-of-hello.txt</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:29:09 GMT</d:getlastmodified><d:getcontentlength>15</d:getcontentlength><d:resourcetype/><d:getetag>&quot;7835a36e299ec2aba54410fe640103b4&quot;</d:getetag><oc:id>00000308och35prclkve</oc:id><oc:fileid>308</oc:fileid><oc:size>15</oc:size><oc:permissions>RGDNVW</oc:permissions><oc:owner-id>bob</oc:owner-id><oc:owner-display-name>bob</oc:owner-display-name><oc:share-types/><nc:mount-type></nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}

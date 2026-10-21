@@ -1,0 +1,126 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v2.php/apps/files_sharing/api/v1/sharees?format=json&search=bob&itemType=file&lookup=false",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:28:44 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "gMzO9p70ApZDXskuWgUg"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Link",
+        "<http://{{host}}/ocs/v2.php/apps/files_sharing/api/v1/sharees?search=bob&itemType=file&shareType%5B0%5D=0&shareType%5B1%5D=1&shareType%5B2%5D=4&shareType%5B3%5D=6&shareType%5B4%5D=7&perPage=25&page=2>; rel=\"next\""
+      ],
+      [
+        "Content-Length",
+        "435"
+      ],
+      [
+        "Content-Type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 435,
+      "sha256": "3e4211cf78307cf078e7846e841051e35be15b9223209a1f0c443c62f4f321dd",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":200,\"message\":\"OK\"},\"data\":{\"exact\":{\"users\":[{\"label\":\"bob\",\"subline\":\"\",\"icon\":\"icon-user\",\"value\":{\"shareType\":0,\"shareWith\":\"bob\"},\"shareWithDisplayNameUnique\":\"bob\",\"status\":[]}],\"groups\":[],\"remotes\":[],\"remote_groups\":[],\"emails\":[],\"circles\":[],\"rooms\":[]},\"users\":[],\"groups\":[],\"remotes\":[],\"remote_groups\":[],\"emails\":[],\"lookup\":[],\"circles\":[],\"rooms\":[],\"lookupEnabled\":false}}}"
+    }
+  }
+}

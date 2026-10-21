@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PROPFIND",
+    "path": "/remote.php/dav/files/bob/{{folder}}",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/xml",
+      "Depth": "1",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 389,
+      "sha256": "a32640611dc72bcf707282c46060b027a47a588d313455cbefbc142bb62f9f8e",
+      "text": "<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:prop><d:getlastmodified/><d:getcontentlength/><d:resourcetype/><d:getetag/><oc:id/><oc:fileid/><oc:size/><oc:permissions/><oc:owner-id/><oc:owner-display-name/><oc:share-types/><nc:mount-type/><nc:is-mount-root/><nc:share-attributes/><oc:shareid/></d:prop></d:propfind>"
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:06 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "bob"
+      ],
+      [
+        "Vary",
+        "Brief,Prefer"
+      ],
+      [
+        "DAV",
+        "1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, nc-paginate, nextcloud-checksum-update, nc-calendar-search, nc-enable-birthday-calendar, 2"
+      ],
+      [
+        "X-Request-Id",
+        "GaluWNoGwK8bjLaqjVpu"
+      ],
+      [
+        "Content-Length",
+        "2618"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 2618,
+      "sha256": "2587180eb897303db10258e3b024ad320e34d95de5e30cc9d9df42542885ae7c",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/files/bob/{{folder}}/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:28:41 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>&quot;6ad93c99a1294&quot;</d:getetag><oc:id>00000155och35prclkve</oc:id><oc:fileid>155</oc:fileid><oc:size>13</oc:size><oc:permissions>SRGDNVCK</oc:permissions><oc:owner-id>admin</oc:owner-id><oc:owner-display-name>admin</oc:owner-display-name><oc:share-types><oc:share-type>0</oc:share-type></oc:share-types><nc:mount-type>shared</nc:mount-type><nc:is-mount-root>true</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/{{folder}}/hello.txt</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:28:33 GMT</d:getlastmodified><d:getcontentlength>13</d:getcontentlength><d:resourcetype/><d:getetag>&quot;c1bd0c308068d036d11e8e811668fc1f&quot;</d:getetag><oc:id>00000156och35prclkve</oc:id><oc:fileid>156</oc:fileid><oc:size>13</oc:size><oc:permissions>SRGDNVW</oc:permissions><oc:owner-id>admin</oc:owner-id><oc:owner-display-name>admin</oc:owner-display-name><oc:share-types/><nc:mount-type>shared</nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/bob/{{folder}}/sub/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 22:28:41 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>&quot;6ad93c992eb83&quot;</d:getetag><oc:id>00000158och35prclkve</oc:id><oc:fileid>158</oc:fileid><oc:size>0</oc:size><oc:permissions>SRGDNVCK</oc:permissions><oc:owner-id>admin</oc:owner-id><oc:owner-display-name>admin</oc:owner-display-name><oc:share-types/><nc:mount-type>shared</nc:mount-type><nc:is-mount-root>false</nc:is-mount-root><nc:share-attributes>[]</nc:share-attributes></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><oc:shareid/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/remote.php/dav/files/admin/{{folder}}/up.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:24 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Last-Modified",
+        "Wed, 21 Oct 2026 22:29:24 GMT"
+      ],
+      [
+        "ETag",
+        "\"fe1f9d8a9020cabd2457b689aaae2118\""
+      ],
+      [
+        "Content-Length",
+        "18"
+      ],
+      [
+        "X-Request-Id",
+        "4dA8aSwh6z1gg77pmOVE"
+      ],
+      [
+        "OC-ETag",
+        "\"fe1f9d8a9020cabd2457b689aaae2118\""
+      ],
+      [
+        "Content-Disposition",
+        "attachment; filename*=UTF-8''up.txt; filename=\"up.txt\""
+      ],
+      [
+        "X-Accel-Buffering",
+        "no"
+      ],
+      [
+        "Content-Type",
+        "text/plain;charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 18,
+      "sha256": "3f2511e77d674f91d92f6c87b0c69db91695f0b48842a7431f0bc6947602c09c",
+      "text": "uploaded via link\n"
+    }
+  }
+}

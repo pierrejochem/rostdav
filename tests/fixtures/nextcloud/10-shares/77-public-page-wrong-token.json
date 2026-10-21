@@ -1,0 +1,105 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/s/doesnotexist1",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Accept": "text/html"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:23 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "YlRjQdbqSbL1W3n6AwTT"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "Content-Length",
+        "17607"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 17607,
+      "sha256": "5e888b976d3b49b82e97af26fa01e0c40367965bdc3e40b2682247643f3cbe8b",
+      "omitted": true
+    }
+  }
+}

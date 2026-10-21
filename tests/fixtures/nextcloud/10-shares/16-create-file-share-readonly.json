@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "POST",
+    "path": "/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 67,
+      "sha256": "f81c5c2f77736aaacfa4b5590921a245f1aafd2238091c59ba7d2c78ce7e3685",
+      "text": "path=/{{file}}&shareType=0&shareWith=carl&permissions=1"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:28:53 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "4RwkkeTaoVosBKZ0CRBV"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "803"
+      ],
+      [
+        "Content-Type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 803,
+      "sha256": "3e8c5b8516f6252c0e74d0fd608be976f3e992daffdb0539828da506a03a797c",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":200,\"message\":\"OK\"},\"data\":{\"id\":\"2\",\"share_type\":0,\"uid_owner\":\"admin\",\"displayname_owner\":\"admin\",\"permissions\":1,\"can_edit\":true,\"can_delete\":true,\"stime\":1792621734,\"parent\":null,\"expiration\":null,\"token\":null,\"uid_file_owner\":\"admin\",\"note\":\"\",\"label\":\"\",\"displayname_file_owner\":\"admin\",\"path\":\"\\/{{file}}\",\"item_type\":\"file\",\"item_permissions\":27,\"is-mount-root\":false,\"mount-type\":\"\",\"mimetype\":\"text\\/plain\",\"has_preview\":true,\"storage_id\":\"home::admin\",\"storage\":2,\"item_source\":157,\"file_source\":157,\"file_parent\":7,\"file_target\":\"\\/{{file}}\",\"item_size\":12,\"item_mtime\":1792621716,\"share_with\":\"carl\",\"share_with_displayname\":\"carl\",\"share_with_displayname_unique\":\"carl\",\"mail_send\":1,\"hide_download\":0,\"attributes\":null}}}"
+    }
+  }
+}

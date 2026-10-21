@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "POST",
+    "path": "/ocs/v2.php/apps/files_sharing/api/v1/shares?format=json",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 62,
+      "sha256": "80d080d6195c22f1514604ee128c1c185fe78a9d8de28ffcadee30120610c985",
+      "text": "path=/{{folder}}&shareType=0&shareWith=carl&permissions=1"
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:28:54 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "TrnUzX1z0cm5xcmh8k6A"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "carl"
+      ],
+      [
+        "Content-Length",
+        "116"
+      ],
+      [
+        "Content-Type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 116,
+      "sha256": "7b056d20ba9ebf47cbbf7fa4d99e6cb027f895f16acd52bfa52d7b8854276799",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"failure\",\"statuscode\":404,\"message\":\"Wrong path, file\\/folder does not exist\"},\"data\":[]}}"
+    }
+  }
+}

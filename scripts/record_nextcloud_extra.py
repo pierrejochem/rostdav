@@ -6,7 +6,7 @@ one flow directory per run. It signs in with the admin password via Basic
 (the sign-in flow itself is recorded by the main script).
 
 Usage: scripts/record_nextcloud_extra.py <flow> [--host 127.0.0.1:18081] [--user admin] [--password ...]
-Flows: versions
+Flows: versions, shares
 """
 import argparse
 import hashlib
@@ -117,16 +117,188 @@ def versions(r, a):
     rec.finalize(r)
 
 
+def shares(r, a):
+    f = "10-shares"
+    d = rec.OUT / f
+    if d.exists():
+        shutil.rmtree(d)
+    r.counters.pop(f, None)
+    admin = (a.user, a.password)
+    bob_pw = "bob-reference-password-1"
+    carl_pw = "carl-reference-password-1"
+    ocs = {**OCS}
+    form = {"Content-Type": "application/x-www-form-urlencoded", **OCS}
+    api = "/ocs/v2.php/apps/files_sharing/api/v1"
+    # users (Bob and Carl may exist from an earlier run)
+    for u, pw in (("bob", bob_pw), ("carl", carl_pw)):
+        r.call(f, f"create-user-{u}", "POST", "/ocs/v2.php/cloud/users?format=json", form,
+               f"userid={u}&password={pw}", auth=admin, record=False)
+    r.secret(bob_pw, "{{bob_password}}")
+    r.secret(carl_pw, "{{carl_password}}")
+    bob = ("bob", bob_pw)
+    carl = ("carl", carl_pw)
+    dav = f"/remote.php/dav/files/{a.user}"
+    tag = str(int(time.time()))
+    folder = f"Share{tag}"
+    r.secret(folder, "{{folder}}")
+    r.call(f, "mkcol", "MKCOL", f"{dav}/{folder}", auth=admin)
+    r.call(f, "put-file", "PUT", f"{dav}/{folder}/hello.txt", None, b"hello shared\n", auth=admin)
+    r.call(f, "put-file-root", "PUT", f"{dav}/single{tag}.txt", None, b"single file\n", auth=admin)
+    r.secret(f"single{tag}.txt", "{{file}}")
+    r.call(f, "mkcol-sub", "MKCOL", f"{dav}/{folder}/sub", auth=admin)
+
+    # capabilities and sharee lookup
+    r.call(f, "capabilities", "GET", "/ocs/v2.php/cloud/capabilities?format=json", ocs, auth=admin)
+    r.call(f, "sharees", "GET", f"{api}/sharees?format=json&search=bo&itemType=file&perPage=10", ocs, auth=admin)
+    r.call(f, "sharees-exact", "GET", f"{api}/sharees?format=json&search=bob&itemType=file&lookup=false", ocs, auth=admin)
+
+    # create user shares
+    def share(name, body, who=admin, hdr=None):
+        return r.call(f, name, "POST", f"{api}/shares?format=json", {**form, **(hdr or {})}, body, auth=who)
+    s, h, b = share("create-user-share", f"path=/{folder}&shareType=0&shareWith=bob&permissions=31")
+    import json as _j
+    try:
+        sid = _j.loads(b)["ocs"]["data"]["id"]
+    except Exception:
+        sid = None
+    share("create-user-share-duplicate", f"path=/{folder}&shareType=0&shareWith=bob&permissions=31")
+    share("create-share-with-self", f"path=/{folder}&shareType=0&shareWith=admin&permissions=31")
+    share("create-share-unknown-user", f"path=/{folder}&shareType=0&shareWith=nobody-here&permissions=31")
+    share("create-share-missing-path", f"path=/does-not-exist&shareType=0&shareWith=bob&permissions=31")
+    share("create-share-no-path", f"shareType=0&shareWith=bob&permissions=31")
+    share("create-share-bad-permissions", f"path=/{folder}&shareType=0&shareWith=carl&permissions=99")
+    share("create-share-bad-type", f"path=/{folder}&shareType=77&shareWith=carl&permissions=1")
+    s, h, b = share("create-file-share-readonly", f"path=/single{tag}.txt&shareType=0&shareWith=carl&permissions=1")
+    try:
+        fid = _j.loads(b)["ocs"]["data"]["id"]
+    except Exception:
+        fid = None
+    share("create-share-by-non-owner", f"path=/{folder}&shareType=0&shareWith=carl&permissions=1", who=carl)
+
+    # read back
+    r.call(f, "get-share", "GET", f"{api}/shares/{sid}?format=json", ocs, auth=admin)
+    r.call(f, "get-share-as-recipient", "GET", f"{api}/shares/{sid}?format=json", ocs, auth=bob)
+    r.call(f, "get-share-as-stranger", "GET", f"{api}/shares/{sid}?format=json", ocs, auth=carl)
+    r.call(f, "get-share-missing", "GET", f"{api}/shares/999999?format=json", ocs, auth=admin)
+    r.call(f, "list-shares", "GET", f"{api}/shares?format=json", ocs, auth=admin)
+    r.call(f, "list-shares-by-path", "GET", f"{api}/shares?format=json&path=/{folder}", ocs, auth=admin)
+    r.call(f, "list-shares-subfiles", "GET", f"{api}/shares?format=json&path=/{folder}&subfiles=true", ocs, auth=admin)
+    r.call(f, "list-shares-reshares", "GET", f"{api}/shares?format=json&path=/{folder}&reshares=true", ocs, auth=admin)
+    r.call(f, "list-shared-with-me", "GET", f"{api}/shares?format=json&shared_with_me=true", ocs, auth=bob)
+    r.call(f, "list-shared-with-me-pending", "GET", f"{api}/shares/pending?format=json", ocs, auth=bob)
+    r.call(f, "list-shares-of-other", "GET", f"{api}/shares?format=json", ocs, auth=carl)
+
+    # what the recipient sees over WebDAV
+    props = ('<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"><d:prop>'
+             "<d:getlastmodified/><d:getcontentlength/><d:resourcetype/><d:getetag/><oc:id/><oc:fileid/><oc:size/><oc:permissions/>"
+             "<oc:owner-id/><oc:owner-display-name/><oc:share-types/><nc:mount-type/><nc:is-mount-root/><nc:share-attributes/>"
+             "<oc:shareid/></d:prop></d:propfind>")
+    bdav = "/remote.php/dav/files/bob"
+    r.call(f, "bob-propfind-root", "PROPFIND", f"{bdav}/", {**XML, "Depth": "1"}, props, auth=bob)
+    r.call(f, "bob-propfind-share", "PROPFIND", f"{bdav}/{folder}", {**XML, "Depth": "1"}, props, auth=bob)
+    r.call(f, "bob-get-file", "GET", f"{bdav}/{folder}/hello.txt", auth=bob)
+    r.call(f, "admin-propfind-shared-folder", "PROPFIND", f"{dav}/{folder}", {**XML, "Depth": "0"}, props, auth=admin)
+    r.call(f, "bob-put-in-share", "PUT", f"{bdav}/{folder}/by-bob.txt", None, b"from bob\n", auth=bob)
+    r.call(f, "admin-sees-bobs-file", "GET", f"{dav}/{folder}/by-bob.txt", auth=admin)
+    r.call(f, "bob-mkcol-in-share", "MKCOL", f"{bdav}/{folder}/bobdir", auth=bob)
+    r.call(f, "bob-overwrite", "PUT", f"{bdav}/{folder}/hello.txt", None, b"changed by bob\n", auth=bob)
+    r.call(f, "bob-move-in-share", "MOVE", f"{bdav}/{folder}/by-bob.txt", {"Destination": f"http://{a.host}{bdav}/{folder}/renamed.txt"}, auth=bob)
+    r.call(f, "bob-delete-in-share", "DELETE", f"{bdav}/{folder}/renamed.txt", auth=bob)
+    r.call(f, "carl-get-share-content", "GET", f"/remote.php/dav/files/carl/{folder}/hello.txt", auth=carl)
+    r.call(f, "carl-propfind-admin-space", "PROPFIND", f"{dav}/{folder}", {**XML, "Depth": "0"}, props, auth=carl)
+    # versions interplay and quota owner
+    r.call(f, "bob-quota", "PROPFIND", f"{bdav}/", {**XML, "Depth": "0"}, '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:quota-used-bytes/><d:quota-available-bytes/></d:prop></d:propfind>', auth=bob)
+
+    # update permissions: read only
+    r.call(f, "update-permissions-readonly", "PUT", f"{api}/shares/{sid}?format=json", form, "permissions=1", auth=admin)
+    r.call(f, "bob-propfind-share-readonly", "PROPFIND", f"{bdav}/{folder}", {**XML, "Depth": "0"}, props, auth=bob)
+    r.call(f, "bob-put-readonly", "PUT", f"{bdav}/{folder}/denied.txt", None, b"x", auth=bob)
+    r.call(f, "bob-mkcol-readonly", "MKCOL", f"{bdav}/{folder}/denied", auth=bob)
+    r.call(f, "bob-overwrite-readonly", "PUT", f"{bdav}/{folder}/hello.txt", None, b"x", auth=bob)
+    r.call(f, "bob-delete-readonly", "DELETE", f"{bdav}/{folder}/hello.txt", auth=bob)
+    r.call(f, "bob-move-readonly", "MOVE", f"{bdav}/{folder}/hello.txt", {"Destination": f"http://{a.host}{bdav}/{folder}/x.txt"}, auth=bob)
+    r.call(f, "bob-copy-out-of-readonly", "COPY", f"{bdav}/{folder}/hello.txt", {"Destination": f"http://{a.host}{bdav}/copy-of-hello.txt"}, auth=bob)
+    r.call(f, "bob-get-copy", "GET", f"{bdav}/copy-of-hello.txt", auth=bob)
+    r.call(f, "update-permissions-create-only", "PUT", f"{api}/shares/{sid}?format=json", form, "permissions=5", auth=admin)
+    r.call(f, "bob-put-create-only", "PUT", f"{bdav}/{folder}/new-by-bob.txt", None, b"x", auth=bob)
+    r.call(f, "bob-overwrite-create-only", "PUT", f"{bdav}/{folder}/new-by-bob.txt", None, b"y", auth=bob)
+    r.call(f, "update-note-and-expiry", "PUT", f"{api}/shares/{sid}?format=json", form, "note=hello+bob&expireDate=2999-01-01", auth=admin)
+    r.call(f, "update-bad-permissions", "PUT", f"{api}/shares/{sid}?format=json", form, "permissions=0", auth=admin)
+    r.call(f, "update-by-recipient", "PUT", f"{api}/shares/{sid}?format=json", form, "permissions=31", auth=bob)
+    r.call(f, "get-share-after-update", "GET", f"{api}/shares/{sid}?format=json", ocs, auth=admin)
+    r.call(f, "update-permissions-full", "PUT", f"{api}/shares/{sid}?format=json", form, "permissions=31", auth=admin)
+    r.call(f, "update-expire-past", "PUT", f"{api}/shares/{sid}?format=json", form, "expireDate=2000-01-01", auth=admin)
+
+    # recipient renames the mount point, then leaves the share
+    r.call(f, "bob-rename-mount", "MOVE", f"{bdav}/{folder}", {"Destination": f"http://{a.host}{bdav}/Renamed-{tag}"}, auth=bob)
+    r.call(f, "bob-propfind-root-after-rename", "PROPFIND", f"{bdav}/", {**XML, "Depth": "1"}, props, auth=bob)
+    r.call(f, "bob-get-via-new-name", "GET", f"{bdav}/Renamed-{tag}/hello.txt", auth=bob)
+    r.call(f, "get-share-after-rename", "GET", f"{api}/shares/{sid}?format=json", ocs, auth=admin)
+    r.call(f, "bob-delete-mount", "DELETE", f"{bdav}/Renamed-{tag}", auth=bob)
+    r.call(f, "admin-folder-still-there", "PROPFIND", f"{dav}/{folder}", {**XML, "Depth": "0"}, props, auth=admin)
+    r.call(f, "get-share-after-recipient-delete", "GET", f"{api}/shares/{sid}?format=json", ocs, auth=admin)
+
+    # delete shares
+    r.call(f, "delete-share", "DELETE", f"{api}/shares/{fid}?format=json", ocs, auth=admin)
+    r.call(f, "delete-share-again", "DELETE", f"{api}/shares/{fid}?format=json", ocs, auth=admin)
+    r.call(f, "delete-share-by-stranger", "DELETE", f"{api}/shares/{sid}?format=json", ocs, auth=carl)
+
+    # public links
+    link = f"path=/{folder}&shareType=3&permissions=1"
+    s, h, b = share("create-public-link", link)
+    try:
+        ld = _j.loads(b)["ocs"]["data"]
+        lid, token = ld["id"], ld["token"]
+    except Exception:
+        lid, token = None, "unknown"
+    r.secret(token, "{{token}}")
+    pub = "/public.php/webdav"
+    tauth = (token, "")
+    r.call(f, "public-propfind-root", "PROPFIND", f"{pub}/", {**XML, "Depth": "1"}, props, auth=tauth)
+    r.call(f, "public-get-file", "GET", f"{pub}/hello.txt", auth=tauth)
+    r.call(f, "public-put-readonly", "PUT", f"{pub}/up.txt", None, b"x", auth=tauth)
+    r.call(f, "public-no-auth", "PROPFIND", f"{pub}/", {**XML, "Depth": "0"}, props)
+    r.call(f, "public-wrong-token", "PROPFIND", f"{pub}/", {**XML, "Depth": "0"}, props, auth=("wrongtoken123", ""))
+    r.call(f, "public-page", "GET", f"/s/{token}", {"Accept": "text/html"})
+    r.call(f, "public-page-wrong-token", "GET", "/s/doesnotexist1", {"Accept": "text/html"})
+    r.call(f, "public-download", "GET", f"/s/{token}/download?path=/&files=hello.txt")
+    r.call(f, "update-link-edit", "PUT", f"{api}/shares/{lid}?format=json", form, "permissions=15", auth=admin)
+    r.call(f, "public-put-edit", "PUT", f"{pub}/up.txt", None, b"uploaded via link\n", auth=tauth)
+    r.call(f, "admin-sees-upload", "GET", f"{dav}/{folder}/up.txt", auth=admin)
+    r.call(f, "update-link-password", "PUT", f"{api}/shares/{lid}?format=json", form, "password=link-secret-password-1", auth=admin)
+    r.call(f, "get-link-share", "GET", f"{api}/shares/{lid}?format=json", ocs, auth=admin)
+    r.secret("link-secret-password-1", "{{link_password}}")
+    r.call(f, "public-propfind-no-password", "PROPFIND", f"{pub}/", {**XML, "Depth": "0"}, props, auth=tauth)
+    r.call(f, "public-propfind-wrong-password", "PROPFIND", f"{pub}/", {**XML, "Depth": "0"}, props, auth=(token, "wrong"))
+    r.call(f, "public-propfind-password", "PROPFIND", f"{pub}/", {**XML, "Depth": "0"}, props, auth=(token, "link-secret-password-1"))
+    r.call(f, "public-page-password", "GET", f"/s/{token}", {"Accept": "text/html"})
+    r.call(f, "create-link-expired", "POST", f"{api}/shares?format=json", form, f"path=/{folder}&shareType=3&permissions=1&expireDate=2000-01-01", auth=admin)
+    r.call(f, "create-link-file", "POST", f"{api}/shares?format=json", form, f"path=/single{tag}.txt&shareType=3&permissions=1", auth=admin)
+    r.call(f, "create-link-named", "POST", f"{api}/shares?format=json", form, f"path=/{folder}&shareType=3&permissions=1&label=For+friends&hideDownload=true", auth=admin)
+    r.call(f, "list-all-shares-with-links", "GET", f"{api}/shares?format=json", ocs, auth=admin)
+    r.call(f, "delete-link", "DELETE", f"{api}/shares/{lid}?format=json", ocs, auth=admin)
+    r.call(f, "public-after-delete", "PROPFIND", f"{pub}/", {**XML, "Depth": "0"}, props, auth=tauth)
+
+    # shared folder deletion and moving
+    s, h, b = share("create-share-for-delete", f"path=/{folder}&shareType=0&shareWith=bob&permissions=31")
+    r.call(f, "bob-sees-share-again", "PROPFIND", f"{bdav}/", {**XML, "Depth": "1"}, props, auth=bob)
+    r.call(f, "admin-move-shared-folder", "MOVE", f"{dav}/{folder}", {"Destination": f"http://{a.host}{dav}/Moved{tag}"}, auth=admin)
+    r.call(f, "bob-after-owner-moved", "PROPFIND", f"{bdav}/", {**XML, "Depth": "1"}, props, auth=bob)
+    r.call(f, "admin-delete-shared-folder", "DELETE", f"{dav}/Moved{tag}", auth=admin)
+    r.call(f, "bob-after-owner-deleted", "PROPFIND", f"{bdav}/", {**XML, "Depth": "1"}, props, auth=bob)
+    rec.finalize(r)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("flow", choices=["versions"])
+    ap.add_argument("flow", choices=["versions", "shares"])
     ap.add_argument("--host", default="127.0.0.1:18081")
     ap.add_argument("--user", default="admin")
     ap.add_argument("--password", default="admin-ref-password-1")
     a = ap.parse_args()
     r = rec.Recorder(a.host)
     r.secret(a.password, "{{password}}")
-    {"versions": versions}[a.flow](r, a)
+    {"versions": versions, "shares": shares}[a.flow](r, a)
 
 
 if __name__ == "__main__":

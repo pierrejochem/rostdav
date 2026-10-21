@@ -1,0 +1,133 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/remote.php/dav/files/admin/{{folder}}/by-bob.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:07 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Last-Modified",
+        "Wed, 21 Oct 2026 22:29:07 GMT"
+      ],
+      [
+        "ETag",
+        "\"1c79ad695ecef60e5ce7a0bcfda305f0\""
+      ],
+      [
+        "Content-Length",
+        "9"
+      ],
+      [
+        "X-Request-Id",
+        "Ny3uj5JChNxKoJhNgYcL"
+      ],
+      [
+        "OC-ETag",
+        "\"1c79ad695ecef60e5ce7a0bcfda305f0\""
+      ],
+      [
+        "Content-Disposition",
+        "attachment; filename*=UTF-8''by-bob.txt; filename=\"by-bob.txt\""
+      ],
+      [
+        "X-Accel-Buffering",
+        "no"
+      ],
+      [
+        "Content-Type",
+        "text/plain;charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 9,
+      "sha256": "179f826abc3e3506e2acae5b52a22404353cc2936cd400224117b25175458486",
+      "text": "from bob\n"
+    }
+  }
+}

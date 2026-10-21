@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PUT",
+    "path": "/remote.php/dav/files/bob/{{folder}}/hello.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 15,
+      "sha256": "c9eeb8ccef0e5004eaeda630843a2ba1840e2c94cf5ede117c0cdcf9a4ccc7c3",
+      "text": "changed by bob\n"
+    }
+  },
+  "response": {
+    "status": 204,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 22:29:08 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "bob"
+      ],
+      [
+        "OC-FileId",
+        "00000156och35prclkve"
+      ],
+      [
+        "ETag",
+        "\"7835a36e299ec2aba54410fe640103b4\""
+      ],
+      [
+        "X-Request-Id",
+        "u9UyAGPAuJkJDvEwxy0y"
+      ],
+      [
+        "OC-ETag",
+        "\"7835a36e299ec2aba54410fe640103b4\""
+      ],
+      [
+        "X-NC-OwnerId",
+        "admin"
+      ],
+      [
+        "X-NC-Permissions",
+        "SRGDNVW"
+      ]
+    ],
+    "body": {
+      "empty": true
+    }
+  }
+}
