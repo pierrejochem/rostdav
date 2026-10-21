@@ -1,4 +1,4 @@
-//! HTTP-Router und gemeinsame Middleware.
+//! HTTP router and shared middleware.
 
 use axum::Json;
 use axum::Router;
@@ -17,7 +17,7 @@ use tracing::Level;
 
 const REQUEST_ID: HeaderName = HeaderName::from_static("x-request-id");
 
-/// Baut den vollständigen Router inklusive Middleware.
+/// Builds the complete router including middleware.
 pub fn router(state: AppState) -> Router {
     let middleware = ServiceBuilder::new()
         .layer(SetSensitiveRequestHeadersLayer::new([header::AUTHORIZATION, header::COOKIE]))
@@ -28,7 +28,7 @@ pub fn router(state: AppState) -> Router {
                 .get(&REQUEST_ID)
                 .and_then(|v| v.to_str().ok())
                 .unwrap_or("-");
-            // Nur der Pfad, nie die Query: dort können später Tokens stehen.
+            // Only the path, never the query: tokens may appear there later.
             tracing::info_span!("request", method = %req.method(), path = %req.uri().path(), request_id)
         }).on_response(DefaultOnResponse::new().level(Level::INFO)))
         .layer(PropagateRequestIdLayer::new(REQUEST_ID))
@@ -51,18 +51,18 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
-/// Prozess lebt. Prüft bewusst keine Abhängigkeiten.
+/// Process is alive. Deliberately checks no dependencies.
 async fn healthz() -> impl IntoResponse {
     Json(json!({ "status": "ok" }))
 }
 
-/// Bereit für Anfragen: Datenbank und Datenverzeichnis erreichbar.
-/// Ursachen werden nur geloggt, nicht ausgeliefert.
+/// Ready for requests: database and data directory reachable.
+/// Causes are only logged, not returned.
 async fn readyz(State(state): State<AppState>) -> impl IntoResponse {
     match state.readiness().await {
         Ok(()) => (StatusCode::OK, Json(json!({ "status": "ok" }))),
         Err(err) => {
-            tracing::error!(error = %err, cause = ?std::error::Error::source(&err), "Bereitschaftsprüfung fehlgeschlagen");
+            tracing::error!(error = %err, cause = ?std::error::Error::source(&err), "readiness check failed");
             (
                 StatusCode::SERVICE_UNAVAILABLE,
                 Json(json!({ "status": "unavailable" })),

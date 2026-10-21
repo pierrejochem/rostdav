@@ -1,56 +1,56 @@
-# Weboberfläche
+# Web interface
 
-Anforderungen: Abschnitte 2.6–2.8 in [anweisung.md](anweisung.md). Der Entwurf ist verbindlich für Struktur und Inhalte, nicht pixelgenau.
+Requirements: sections 2.6–2.8 in [instructions.md](instructions.md). The design is binding for structure and content, not pixel-exact.
 
-## Referenzen
+## References
 
-| Quelle | Inhalt |
+| Source | Contents |
 |---|---|
-| Design-Canvas „Rostdav Web-UI“ (claude.ai, privat) | Interaktiver Entwurf aller Seiten |
-| [`design/mockups/web-ui/`](../design/mockups/web-ui/) | Quelltexte der Canvas-Seiten (`.dc.html`) |
-| [`design/mockups/logo/`](../design/mockups/logo/) | Logo, Varianten, Farbpalette |
-| [`assets/brand/`](../assets/brand/) | Logo-Dateien als SVG |
-| [`crates/rostdav-web/static/tokens.css`](../crates/rostdav-web/static/tokens.css) | Design-Tokens für Hell und Dunkel |
+| Design canvas "Rostdav Web UI" (claude.ai, private) | Interactive design of all pages |
+| [`design/mockups/web-ui/`](../design/mockups/web-ui/) | Source files of the canvas pages (`.dc.html`) |
+| [`design/mockups/logo/`](../design/mockups/logo/) | Logo, variants, color palette |
+| [`assets/brand/`](../assets/brand/) | Logo files as SVG |
+| [`crates/rostdav-web/static/tokens.css`](../crates/rostdav-web/static/tokens.css) | Design tokens for light and dark |
 
-Die `.dc.html`-Dateien sind Quellen des Design-Canvas und benötigen dessen Laufzeit (`support.js`); sie sind nicht direkt im Browser lauffähig, aber gut lesbar (HTML mit Inline-Styles und einer kleinen Logikklasse je Seite). Für die Umsetzung zählen Struktur, Texte, Abstände und Farben, nicht der Mechanismus.
+The `.dc.html` files are sources of the design canvas and need its runtime (`support.js`); they do not run directly in the browser but are easy to read (HTML with inline styles and a small logic class per page). For the implementation, structure, texts, spacing and colors matter, not the mechanism.
 
-## Seiten
+## Pages
 
-| Seite | Mockup | Route (Vorschlag) | Priorität |
+| Page | Mockup | Route (proposal) | Priority |
 |---|---|---|---|
-| Gerät verbinden (Login Flow v2) | `Login.dc.html` | `/login/v2/flow/{token}` (aus Mitschnitten verifizieren) | P1 |
-| Zweiter Faktor | `Login2FA.dc.html` | `/login/2fa` | P2 |
-| Dateien | `Main.dc.html` | `/apps/files/` oder `/files/` | P2 |
-| Geräte & Sicherheit | `Devices.dc.html` | `/settings/devices` | P2 |
-| Einstellungen | `Settings.dc.html` | `/settings/personal` | P2 |
+| Connect device (Login Flow v2) | `Login.dc.html` | `/login/v2/flow/{token}` (verify from recordings) | P1 |
+| Second factor | `Login2FA.dc.html` | `/login/2fa` | P2 |
+| Files | `Main.dc.html` | `/apps/files/` or `/files/` | P2 |
+| Devices & security | `Devices.dc.html` | `/settings/devices` | P2 |
+| Settings | `Settings.dc.html` | `/settings/personal` | P2 |
 | Administration | `Admin.dc.html` | `/settings/admin/{users,server,security,compat}` | P2 |
 
-Kollisionen mit Nextcloud-Pfaden, die die Apps aufrufen, vermeiden: Routen der Oberfläche vor M11 gegen `docs/compatibility.md` prüfen.
+Avoid collisions with Nextcloud paths that the apps call: check the UI routes against `docs/compatibility.md` before M11.
 
 ## Design-Tokens
 
-- Alle Farben kommen aus `tokens.css`; Templates verwenden ausschließlich `var(--…)`.
-- Hell/Dunkel: Standard folgt `prefers-color-scheme`. Die Benutzerwahl (Einstellungen → Darstellung) setzt `data-theme="light"` oder `data-theme="dark"` auf `<html>`; „Wie System“ setzt nichts.
-- Navigation ist in beiden Modi dunkel (`--nav-bg`), Rost (`--accent`) ist die einzige Akzentfarbe.
-- Schriften: Space Grotesk (Text, Überschriften), JetBrains Mono (Labels, Code, technische Werte). Beide sind unter der SIL Open Font License verfügbar und werden **selbst gehostet** (keine Google-Fonts-Anfragen aus der Oberfläche, wegen CSP und Datenschutz).
+- All colors come from `tokens.css`; templates use only `var(--…)`.
+- Light/dark: the default follows `prefers-color-scheme`. The user's choice (Settings → Appearance) sets `data-theme="light"` or `data-theme="dark"` on `<html>`; "Same as system" sets nothing.
+- The navigation is dark in both modes (`--nav-bg`); rust (`--accent`) is the only accent color.
+- Fonts: Space Grotesk (text, headings), JetBrains Mono (labels, code, technical values). Both are available under the SIL Open Font License and are **self-hosted** (no Google Fonts requests from the interface, because of CSP and privacy).
 
 ## Logo
 
-- Bildmarke: Ordner aus Eisen mit abplatzenden Rostflocken; nicht mit dem Zahnrad-Logo der Rust Foundation kombinieren.
-- Die Wortmarke in `rostdav-logo-*.svg` ist als `<text>` gesetzt und hängt von der installierten Schrift ab. Vor einer Veröffentlichung in Pfade umwandeln (z. B. mit Inkscape: Objekt in Pfad).
-- Favicon und App-Icon verwenden eine vereinfachte Marke mit einer Flocke.
+- Logo mark: an iron folder with flaking rust; do not combine with the Rust Foundation gear logo.
+- The wordmark in `rostdav-logo-*.svg` is set as `<text>` and depends on the installed font. Convert to paths before publishing (e.g. with Inkscape: Object to Path).
+- Favicon and app icon use a simplified mark with a single flake.
 
-## Technik
+## Technology
 
-- Serverseitig gerendertes HTML mit `askama`, Interaktion mit `htmx` (selbst gehostet), kein eigenes JavaScript ohne Grund.
-- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'`. Daher keine Inline-Styles in Templates: Styles in CSS-Dateien, Klassen statt `style=`.
-- Formulare mit CSRF-Token, zustandsändernde Aktionen nur per POST.
+- Server-side rendered HTML with `askama`, interaction with `htmx` (self-hosted), no custom JavaScript without reason.
+- CSP: `default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; frame-ancestors 'none'`. Therefore no inline styles in templates: styles in CSS files, classes instead of `style=`.
+- Forms with CSRF token, state-changing actions via POST only.
 
-## Barrierefreiheit (Prüfliste je Seite)
+## Accessibility (checklist per page)
 
-- [ ] Alle Aktionen sind `<button>` oder `<a href>`, Eingaben haben `<label>`
-- [ ] Vollständig per Tastatur bedienbar, sichtbarer Fokus
-- [ ] Kontrast ≥ 4,5:1 für Text in Hell und Dunkel
-- [ ] Klickflächen ≥ 44 px
-- [ ] Nutzbar ab 360 px Breite, Navigation stapelt sich
-- [ ] Schalter mit `role="switch"` und `aria-checked`, Reiter mit `role="tab"`
+- [ ] All actions are `<button>` or `<a href>`, inputs have a `<label>`
+- [ ] Fully operable by keyboard, visible focus
+- [ ] Contrast ≥ 4.5:1 for text in light and dark
+- [ ] Click targets ≥ 44 px
+- [ ] Usable from 360 px width, navigation stacks
+- [ ] Switches with `role="switch"` and `aria-checked`, tabs with `role="tab"`

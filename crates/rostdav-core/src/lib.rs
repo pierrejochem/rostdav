@@ -1,7 +1,7 @@
-//! Domänentypen und Fehler von Rostdav.
+//! Domain types and errors of Rostdav.
 //!
-//! Dieses Crate hat keine Abhängigkeiten zu anderen Rostdav-Crates. Alle
-//! Protokoll- und Dienstschichten bilden ihre Fehler auf [`Error`] ab.
+//! This crate has no dependencies on other Rostdav crates. All protocol and
+//! service layers map their errors to [`Error`].
 
 pub mod error;
 pub mod path;
@@ -9,7 +9,7 @@ pub mod path;
 pub use error::{Error, Result};
 pub use path::{LogicalPath, Name};
 
-/// Produktname, wie er Clients und in Logs gemeldet wird.
+/// Product name as reported to clients and in logs.
 pub const PRODUCT_NAME: &str = "Rostdav";
 
 /// Version dieses Builds.

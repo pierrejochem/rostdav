@@ -1,8 +1,8 @@
 //! Logging.
 //!
-//! Regeln: keine Passwörter, Tokens, `Authorization`-/`Cookie`-Header oder
-//! Dateiinhalte in Logs. Header werden im HTTP-Layer als sensibel markiert;
-//! Spans enthalten nur Methode, Pfad ohne Query und Request-ID.
+//! Rules: no passwords, tokens, `Authorization`/`Cookie` headers or file
+//! contents in logs. Headers are marked sensitive in the HTTP layer;
+//! spans contain only method, path without query and request ID.
 
 use tracing_subscriber::EnvFilter;
 use tracing_subscriber::layer::SubscriberExt;
@@ -10,7 +10,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 
 use crate::config::{Log, LogFormat};
 
-/// Initialisiert das globale Logging. `RUST_LOG` hat Vorrang vor der Konfiguration.
+/// Initializes global logging. `RUST_LOG` takes precedence over the configuration.
 pub fn init(cfg: &Log) {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(&cfg.level));
     let registry = tracing_subscriber::registry().with(filter);

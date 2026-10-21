@@ -1,6 +1,6 @@
 [package]
 name = "rostdav-app"
-description = "Dienste von Rostdav: Identity, File Service, Versionen, Freigaben, Administration"
+description = "Services of Rostdav: identity, file service, versions, shares, administration"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,4 +1,4 @@
--- Schema nach ADR 0002 (Freigabepunkt 2, akzeptiert 2026-10-21).
+-- Schema per ADR 0002 (approval point 2, accepted 2026-10-21).
 
 CREATE TABLE users (
     id            INTEGER PRIMARY KEY,
@@ -11,8 +11,8 @@ CREATE TABLE users (
     created_at    INTEGER NOT NULL
 ) STRICT;
 
--- Blobs sind unveränderlich; eine Zeile existiert erst, wenn der Blob
--- vollständig auf der Platte liegt (Invariante aus ADR 0002).
+-- Blobs are immutable; a row exists only once the blob is completely
+-- on disk (invariant from ADR 0002).
 CREATE TABLE blobs (
     id         TEXT    PRIMARY KEY CHECK (length(id) = 26),
     size       INTEGER NOT NULL CHECK (size >= 0),
@@ -34,13 +34,13 @@ CREATE TABLE nodes (
     checksum   TEXT,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
-    -- Dateien haben einen Blob, Ordner nie.
+    -- Files have a blob, directories never.
     CHECK ((kind = 'file') = (blob_id IS NOT NULL)),
-    -- Nur Wurzelknoten haben keinen Elternknoten und den leeren Namen.
+    -- Only root nodes have no parent and the empty name.
     CHECK ((parent_id IS NULL) = (name = ''))
 ) STRICT;
 
--- UNIQUE(parent_id, name_key); NULL-Eltern (Wurzeln) sind je Benutzer eindeutig.
+-- UNIQUE(parent_id, name_key); NULL parents (roots) are unique per user.
 CREATE UNIQUE INDEX nodes_child_unique ON nodes(parent_id, name_key) WHERE parent_id IS NOT NULL;
 CREATE UNIQUE INDEX nodes_root_unique  ON nodes(owner_id) WHERE parent_id IS NULL;
 CREATE INDEX nodes_blob ON nodes(blob_id) WHERE blob_id IS NOT NULL;

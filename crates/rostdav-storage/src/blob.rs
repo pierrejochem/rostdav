@@ -2,10 +2,10 @@ use std::fmt;
 
 use rostdav_core::{Error, Result};
 
-/// ID eines Blobs: 26 Zeichen ULID (Crockford-Base32, Großbuchstaben).
+/// ID of a blob: 26-character ULID (Crockford base32, uppercase).
 ///
-/// Nur validierte IDs erreichen den Pfadbau; damit kann kein `..` oder `/`
-/// in den physischen Pfad gelangen.
+/// Only validated IDs reach path construction, so no `..` or `/` can end up
+/// in the physical path.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct BlobId(String);
 
@@ -19,7 +19,7 @@ impl BlobId {
         if ok {
             Ok(Self(s.to_ascii_uppercase()))
         } else {
-            Err(Error::BadRequest("ungültige Blob-ID"))
+            Err(Error::BadRequest("invalid blob ID"))
         }
     }
 
@@ -34,12 +34,12 @@ impl fmt::Display for BlobId {
     }
 }
 
-/// Ergebnis von `LocalStore::put`: vollständig und dauerhaft abgelegt.
+/// Result of `LocalStore::put`: stored completely and durably.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StoredBlob {
     pub id: BlobId,
     pub size: u64,
-    /// BLAKE3, hexadezimal.
+    /// BLAKE3, hex-encoded.
     pub checksum: String,
 }
 

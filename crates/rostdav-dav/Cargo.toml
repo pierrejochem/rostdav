@@ -1,6 +1,6 @@
 [package]
 name = "rostdav-dav"
-description = "WebDAV-Adapter von Rostdav"
+description = "WebDAV adapter of Rostdav"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

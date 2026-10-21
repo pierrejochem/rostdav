@@ -1,9 +1,9 @@
-//! Zentraler Fehlertyp.
+//! Central error type.
 //!
-//! Die Varianten beschreiben, *was* schiefging, nicht *wie* es ein Protokoll
-//! meldet. WebDAV, OCS und die Weboberfläche bilden sie jeweils selbst ab.
-//! Meldungen an [`Error::Internal`] werden nur geloggt, nie an Clients
-//! ausgegeben.
+//! The variants describe *what* went wrong, not *how* a protocol reports it.
+//! WebDAV, OCS and the web interface each map them on their own.
+//! Messages of [`Error::Internal`] are only logged, never returned to
+//! clients.
 
 use std::fmt;
 
@@ -11,43 +11,43 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("nicht gefunden")]
+    #[error("not found")]
     NotFound,
-    #[error("nicht angemeldet")]
+    #[error("not authenticated")]
     Unauthenticated,
-    #[error("keine Berechtigung")]
+    #[error("forbidden")]
     Forbidden,
-    #[error("Konflikt: {0}")]
+    #[error("conflict: {0}")]
     Conflict(&'static str),
-    #[error("Vorbedingung nicht erfüllt")]
+    #[error("precondition failed")]
     PreconditionFailed,
-    #[error("Speicherkontingent überschritten")]
+    #[error("storage quota exceeded")]
     QuotaExceeded,
-    #[error("gesperrt")]
+    #[error("locked")]
     Locked,
-    #[error("Anfrage zu groß")]
+    #[error("request too large")]
     TooLarge,
-    #[error("ungültige Anfrage: {0}")]
+    #[error("bad request: {0}")]
     BadRequest(&'static str),
-    #[error("vorübergehend nicht verfügbar")]
+    #[error("temporarily unavailable")]
     Unavailable,
-    #[error("interner Fehler")]
+    #[error("internal error")]
     Internal(#[source] InternalError),
 }
 
 impl Error {
-    /// Verpackt einen beliebigen Fehler als internen Fehler.
+    /// Wraps an arbitrary error as an internal error.
     pub fn internal(err: impl std::error::Error + Send + Sync + 'static) -> Self {
         Self::Internal(InternalError(Box::new(err)))
     }
 
-    /// Ist dieser Fehler ein Serverfehler, der mit Details geloggt werden muss?
+    /// Is this a server error that must be logged with details?
     pub fn is_internal(&self) -> bool {
         matches!(self, Self::Internal(_))
     }
 }
 
-/// Undurchsichtiger Container für interne Fehlerursachen.
+/// Opaque container for internal error causes.
 pub struct InternalError(Box<dyn std::error::Error + Send + Sync>);
 
 impl fmt::Debug for InternalError {
@@ -75,7 +75,7 @@ mod tests {
     #[test]
     fn internal_display_hides_cause() {
         let err = Error::internal(std::io::Error::other("/srv/data/geheim"));
-        assert_eq!(err.to_string(), "interner Fehler");
+        assert_eq!(err.to_string(), "internal error");
         assert!(err.is_internal());
     }
 

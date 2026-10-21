@@ -1,23 +1,23 @@
-# Hinweise für Claude Code
+# Notes for Claude Code
 
-Die verbindlichen Arbeitsregeln stehen in [AGENTS.md](AGENTS.md). Die vollständige Projektanweisung ist [docs/anweisung.md](docs/anweisung.md).
+The binding working rules are in [AGENTS.md](AGENTS.md). The full project instructions are in [docs/instructions.md](docs/instructions.md).
 
-## Einstieg in eine Sitzung
+## Starting a session
 
-1. `docs/plan.md` lesen: Welcher Meilenstein ist offen, welcher Freigabepunkt steht an?
-2. `docs/architecture.md` und die ADRs unter `docs/adr/` für Modulgrenzen und Speichermodell.
-3. Vor Änderungen: `just check` muss grün sein.
+1. Read `docs/plan.md`: which milestone is open, which approval point is pending?
+2. `docs/architecture.md` and the ADRs under `docs/adr/` for module boundaries and the storage model.
+3. Before making changes: `just check` must be green.
 
-## Aktueller Stand
+## Current state
 
-- M0 abgeschlossen (Gerüst, Konfiguration, Logs, Health-Endpunkte, CI).
-- Freigabepunkt 2 erteilt (ADR 0002 akzeptiert). M1 abgeschlossen (Schema, BlobStore, Namensregeln, `admin user add`).
-- Nächster Meilenstein: M2 – WebDAV-Kern.
+- M0 complete (skeleton, configuration, logs, health endpoints, CI).
+- Approval point 2 granted (ADR 0002 accepted). M1 complete (schema, BlobStore, naming rules, `admin user add`).
+- Next milestone: M2 – WebDAV core.
 
-## Befehle
+## Commands
 
 ```sh
 just check   # fmt --check, clippy -D warnings, test
-just smoke   # Prozess starten und Health, Log-Schwärzung, Shutdown prüfen
-just run     # lokal starten
+just smoke   # start the process and verify health, log redaction, shutdown
+just run     # start locally
 ```

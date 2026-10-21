@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Rostdav – Administration</title>
@@ -22,7 +22,7 @@ button,select,input{font:inherit}
 </helmet>
 <div class="{{themeClass}}" style="min-height: 900px; background: var(--bg); color: var(--text); font-family: 'Space Grotesk', system-ui, sans-serif; display: flex; flex-wrap: wrap">
 
-<nav aria-label="Hauptnavigation" style="flex: 1 1 240px; max-width: 100%; background: #15171C; color: #E9E3DB; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px">
+<nav aria-label="Main navigation" style="flex: 1 1 240px; max-width: 100%; background: #15171C; color: #E9E3DB; padding: 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 28px">
 <div style="display: flex; align-items: center; gap: 10px; padding: 0 8px">
 <svg viewBox="0 0 140 128" width="36" height="33" aria-hidden="true">
 <path d="M18 34a8 8 0 0 1 8-8h22l8 9h44a8 8 0 0 1 8 8v51a8 8 0 0 1-8 8H26a8 8 0 0 1-8-8Z" fill="#7A2A12"></path>
@@ -33,22 +33,22 @@ button,select,input{font:inherit}
 <span style="font-size: 24px; font-weight: 700; letter-spacing: -1px"><span style="color: #F4EFE8">rost</span><span style="color: #E8783A">dav</span></span>
 </div>
 <div style="display: flex; flex-direction: column; gap: 4px">
-<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></svg>Alle Dateien</a>
-<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18Z"></path><path d="M12 7v5l3 2"></path></svg>Zuletzt geändert</a>
-<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Freigaben</a>
-<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg>Papierkorb</a>
+<a href="Main.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></svg>All files</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18Z"></path><path d="M12 7v5l3 2"></path></svg>Recently modified</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Shares</a>
+<a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg>Trash</a>
 </div>
 <div style="display: flex; flex-direction: column; gap: 4px">
-<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #A8A29C; padding: 0 12px 6px">Konto</div>
-<a href="Devices.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12v10H4Z"></path><path d="M2 19h16"></path><path d="M19 9h3v10h-3Z"></path></svg>Geräte &amp; Sicherheit</a>
-<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><path d="M15 4v4M9 10v4M17 16v4"></path></svg>Einstellungen</a>
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #A8A29C; padding: 0 12px 6px">Account</div>
+<a href="Devices.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12v10H4Z"></path><path d="M2 19h16"></path><path d="M19 9h3v10h-3Z"></path></svg>Devices &amp; Security</a>
+<a href="Settings.dc.html" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; color: #C9C2B9; text-decoration: none"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><path d="M15 4v4M9 10v4M17 16v4"></path></svg>Settings</a>
 </div>
 <div style="display: flex; flex-direction: column; gap: 4px">
-<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #A8A29C; padding: 0 12px 6px">Verwaltung</div>
+<div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #A8A29C; padding: 0 12px 6px">Administration</div>
 <a href="#" style="display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; background: #2A2D35; color: #FFFFFF; text-decoration: none; font-weight: 600"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z"></path><path d="M3 21a6 6 0 0 1 12 0"></path><path d="M17 11a3 3 0 1 0 0-6"></path><path d="M21 21a5 5 0 0 0-4-4.9"></path></svg>Administration</a>
 </div>
 <div style="margin-top: auto; padding: 16px 12px; border-radius: 12px; background: #1F2229; display: flex; flex-direction: column; gap: 10px">
-<div style="display: flex; justify-content: space-between; font-size: 14px"><span style="color: #E9E3DB">Speicher</span><span style="color: #C9C2B9">[BELEGT] von [QUOTA]</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 14px"><span style="color: #E9E3DB">Storage</span><span style="color: #C9C2B9">[USED] of [QUOTA]</span></div>
 <div style="height: 6px; border-radius: 3px; background: #3A3D45"><div style="width: 38%; height: 6px; border-radius: 3px; background: #E8783A"></div></div>
 </div>
 </nav>
@@ -58,30 +58,30 @@ button,select,input{font:inherit}
 <div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
 <div>
 <h1 style="margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -1px">Administration</h1>
-<p style="margin: 8px 0 0; font-size: 16px; color: var(--text-2)">Nur für Administratoren sichtbar.</p>
+<p style="margin: 8px 0 0; font-size: 16px; color: var(--text-2)">Visible to administrators only.</p>
 </div>
-<div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--ok-bg); color: var(--ok-fg); font-size: 14px; font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 4px; background: var(--ok-fg)"></span>Server läuft · Version [ROSTDAV-VERSION]</div>
+<div style="display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--ok-bg); color: var(--ok-fg); font-size: 14px; font-weight: 600"><span style="width: 8px; height: 8px; border-radius: 4px; background: var(--ok-fg)"></span>Server running · Version [ROSTDAV-VERSION]</div>
 </div>
 
-<div role="tablist" aria-label="Bereiche" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: var(--muted-bg); align-self: flex-start">
+<div role="tablist" aria-label="Sections" style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 12px; background: var(--muted-bg); align-self: flex-start">
 <sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
 <button type="button" role="tab" aria-selected="{{t.selected}}" onClick="{{t.pick}}" style="min-height: 44px; padding: 0 18px; border-radius: 9px; border: none; background: {{t.bg}}; color: var(--text); font-weight: {{t.weight}}; cursor: pointer">{{t.label}}</button>
 </sc-for>
 </div>
 
 <sc-if value="{{isUsers}}" hint-placeholder-val="{{true}}">
-<section aria-label="Benutzer" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden">
+<section aria-label="Users" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden">
 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 18px 24px; border-bottom: 1px solid var(--divider)">
 <label style="flex: 1 1 240px; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 14px; border-radius: 12px; background: var(--muted-bg); color: var(--text-2)">
 <svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14a7 7 0 0 0 0 14Z"></path><path d="M20 20l-4-4"></path></svg>
-<input type="search" aria-label="Benutzer suchen" placeholder="Benutzer suchen" style="flex: 1; min-width: 0; border: none; background: transparent; font-size: 15px; color: var(--text); outline: none">
+<input type="search" aria-label="Search users" placeholder="Search users" style="flex: 1; min-width: 0; border: none; background: transparent; font-size: 15px; color: var(--text); outline: none">
 </label>
-<button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px; border: none; background: #B8441A; color: #FFFFFF; font-weight: 600; cursor: pointer"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Benutzer anlegen</button>
+<button type="button" style="display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 18px; border-radius: 12px; border: none; background: #B8441A; color: #FFFFFF; font-weight: 600; cursor: pointer"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add user</button>
 </div>
 <div style="overflow-x: auto">
 <div style="min-width: 820px">
 <div style="display: grid; grid-template-columns: minmax(0, 1.6fr) 110px minmax(0, 1fr) 90px 110px 220px; gap: 12px; padding: 12px 24px; border-bottom: 1px solid var(--divider); font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-2)">
-<span>Benutzer</span><span>Rolle</span><span>Speicher</span><span>2FA</span><span>Status</span><span></span>
+<span>User</span><span>Role</span><span>Storage</span><span>2FA</span><span>Status</span><span></span>
 </div>
 <sc-for list="{{users}}" as="u" hint-placeholder-count="4">
 <div style="display: grid; grid-template-columns: minmax(0, 1.6fr) 110px minmax(0, 1fr) 90px 110px 220px; gap: 12px; align-items: center; min-height: 68px; padding: 0 24px; border-bottom: 1px solid var(--muted-bg); opacity: {{u.opacity}}">
@@ -92,12 +92,12 @@ button,select,input{font:inherit}
 <span style="font-size: 14px">{{u.role}}</span>
 <div style="display: flex; flex-direction: column; gap: 6px">
 <div style="height: 6px; border-radius: 3px; background: var(--muted-bg)"><div style="width: {{u.quotaPct}}; height: 6px; border-radius: 3px; background: {{u.quotaColor}}"></div></div>
-<span style="font-size: 13px; color: var(--text-2)">{{u.quotaPct}} von [QUOTA]</span>
+<span style="font-size: 13px; color: var(--text-2)">{{u.quotaPct}} of [QUOTA]</span>
 </div>
 <span style="font-size: 14px; color: {{u.tfaColor}}; font-weight: 600">{{u.tfa}}</span>
 <span style="height: 26px; display: inline-flex; align-items: center; justify-self: start; padding: 0 10px; border-radius: 13px; background: {{u.statusBg}}; color: {{u.statusFg}}; font-size: 12px; font-weight: 600">{{u.status}}</span>
 <div style="display: flex; justify-content: flex-end; gap: 8px">
-<button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer">Bearbeiten</button>
+<button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer">Edit</button>
 <sc-if value="{{u.canToggle}}" hint-placeholder-val="{{true}}"><button type="button" onClick="{{u.toggle}}" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: none; background: var(--danger-bg); color: var(--danger-fg); font-size: 13px; font-weight: 600; cursor: pointer">{{u.toggleLabel}}</button></sc-if>
 </div>
 </div>
@@ -110,31 +110,31 @@ button,select,input{font:inherit}
 <sc-if value="{{isServer}}" hint-placeholder-val="{{false}}">
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 24px">
 <section aria-labelledby="h-up" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
-<h2 id="h-up" style="margin: 0; font-size: 18px; font-weight: 700">Uploads &amp; Speicher</h2>
-<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Standard-Kontingent pro Benutzer
+<h2 id="h-up" style="margin: 0; font-size: 18px; font-weight: 700">Uploads &amp; Storage</h2>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Default quota per user
 <input type="text" value="[QUOTA]" style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); font-size: 15px; font-weight: 400; color: var(--text)">
 </label>
-<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Maximale Dateigröße
-<input type="text" value="[MAX-DATEIGRÖSSE]" style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); font-size: 15px; font-weight: 400; color: var(--text)">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Maximum file size
+<input type="text" value="[MAX-FILE-SIZE]" style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); font-size: 15px; font-weight: 400; color: var(--text)">
 </label>
-<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Verwaiste Chunk-Uploads löschen nach
-<select style="min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); font-size: 15px; font-weight: 400; color: var(--text)"><option>24 Stunden</option><option>3 Tagen</option><option>7 Tagen</option></select>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Delete orphaned chunk uploads after
+<select style="min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); font-size: 15px; font-weight: 400; color: var(--text)"><option>24 hours</option><option>3 days</option><option>7 days</option></select>
 </label>
 </section>
 <section aria-labelledby="h-ver" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
-<h2 id="h-ver" style="margin: 0; font-size: 18px; font-weight: 700">Versionen &amp; Papierkorb</h2>
-<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Höchstens Versionen pro Datei
+<h2 id="h-ver" style="margin: 0; font-size: 18px; font-weight: 700">Versions &amp; Trash</h2>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Maximum versions per file
 <input type="number" value="20" style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); font-size: 15px; font-weight: 400; color: var(--text)">
 </label>
-<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Versionen aufbewahren für
-<select style="min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); font-size: 15px; font-weight: 400; color: var(--text)"><option>30 Tage</option><option>90 Tage</option><option>1 Jahr</option><option>unbegrenzt</option></select>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Keep versions for
+<select style="min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); font-size: 15px; font-weight: 400; color: var(--text)"><option>30 days</option><option>90 days</option><option>1 year</option><option>unlimited</option></select>
 </label>
-<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Höchstens Anteil am Kontingent
-<input type="text" value="20 %" style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); font-size: 15px; font-weight: 400; color: var(--text)">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Maximum share of quota
+<input type="text" value="20%" style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); font-size: 15px; font-weight: 400; color: var(--text)">
 </label>
 </section>
 <section aria-labelledby="h-share" style="grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 8px 24px">
-<h2 id="h-share" style="margin: 16px 0 4px; font-size: 18px; font-weight: 700">Freigaben</h2>
+<h2 id="h-share" style="margin: 16px 0 4px; font-size: 18px; font-weight: 700">Shares</h2>
 <sc-for list="{{serverSwitches}}" as="p" hint-placeholder-count="3">
 <div style="display: flex; align-items: center; gap: 16px; min-height: 72px; border-bottom: 1px solid var(--muted-bg)">
 <div style="flex: 1; min-width: 0"><div style="font-size: 15px; font-weight: 600">{{p.label}}</div><div style="font-size: 14px; color: var(--text-2); margin-top: 2px">{{p.hint}}</div></div>
@@ -149,7 +149,7 @@ button,select,input{font:inherit}
 <sc-if value="{{isSecurity}}" hint-placeholder-val="{{false}}">
 <div style="display: flex; flex-direction: column; gap: 24px">
 <section aria-labelledby="h-sec2" style="background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 8px 24px">
-<h2 id="h-sec2" style="margin: 16px 0 4px; font-size: 18px; font-weight: 700">Anmeldung</h2>
+<h2 id="h-sec2" style="margin: 16px 0 4px; font-size: 18px; font-weight: 700">Sign-in</h2>
 <sc-for list="{{securitySwitches}}" as="p" hint-placeholder-count="2">
 <div style="display: flex; align-items: center; gap: 16px; min-height: 72px; border-bottom: 1px solid var(--muted-bg)">
 <div style="flex: 1; min-width: 0"><div style="font-size: 15px; font-weight: 600">{{p.label}}</div><div style="font-size: 14px; color: var(--text-2); margin-top: 2px">{{p.hint}}</div></div>
@@ -157,22 +157,22 @@ button,select,input{font:inherit}
 </div>
 </sc-for>
 <div style="display: flex; flex-wrap: wrap; gap: 16px; padding: 18px 0">
-<label style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Fehlversuche bis zur Sperre
+<label style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Failed attempts before lockout
 <input type="number" value="5" style="min-height: 44px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--control-border); font-size: 15px; font-weight: 400; color: var(--text)">
 </label>
-<label style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Sperrdauer
-<select style="min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); font-size: 15px; font-weight: 400; color: var(--text)"><option>10 Minuten</option><option>1 Stunde</option><option>24 Stunden</option></select>
+<label style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Lockout duration
+<select style="min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--control-border); background: var(--surface); font-size: 15px; font-weight: 400; color: var(--text)"><option>10 minutes</option><option>1 hour</option><option>24 hours</option></select>
 </label>
 </div>
 </section>
 <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
 <section aria-labelledby="h-locks" style="flex: 1 1 320px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 4px">
-<h2 id="h-locks" style="margin: 0 0 8px; font-size: 18px; font-weight: 700">Aktive Sperren</h2>
-<div style="display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid var(--muted-bg)"><div style="flex: 1"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px">[IP-ADRESSE]</div><div style="font-size: 13px; color: var(--text-2)">Basic Auth · gesperrt bis [UHRZEIT]</div></div><button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer">Aufheben</button></div>
-<div style="display: flex; align-items: center; gap: 12px; min-height: 56px"><div style="flex: 1"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px">jonas</div><div style="font-size: 13px; color: var(--text-2)">2FA-Code · gesperrt bis [UHRZEIT]</div></div><button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer">Aufheben</button></div>
+<h2 id="h-locks" style="margin: 0 0 8px; font-size: 18px; font-weight: 700">Active lockouts</h2>
+<div style="display: flex; align-items: center; gap: 12px; min-height: 56px; border-bottom: 1px solid var(--muted-bg)"><div style="flex: 1"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px">[IP-ADDRESS]</div><div style="font-size: 13px; color: var(--text-2)">Basic Auth · locked until [TIME]</div></div><button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer">Lift</button></div>
+<div style="display: flex; align-items: center; gap: 12px; min-height: 56px"><div style="flex: 1"><div style="font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 14px">jonas</div><div style="font-size: 13px; color: var(--text-2)">2FA code · locked until [TIME]</div></div><button type="button" style="min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--control-border); background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600; cursor: pointer">Lift</button></div>
 </section>
 <section aria-labelledby="h-log" style="flex: 2 1 420px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 4px">
-<h2 id="h-log" style="margin: 0 0 8px; font-size: 18px; font-weight: 700">Ereignisprotokoll</h2>
+<h2 id="h-log" style="margin: 0 0 8px; font-size: 18px; font-weight: 700">Event log</h2>
 <sc-for list="{{audit}}" as="e" hint-placeholder-count="4">
 <div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; min-height: 48px; padding: 8px 0; border-bottom: 1px solid var(--muted-bg); box-sizing: border-box">
 <span style="width: 120px; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; color: var(--text-2)">{{e.when}}</span>
@@ -188,20 +188,20 @@ button,select,input{font:inherit}
 <sc-if value="{{isCompat}}" hint-placeholder-val="{{false}}">
 <div style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start">
 <section aria-labelledby="h-id" style="flex: 1 1 320px; min-width: 0; background: #15171C; color: #F4EFE8; border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
-<h2 id="h-id" style="margin: 0; font-size: 18px; font-weight: 700">Kennung gegenüber Clients</h2>
+<h2 id="h-id" style="margin: 0; font-size: 18px; font-weight: 700">Identification to clients</h2>
 <dl style="margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; font-size: 14px">
 <dt style="color: #C9C2B9">productname</dt><dd style="margin: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #F2A65A">Rostdav</dd>
-<dt style="color: #C9C2B9">Gemeldete Version</dt><dd style="margin: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #F2A65A">[NEXTCLOUD-VERSION]</dd>
-<dt style="color: #C9C2B9">Getestet mit</dt><dd style="margin: 0">Nextcloud Android [X.Y.Z] · iOS [X.Y.Z]</dd>
+<dt style="color: #C9C2B9">Reported version</dt><dd style="margin: 0; font-family: 'JetBrains Mono', ui-monospace, monospace; color: #F2A65A">[NEXTCLOUD-VERSION]</dd>
+<dt style="color: #C9C2B9">Tested with</dt><dd style="margin: 0">Nextcloud Android [X.Y.Z] · iOS [X.Y.Z]</dd>
 </dl>
 <div style="display: flex; align-items: center; gap: 16px; padding-top: 6px">
-<div style="flex: 1"><div style="font-size: 15px; font-weight: 600">Wartungsmodus</div><div style="font-size: 13px; color: #C9C2B9">Clients sehen „maintenance: true“ und pausieren.</div></div>
-<button type="button" role="switch" aria-checked="{{maint.checked}}" aria-label="Wartungsmodus" onClick="{{maint.toggle}}" style="width: 56px; height: 34px; border-radius: 17px; border: none; padding: 4px; background: {{maint.bg}}; display: flex; justify-content: {{maint.justify}}; cursor: pointer; flex: none"><span style="width: 26px; height: 26px; border-radius: 13px; background: var(--knob); display: block"></span></button>
+<div style="flex: 1"><div style="font-size: 15px; font-weight: 600">Maintenance mode</div><div style="font-size: 13px; color: #C9C2B9">Clients see “maintenance: true” and pause.</div></div>
+<button type="button" role="switch" aria-checked="{{maint.checked}}" aria-label="Maintenance mode" onClick="{{maint.toggle}}" style="width: 56px; height: 34px; border-radius: 17px; border: none; padding: 4px; background: {{maint.bg}}; display: flex; justify-content: {{maint.justify}}; cursor: pointer; flex: none"><span style="width: 26px; height: 26px; border-radius: 13px; background: var(--knob); display: block"></span></button>
 </div>
 </section>
 <section aria-labelledby="h-caps" style="flex: 2 1 420px; min-width: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 4px">
-<h2 id="h-caps" style="margin: 0 0 4px; font-size: 18px; font-weight: 700">Angekündigte Funktionen</h2>
-<p style="margin: 0 0 10px; font-size: 14px; color: var(--text-2)">Was die Capabilities den Nextcloud-Apps melden. Nur getestete Funktionen werden angekündigt.</p>
+<h2 id="h-caps" style="margin: 0 0 4px; font-size: 18px; font-weight: 700">Announced features</h2>
+<p style="margin: 0 0 10px; font-size: 14px; color: var(--text-2)">What the capabilities report to the Nextcloud apps. Only tested features are announced.</p>
 <sc-for list="{{caps}}" as="c" hint-placeholder-count="6">
 <div style="display: flex; align-items: center; gap: 12px; min-height: 52px; border-bottom: 1px solid var(--muted-bg)">
 <span style="flex: 1; font-size: 15px">{{c.name}}</span>
@@ -224,7 +224,7 @@ this.state = { tab: 'users', disabled: { gast: true }, sw: { links: true, linkPw
 }
 renderVals() {
 const tab = this.state.tab;
-const tabs = [['users', 'Benutzer'], ['server', 'Server'], ['security', 'Sicherheit'], ['compat', 'Kompatibilität']].map(([id, label]) => {
+const tabs = [['users', 'Users'], ['server', 'Server'], ['security', 'Security'], ['compat', 'Compatibility']].map(([id, label]) => {
 const on = tab === id;
 return { label, selected: on ? 'true' : 'false', bg: on ? 'var(--surface)' : 'transparent', weight: on ? '700' : '500', pick: () => this.setState({ tab: id }) };
 });
@@ -234,58 +234,58 @@ return { label, hint, checked: on ? 'true' : 'false', bg: on ? '#B8441A' : 'var(
 };
 const raw = [
 { id: 'pierre', name: 'Pierre', login: 'pierre', role: 'Admin', pct: 38, tfa: false, self: true },
-{ id: 'anna', name: 'Anna', login: 'anna', role: 'Benutzer', pct: 71, tfa: true },
-{ id: 'jonas', name: 'Jonas', login: 'jonas', role: 'Benutzer', pct: 92, tfa: true },
-{ id: 'gast', name: 'Scanner Büro', login: 'gast-scanner', role: 'Benutzer', pct: 3, tfa: false }
+{ id: 'anna', name: 'Anna', login: 'anna', role: 'User', pct: 71, tfa: true },
+{ id: 'jonas', name: 'Jonas', login: 'jonas', role: 'User', pct: 92, tfa: true },
+{ id: 'gast', name: 'Office scanner', login: 'gast-scanner', role: 'User', pct: 3, tfa: false }
 ];
 const users = raw.map((u) => {
 const off = !!this.state.disabled[u.id];
 return {
 ...u,
 initial: u.name.charAt(0),
-quotaPct: u.pct + ' %',
+quotaPct: u.pct + '%',
 quotaColor: u.pct > 85 ? 'var(--danger-fg)' : '#E8783A',
-tfa: u.tfa ? 'Aktiv' : 'Aus',
+tfa: u.tfa ? 'Active' : 'Off',
 tfaColor: u.tfa ? 'var(--ok-fg)' : 'var(--text-2)',
-status: off ? 'Deaktiviert' : 'Aktiv',
+status: off ? 'Disabled' : 'Active',
 statusBg: off ? 'var(--muted-bg)' : 'var(--ok-bg)',
 statusFg: off ? 'var(--text-2)' : 'var(--ok-fg)',
 opacity: off ? '0.6' : '1',
 canToggle: !u.self,
-toggleLabel: off ? 'Aktivieren' : 'Deaktivieren',
+toggleLabel: off ? 'Enable' : 'Disable',
 toggle: () => this.setState({ disabled: { ...this.state.disabled, [u.id]: !off } })
 };
 });
 const caps = [
-['WebDAV-Dateizugriff', 'dav', true],
+['WebDAV file access', 'dav', true],
 ['Chunked Upload v2', 'dav.chunking', true],
-['Versionen', 'files.versioning', true],
-['Freigaben-API', 'files_sharing.api_enabled', true],
-['Papierkorb', 'files.undelete', false],
-['Vorschaubilder', '–', false],
-['Benachrichtigungen', 'notifications', false]
-].map(([name, key, on]) => ({ name, key, state: on ? 'Angekündigt' : 'Nicht angekündigt', bg: on ? 'var(--ok-bg)' : 'var(--muted-bg)', fg: on ? 'var(--ok-fg)' : 'var(--text-2)' }));
+['Versions', 'files.versioning', true],
+['Sharing API', 'files_sharing.api_enabled', true],
+['Trash', 'files.undelete', false],
+['Thumbnails', '–', false],
+['Notifications', 'notifications', false]
+].map(([name, key, on]) => ({ name, key, state: on ? 'Announced' : 'Not announced', bg: on ? 'var(--ok-bg)' : 'var(--muted-bg)', fg: on ? 'var(--ok-fg)' : 'var(--text-2)' }));
 return {
 themeClass: (this.props.theme ?? 'hell') === 'dunkel' ? 't-dark' : 't-light',
 tabs,
 isUsers: tab === 'users', isServer: tab === 'server', isSecurity: tab === 'security', isCompat: tab === 'compat',
 users,
 serverSwitches: [
-sw('links', 'Öffentliche Links erlauben', 'Benutzer können Dateien per Link mit Personen ohne Konto teilen.'),
-sw('linkPw', 'Passwort für öffentliche Links verlangen', 'Ein Link ohne Passwort lässt sich dann nicht mehr erstellen.'),
-sw('expiry', 'Ablaufdatum für Links erzwingen', 'Neue Links laufen spätestens nach der festgelegten Frist ab.')
+sw('links', 'Allow public links', 'Users can share files by link with people who have no account.'),
+sw('linkPw', 'Require a password for public links', 'A link without a password can then no longer be created.'),
+sw('expiry', 'Enforce an expiry date for links', 'New links expire after the configured period at the latest.')
 ],
 securitySwitches: [
-sw('force2fa', 'Zwei-Faktor-Anmeldung für alle verlangen', 'Standardmäßig aus. Wer noch keine 2FA hat, richtet sie bei der nächsten Browser-Anmeldung ein.'),
-sw('pwOnlyApp', 'WebDAV nur mit App-Passwörtern', 'Kontopasswörter werden an WebDAV und OCS abgelehnt – auch für Benutzer ohne 2FA.')
+sw('force2fa', 'Require two-factor sign-in for everyone', 'Off by default. Anyone without 2FA sets it up at their next browser sign-in.'),
+sw('pwOnlyApp', 'WebDAV with app passwords only', 'Account passwords are rejected on WebDAV and OCS – even for users without 2FA.')
 ],
-maint: sw('maint', 'Wartungsmodus', ''),
+maint: sw('maint', 'Maintenance mode', ''),
 caps,
 audit: [
-{ when: 'Heute 09:41', who: 'pierre', what: 'Gerät verbunden: Nextcloud Android' },
-{ when: 'Heute 08:02', who: 'jonas', what: '5 falsche 2FA-Codes – Anmeldung gesperrt' },
-{ when: 'Gestern', who: 'anna', what: 'Zwei-Faktor-Anmeldung aktiviert' },
-{ when: '14. Okt.', who: 'pierre', what: 'Benutzer gast-scanner deaktiviert' }
+{ when: 'Today 9:41 AM', who: 'pierre', what: 'Device connected: Nextcloud Android' },
+{ when: 'Today 8:02 AM', who: 'jonas', what: '5 wrong 2FA codes – sign-in locked' },
+{ when: 'Yesterday', who: 'anna', what: 'Two-factor sign-in enabled' },
+{ when: 'Oct 14', who: 'pierre', what: 'User gast-scanner disabled' }
 ]
 };
 }

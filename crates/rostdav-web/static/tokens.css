@@ -1,7 +1,7 @@
 /* Rostdav Design-Tokens.
  * Quelle: Design-Canvas „Rostdav Web-UI“ (design/mockups/web-ui). Marke: design/mockups/logo.
- * Standard folgt prefers-color-scheme; data-theme="light|dark" auf <html> überschreibt
- * (Benutzerwahl aus den Einstellungen).
+ * Default follows prefers-color-scheme; data-theme="light|dark" on <html> overrides
+ * (user choice from the settings).
  */
 
 :root {

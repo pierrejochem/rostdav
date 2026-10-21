@@ -1,7 +1,7 @@
 //! Metadaten-Datenbank.
 //!
-//! Schema und Migrationen nach ADR 0002. Repositories entstehen mit dem
-//! jeweiligen Bedarf der Meilensteine.
+//! Schema and migrations per ADR 0002. Repositories are added as the
+//! milestones require them.
 
 mod users;
 
@@ -16,17 +16,17 @@ use sqlx::sqlite::{
     SqliteConnectOptions, SqliteJournalMode, SqlitePool, SqlitePoolOptions, SqliteSynchronous,
 };
 
-/// Verbindungspool zur Metadaten-Datenbank.
+/// Connection pool to the metadata database.
 #[derive(Clone)]
 pub struct Db {
     pool: SqlitePool,
 }
 
 impl Db {
-    /// Öffnet (und erzeugt bei Bedarf) eine SQLite-Datenbank.
+    /// Opens (and creates if needed) a SQLite database.
     ///
-    /// `url` hat die Form `sqlite://<pfad>`. WAL-Modus, Fremdschlüssel und
-    /// ein Busy-Timeout sind immer aktiv.
+    /// `url` has the form `sqlite://<path>`. WAL mode, foreign keys and
+    /// a busy timeout are always enabled.
     pub async fn open(url: &str) -> Result<Self> {
         let options = SqliteConnectOptions::from_str(url)
             .map_err(Error::internal)?
@@ -42,21 +42,21 @@ impl Db {
             .await
             .map_err(Error::internal)?;
 
-        tracing::info!("Metadaten-Datenbank geöffnet");
+        tracing::info!("metadata database opened");
         Ok(Self { pool })
     }
 
-    /// Wendet ausstehende Migrationen an.
+    /// Applies pending migrations.
     pub async fn migrate(&self) -> Result<()> {
         sqlx::migrate!("./migrations")
             .run(&self.pool)
             .await
             .map_err(Error::internal)?;
-        tracing::info!("Migrationen angewendet");
+        tracing::info!("migrations applied");
         Ok(())
     }
 
-    /// Anzahl der in der Datenbank registrierten Blobs.
+    /// Number of blobs registered in the database.
     pub async fn count_blobs(&self) -> Result<i64> {
         sqlx::query_scalar("SELECT count(*) FROM blobs")
             .fetch_one(&self.pool)
@@ -68,7 +68,7 @@ impl Db {
         &self.pool
     }
 
-    /// Baut die Standard-URL für eine SQLite-Datei unterhalb des Datenverzeichnisses.
+    /// Builds the default URL for a SQLite file below the data directory.
     pub fn default_url(data_dir: &Path) -> String {
         format!(
             "sqlite://{}",
@@ -76,7 +76,7 @@ impl Db {
         )
     }
 
-    /// Prüft, ob die Datenbank Anfragen beantwortet.
+    /// Checks whether the database answers queries.
     pub async fn ping(&self) -> Result<()> {
         sqlx::query("SELECT 1")
             .execute(&self.pool)
@@ -85,7 +85,7 @@ impl Db {
             .map_err(Error::internal)
     }
 
-    /// Schließt alle Verbindungen geordnet.
+    /// Closes all connections in an orderly way.
     pub async fn close(&self) {
         self.pool.close().await;
     }
@@ -122,7 +122,7 @@ mod tests {
     #[tokio::test]
     async fn migrate_is_idempotent() {
         let (_d, db) = test_db().await;
-        db.migrate().await.expect("zweiter Lauf");
+        db.migrate().await.expect("second run");
     }
 
     #[tokio::test]
@@ -152,18 +152,18 @@ mod tests {
             .bind(blob)
             .execute(db.pool())
         };
-        assert!(insert("file", None).await.is_err(), "Datei ohne Blob");
+        assert!(insert("file", None).await.is_err(), "file without blob");
         assert!(
             insert("dir", Some("01ARZ3NDEKTSV4RRFFQ69G5FAV"))
                 .await
                 .is_err(),
-            "Ordner mit Blob"
+            "directory with blob"
         );
         assert!(
             insert("file", Some("01ARZ3NDEKTSV4RRFFQ69G5FAV"))
                 .await
                 .is_err(),
-            "Blob unbekannt (FK)"
+            "unknown blob (FK)"
         );
         assert!(insert("dir", None).await.is_ok());
     }
@@ -196,7 +196,7 @@ mod tests {
             .execute(db.pool())
         };
         mk("a").await.expect("a");
-        assert!(mk("a").await.is_err(), "Duplikat");
-        mk("A").await.expect("Groß-/Kleinschreibung zählt");
+        assert!(mk("a").await.is_err(), "duplicate");
+        mk("A").await.expect("case is significant");
     }
 }

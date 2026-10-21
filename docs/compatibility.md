@@ -1,58 +1,58 @@
-# Nextcloud-Kompatibilität
+# Nextcloud compatibility
 
-> Stand: **noch nichts getestet.** Dieses Dokument wird in M3 (Mitschnitte) und M6 (Ende-zu-Ende) gefüllt. Jede Aussage nennt ihre Quelle: Client-Code (Repository, Datei, Zeile, Version), Nextcloud-Dokumentation (URL) oder Fixture (`tests/fixtures/nextcloud/…`).
+> Status: **nothing tested yet.** This document is filled in M3 (recordings) and M6 (end-to-end). Every statement names its source: client code (repository, file, line, version), Nextcloud documentation (URL) or fixture (`tests/fixtures/nextcloud/…`).
 
-## Referenzversionen
+## Reference versions
 
-| Komponente | Version | Festgelegt am |
+| Component | Version | Fixed on |
 |---|---|---|
-| Nextcloud Android | [beim Start von M3 eintragen] | |
-| Nextcloud iOS | optional, später | |
-| Nextcloud-Server für Mitschnitte | [gleiche Major-Version wie emuliert] | |
-| Gemeldete Server-Version (`status.php`) | [eintragen] | |
+| Nextcloud Android | [enter when M3 starts] | |
+| Nextcloud iOS | optional, later | |
+| Nextcloud server for recordings | [same major version as emulated] | |
+| Reported server version (`status.php`) | [to be entered] | |
 
-## Unterstützte Abläufe
+## Supported flows
 
-| Ablauf | Status | Vertragstest | Gerätetest | Quelle |
+| Flow | Status | Contract test | Device test | Source |
 |---|---|---|---|---|
-| Server hinzufügen (`status.php`) | offen | – | – | |
-| Anmeldung über Login Flow v2 | offen | – | – | |
-| Ordner auflisten | offen | – | – | |
-| Datei hochladen (klein) | offen | – | – | |
-| Datei hochladen (> 100 MB, Chunked Upload v2) | offen | – | – | |
-| Herunterladen | offen | – | – | |
-| Umbenennen, Verschieben | offen | – | – | |
-| Löschen | offen | – | – | |
-| Abmelden / App-Passwort widerrufen | offen | – | – | |
+| Add server (`status.php`) | open | – | – | |
+| Sign-in via Login Flow v2 | open | – | – | |
+| List folder | open | – | – | |
+| Upload file (small) | open | – | – | |
+| Upload file (> 100 MB, chunked upload v2) | open | – | – | |
+| Download | open | – | – | |
+| Rename, move | open | – | – | |
+| Delete | open | – | – | |
+| Sign out / revoke app password | open | – | – | |
 
-Status: `offen` · `implementiert` · `Vertragstest grün` · `Gerätetest bestanden`
+Status: `open` · `implemented` · `contract test green` · `device test passed`
 
-## Bekannte Endpunkte (zu verifizieren)
+## Known endpoints (to be verified)
 
-Startliste aus Abschnitt 3.2 der Anweisung. Nichts davon ist bestätigt, bis eine Quelle eingetragen ist.
+Initial list from section 3.2 of the instructions. None of this is confirmed until a source is entered.
 
-| Endpunkt | Zweck | Verifiziert | Quelle |
+| Endpoint | Purpose | Verified | Source |
 |---|---|---|---|
-| `GET /status.php` | Server-Erkennung | nein | |
-| `POST /index.php/login/v2`, `POST /index.php/login/v2/poll` | Login Flow v2 | nein | |
-| `GET /ocs/v2.php/cloud/capabilities` | Capabilities | nein | |
-| `GET /ocs/v2.php/cloud/user` | Benutzerinfo | nein | |
-| `/remote.php/dav/files/{userId}/` | Dateien | nein | |
-| `/remote.php/webdav/` | Legacy-Pfad | nein | |
-| `/remote.php/dav/uploads/{userId}/{transferId}/` | Chunked Upload | nein | |
+| `GET /status.php` | Server discovery | no | |
+| `POST /index.php/login/v2`, `POST /index.php/login/v2/poll` | Login Flow v2 | no | |
+| `GET /ocs/v2.php/cloud/capabilities` | Capabilities | no | |
+| `GET /ocs/v2.php/cloud/user` | User info | no | |
+| `/remote.php/dav/files/{userId}/` | Files | no | |
+| `/remote.php/webdav/` | Legacy path | no | |
+| `/remote.php/dav/uploads/{userId}/{transferId}/` | Chunked Upload | no | |
 
-## Nicht unterstützt
+## Not supported
 
-| Funktion | Verhalten der App ohne Unterstützung | Quelle |
+| Feature | App behavior without support | Source |
 |---|---|---|
-| Vorschaubilder | [in M5 beobachten] | |
-| Benachrichtigungen, Aktivitäten, Push | [beobachten] | |
-| Ende-zu-Ende-Verschlüsselung | [beobachten] | |
-| Talk, Kalender, Kontakte | nicht vorgesehen | |
+| Preview images | [observe in M5] | |
+| Notifications, activities, push | [observe] | |
+| End-to-end encryption | [observe] | |
+| Talk, calendar, contacts | not planned | |
 
-## Offene Fragen
+## Open questions
 
-- Genaues Format von `oc:id` (Datei-ID plus Instanz-ID).
-- Fehler-XML-Format für WebDAV-Fehler, das die App auswertet.
-- Welche Mindestversion verlangt die App, und wie reagiert sie auf ältere Versionen?
-- Verhalten der App bei aktivierter Zwei-Faktor-Anmeldung im Login Flow.
+- Exact format of `oc:id` (file ID plus instance ID).
+- Error XML format for WebDAV errors that the app evaluates.
+- Which minimum version does the app require, and how does it react to older versions?
+- Behavior of the app when two-factor authentication is enabled in the login flow.

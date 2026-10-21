@@ -1,11 +1,11 @@
-//! Nextcloud-Kompatibilität: status.php, Capabilities, OCS, Login Flow v2.
+//! Nextcloud compatibility: status.php, capabilities, OCS, Login Flow v2.
 //!
-//! In M0 noch ohne Routen; folgt in M4.
+//! No routes in M0 yet; follows in M4.
 
 use axum::Router;
 use rostdav_app::AppState;
 
-/// Routen dieser Schicht.
+/// Routes of this layer.
 pub fn router() -> Router<AppState> {
     Router::new()
 }

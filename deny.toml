@@ -1,4 +1,4 @@
-# cargo-deny: Sicherheitsmeldungen, Lizenzen und Herkunft der Abhängigkeiten.
+# cargo-deny: security advisories, licenses and provenance of dependencies.
 
 [advisories]
 version = 2
@@ -6,7 +6,7 @@ yanked = "deny"
 
 [licenses]
 version = 2
-# Mit MIT OR Apache-2.0 verträgliche Lizenzen. Erweiterungen nur mit Begründung.
+# Licenses compatible with MIT OR Apache-2.0. Extensions only with justification.
 allow = [
     "MIT",
     "Apache-2.0",

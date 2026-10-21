@@ -1,4 +1,4 @@
-//! Verdrahtung von Rostdav: Konfiguration, Telemetrie, HTTP-Router.
+//! Wiring of Rostdav: configuration, telemetry, HTTP router.
 
 pub mod config;
 pub mod http;
@@ -9,26 +9,21 @@ use rostdav_app::AppState;
 use rostdav_meta::Db;
 use rostdav_storage::LocalStore;
 
-/// Baut den Anwendungszustand aus der Konfiguration.
+/// Builds the application state from the configuration.
 pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
     let store = LocalStore::open(&cfg.storage.data_dir)
         .await
-        .context("Datenverzeichnis konnte nicht geöffnet werden")?;
+        .context("could not open data directory")?;
     let url = cfg
         .database
         .url
         .clone()
         .unwrap_or_else(|| Db::default_url(store.root()));
-    let db = Db::open(&url)
-        .await
-        .context("Datenbank konnte nicht geöffnet werden")?;
-    db.migrate().await.context("Migrationen fehlgeschlagen")?;
-    let swept = store
-        .sweep_tmp()
-        .await
-        .context("Aufräumen von tmp/ fehlgeschlagen")?;
+    let db = Db::open(&url).await.context("could not open database")?;
+    db.migrate().await.context("migrations failed")?;
+    let swept = store.sweep_tmp().await.context("cleaning up tmp/ failed")?;
     if swept > 0 {
-        tracing::warn!(swept, "unvollständige Schreibvorgänge entfernt");
+        tracing::warn!(swept, "removed incomplete writes");
     }
     Ok(AppState::new(db, store))
 }

@@ -1,6 +1,6 @@
 [package]
 name = "rostdav-compat"
-description = "Nextcloud-Kompatibilitätsschicht von Rostdav"
+description = "Nextcloud compatibility layer of Rostdav"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

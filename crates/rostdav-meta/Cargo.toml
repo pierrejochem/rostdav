@@ -1,6 +1,6 @@
 [package]
 name = "rostdav-meta"
-description = "Metadaten-Datenbank von Rostdav"
+description = "Metadata database of Rostdav"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

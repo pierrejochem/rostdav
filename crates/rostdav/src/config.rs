@@ -1,8 +1,8 @@
-//! Konfiguration.
+//! Configuration.
 //!
-//! Vorrang (höchster zuerst): Umgebungsvariablen `ROSTDAV_<ABSCHNITT>__<SCHLÜSSEL>`,
-//! Konfigurationsdatei (`rostdav.toml`), eingebaute Defaults. Später kommen
-//! Kommandozeile (oben) und Datenbank-Einstellungen aus der Oberfläche (unten) hinzu.
+//! Precedence (highest first): environment variables `ROSTDAV_<SECTION>__<KEY>`,
+//! configuration file (`rostdav.toml`), built-in defaults. Later, the command
+//! line (on top) and database settings from the UI (at the bottom) will be added.
 
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
@@ -23,7 +23,7 @@ pub struct Config {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Server {
-    /// Adresse, auf der Rostdav HTTP spricht. TLS übernimmt der Reverse Proxy.
+    /// Address on which Rostdav speaks HTTP. TLS is handled by the reverse proxy.
     pub listen: SocketAddr,
 }
 
@@ -38,7 +38,7 @@ impl Default for Server {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Storage {
-    /// Datenverzeichnis mit `blobs/`, `tmp/`, `uploads/` und `db/`.
+    /// Data directory containing `blobs/`, `tmp/`, `uploads/` and `db/`.
     pub data_dir: PathBuf,
 }
 
@@ -53,7 +53,7 @@ impl Default for Storage {
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(default, deny_unknown_fields)]
 pub struct Database {
-    /// Datenbank-URL; ohne Angabe SQLite unter `<data_dir>/db/rostdav.sqlite`.
+    /// Database URL; if unset, SQLite at `<data_dir>/db/rostdav.sqlite`.
     pub url: Option<String>,
 }
 
@@ -69,7 +69,7 @@ pub enum LogFormat {
 #[serde(default, deny_unknown_fields)]
 pub struct Log {
     pub format: LogFormat,
-    /// Filter im Format von `tracing_subscriber::EnvFilter`, z. B. `info,rostdav=debug`.
+    /// Filter in the format of `tracing_subscriber::EnvFilter`, e.g. `info,rostdav=debug`.
     pub level: String,
 }
 
@@ -83,15 +83,15 @@ impl Default for Log {
 }
 
 impl Config {
-    /// Lädt die Konfiguration. Eine ausdrücklich angegebene Datei muss existieren;
-    /// die Standarddatei `rostdav.toml` ist optional.
+    /// Loads the configuration. An explicitly given file must exist;
+    /// the default file `rostdav.toml` is optional.
     pub fn load(explicit_file: Option<&Path>) -> anyhow::Result<Self> {
         let mut figment = Figment::from(Serialized::defaults(Config::default()));
         match explicit_file {
             Some(path) => {
                 anyhow::ensure!(
                     path.is_file(),
-                    "Konfigurationsdatei nicht gefunden: {}",
+                    "configuration file not found: {}",
                     path.display()
                 );
                 figment = figment.merge(Toml::file(path));
@@ -104,7 +104,7 @@ impl Config {
 }
 
 #[cfg(test)]
-// figment::Jail erzwingt figment::Error als Fehlertyp der Test-Closures.
+// figment::Jail forces figment::Error as the error type of the test closures.
 #[allow(clippy::result_large_err)]
 mod tests {
     use super::*;
@@ -151,7 +151,7 @@ mod tests {
     #[test]
     fn explicit_missing_file_is_an_error() {
         figment::Jail::expect_with(|_jail| {
-            assert!(Config::load(Some(Path::new("fehlt.toml"))).is_err());
+            assert!(Config::load(Some(Path::new("missing.toml"))).is_err());
             Ok(())
         });
     }

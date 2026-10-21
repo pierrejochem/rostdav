@@ -1,4 +1,4 @@
-//! Benutzer und ihre Wurzelknoten.
+//! Users and their root nodes.
 
 use rostdav_core::{Error, Name, Result};
 
@@ -14,15 +14,15 @@ pub struct User {
 
 pub struct NewUser<'a> {
     pub name: &'a str,
-    /// Fertiger Hash (PHC-String); Klartext-Passwörter erreichen diese Schicht nie.
+    /// Finished hash (PHC string); plaintext passwords never reach this layer.
     pub password_hash: &'a str,
     pub is_admin: bool,
 }
 
 impl Db {
-    /// Legt Benutzer und Wurzelknoten in einer Transaktion an.
+    /// Creates a user and its root node in one transaction.
     ///
-    /// Der Benutzername ist über seine NFC-Form eindeutig; Duplikate ergeben
+    /// The user name is unique by its NFC form; duplicates yield
     /// [`Error::Conflict`].
     pub async fn create_user(&self, new: NewUser<'_>) -> Result<User> {
         let name = Name::parse(new.name)?;
@@ -42,7 +42,7 @@ impl Db {
         .await
         .map_err(|e| match &e {
             sqlx::Error::Database(d) if d.is_unique_violation() => {
-                Error::Conflict("Benutzer existiert bereits")
+                Error::Conflict("user already exists")
             }
             _ => Error::internal(e),
         })?;
@@ -69,7 +69,7 @@ impl Db {
         })
     }
 
-    /// Sucht einen Benutzer über die NFC-Form des Namens.
+    /// Looks up a user by the NFC form of the name.
     pub async fn find_user(&self, name: &str) -> Result<Option<User>> {
         let Ok(name) = Name::parse(name) else {
             return Ok(None);
@@ -96,7 +96,7 @@ pub(crate) fn now_secs() -> i64 {
         .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))
 }
 
-/// Zufälliger ETag (ULID reicht: eindeutig, nicht erratbar genug für Cache-Validierung).
+/// Random ETag (a ULID suffices: unique, not guessable enough for cache validation).
 pub(crate) fn new_etag() -> String {
     ulid::Ulid::new().to_string().to_lowercase()
 }
@@ -162,7 +162,7 @@ mod tests {
             db.create_user(nu("a/b")).await,
             Err(Error::BadRequest(_))
         ));
-        assert!(db.find_user("niemand").await.expect("find").is_none());
+        assert!(db.find_user("nobody").await.expect("find").is_none());
         assert!(db.find_user("../x").await.expect("find").is_none());
     }
 }

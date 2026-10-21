@@ -1,6 +1,6 @@
 [package]
 name = "rostdav-web"
-description = "Weboberfläche von Rostdav"
+description = "Web interface of Rostdav"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -1,16 +1,16 @@
-//! Blob-Speicher im lokalen Dateisystem.
+//! Blob storage on the local file system.
 //!
-//! Layout unterhalb des Datenverzeichnisses (ADR 0002):
+//! Layout below the data directory (ADR 0002):
 //!
 //! ```text
-//! <data>/blobs/    unveränderliche Inhalte
-//! <data>/tmp/      laufende Schreibvorgänge (gleiches Dateisystem wie blobs/)
-//! <data>/uploads/  Chunks laufender Chunked Uploads
-//! <data>/db/       SQLite-Datenbank
+//! <data>/blobs/    immutable contents
+//! <data>/tmp/      writes in progress (same file system as blobs/)
+//! <data>/uploads/  chunks of chunked uploads in progress
+//! <data>/db/       SQLite database
 //! ```
 //!
-//! Blobs sind unveränderlich und werden über eine zufällige [`BlobId`]
-//! adressiert; kein Teil des physischen Pfads stammt aus Benutzereingaben.
+//! Blobs are immutable and addressed by a random [`BlobId`]; no part of the
+//! physical path comes from user input.
 
 use std::path::{Path, PathBuf};
 
@@ -23,14 +23,14 @@ pub use blob::{BlobId, StoredBlob};
 
 const SUBDIRS: [&str; 4] = ["blobs", "tmp", "uploads", "db"];
 
-/// Lokaler Blob-Speicher.
+/// Local blob storage.
 #[derive(Clone, Debug)]
 pub struct LocalStore {
     root: PathBuf,
 }
 
 impl LocalStore {
-    /// Öffnet das Datenverzeichnis und legt fehlende Unterverzeichnisse an.
+    /// Opens the data directory and creates missing subdirectories.
     pub async fn open(root: impl Into<PathBuf>) -> Result<Self> {
         let root = root.into();
         for sub in SUBDIRS {
@@ -40,16 +40,16 @@ impl LocalStore {
         }
         #[cfg(unix)]
         restrict_permissions(&root).await?;
-        tracing::info!("Datenverzeichnis geöffnet");
+        tracing::info!("data directory opened");
         Ok(Self { root })
     }
 
-    /// Wurzel des Datenverzeichnisses.
+    /// Root of the data directory.
     pub fn root(&self) -> &Path {
         &self.root
     }
 
-    /// Physischer Pfad eines Blobs: `blobs/<id[0..2]>/<id[2..4]>/<id>`.
+    /// Physical path of a blob: `blobs/<id[0..2]>/<id[2..4]>/<id>`.
     fn blob_path(&self, id: &BlobId) -> PathBuf {
         let s = id.as_str();
         self.root
@@ -59,12 +59,12 @@ impl LocalStore {
             .join(s)
     }
 
-    /// Schreibt einen Stream als neuen Blob (ADR 0002, Schreibablauf 1–2).
+    /// Writes a stream as a new blob (ADR 0002, write flow steps 1-2).
     ///
-    /// Der Blob liegt nach der Rückkehr vollständig und dauerhaft auf der
-    /// Platte. Überschreitet der Stream `max_size`, bricht der Aufruf mit
-    /// [`Error::TooLarge`] ab und hinterlässt nichts. Die Datenbank darf den
-    /// Blob erst danach referenzieren.
+    /// After returning, the blob is completely and durably on disk. If the
+    /// stream exceeds `max_size`, the call aborts with [`Error::TooLarge`] and
+    /// leaves nothing behind. The database may reference the blob only after
+    /// that.
     pub async fn put<R>(&self, mut reader: R, max_size: u64) -> Result<StoredBlob>
     where
         R: AsyncRead + Unpin,
@@ -73,7 +73,7 @@ impl LocalStore {
         let tmp = self.root.join("tmp").join(format!("{id}.part"));
         let result = self.write_blob(&mut reader, &tmp, &id, max_size).await;
         if result.is_err() {
-            // Best effort; übrig gebliebene .part-Dateien räumt sweep_tmp auf.
+            // Best effort; leftover .part files are cleaned up by sweep_tmp.
             let _ = tokio::fs::remove_file(&tmp).await;
         }
         result
@@ -114,7 +114,7 @@ impl LocalStore {
         let dest = self.blob_path(id);
         let dir = dest
             .parent()
-            .ok_or_else(|| Error::BadRequest("Blob-Pfad"))?;
+            .ok_or_else(|| Error::BadRequest("blob path"))?;
         tokio::fs::create_dir_all(dir)
             .await
             .map_err(Error::internal)?;
@@ -130,7 +130,7 @@ impl LocalStore {
         })
     }
 
-    /// Öffnet einen Blob zum Lesen.
+    /// Opens a blob for reading.
     pub async fn open_blob(&self, id: &BlobId) -> Result<tokio::fs::File> {
         tokio::fs::File::open(self.blob_path(id))
             .await
@@ -140,7 +140,7 @@ impl LocalStore {
             })
     }
 
-    /// Löscht einen Blob. Ein fehlender Blob ist kein Fehler.
+    /// Deletes a blob. A missing blob is not an error.
     pub async fn delete_blob(&self, id: &BlobId) -> Result<()> {
         match tokio::fs::remove_file(self.blob_path(id)).await {
             Ok(()) => Ok(()),
@@ -149,9 +149,9 @@ impl LocalStore {
         }
     }
 
-    /// Alle Blobs auf der Platte (für Bereinigung und `fsck`).
+    /// All blobs on disk (for cleanup and `fsck`).
     ///
-    /// Dateien mit ungültigem Namen werden übersprungen.
+    /// Files with an invalid name are skipped.
     pub async fn list_blobs(&self) -> Result<Vec<BlobId>> {
         let mut ids = Vec::new();
         let mut stack = vec![self.root.join("blobs")];
@@ -173,8 +173,8 @@ impl LocalStore {
         Ok(ids)
     }
 
-    /// Entfernt liegen gebliebene temporäre Dateien (Start nach Absturz).
-    /// Gibt die Anzahl entfernter Dateien zurück.
+    /// Removes leftover temporary files (start after a crash).
+    /// Returns the number of removed files.
     pub async fn sweep_tmp(&self) -> Result<usize> {
         let mut removed = 0;
         let mut rd = tokio::fs::read_dir(self.root.join("tmp"))
@@ -191,7 +191,7 @@ impl LocalStore {
         Ok(removed)
     }
 
-    /// Prüft, ob im temporären Verzeichnis geschrieben werden kann.
+    /// Checks whether the temporary directory is writable.
     pub async fn check_writable(&self) -> Result<()> {
         let probe = self.root.join("tmp").join(".ready-probe");
         tokio::fs::write(&probe, b"ok")
@@ -204,7 +204,7 @@ impl LocalStore {
     }
 }
 
-/// `fsync` auf ein Verzeichnis, damit das `rename` einen Absturz überlebt.
+/// `fsync` on a directory so the `rename` survives a crash.
 async fn sync_dir(dir: &Path) -> Result<()> {
     #[cfg(unix)]
     {
@@ -216,7 +216,7 @@ async fn sync_dir(dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Datenverzeichnis nur für den Dienstbenutzer zugänglich machen (0700).
+/// Make the data directory accessible to the service user only (0700).
 #[cfg(unix)]
 async fn restrict_permissions(root: &Path) -> Result<()> {
     use std::os::unix::fs::PermissionsExt;
@@ -237,7 +237,7 @@ mod tests {
             .await
             .expect("open");
         for sub in SUBDIRS {
-            assert!(store.root().join(sub).is_dir(), "{sub} fehlt");
+            assert!(store.root().join(sub).is_dir(), "{sub} missing");
         }
         store.check_writable().await.expect("writable");
     }
@@ -253,11 +253,11 @@ mod tests {
     #[tokio::test]
     async fn put_roundtrip_with_size_and_checksum() {
         let (_d, store) = store().await;
-        let blob = store.put(&b"hallo welt"[..], 1024).await.expect("put");
-        assert_eq!(blob.size, 10);
+        let blob = store.put(&b"hello world"[..], 1024).await.expect("put");
+        assert_eq!(blob.size, 11);
         assert_eq!(
             blob.checksum,
-            blake3::hash(b"hallo welt").to_hex().to_string()
+            blake3::hash(b"hello world").to_hex().to_string()
         );
 
         let mut out = Vec::new();
@@ -268,7 +268,7 @@ mod tests {
             .read_to_end(&mut out)
             .await
             .expect("read");
-        assert_eq!(out, b"hallo welt");
+        assert_eq!(out, b"hello world");
         assert_eq!(
             store.list_blobs().await.expect("list"),
             vec![blob.id.clone()]
@@ -300,7 +300,7 @@ mod tests {
     #[tokio::test]
     async fn too_large_leaves_nothing_behind() {
         let (_d, store) = store().await;
-        let err = store.put(&[0u8; 100][..], 99).await.expect_err("zu groß");
+        let err = store.put(&[0u8; 100][..], 99).await.expect_err("too large");
         assert!(matches!(err, Error::TooLarge));
         assert!(store.list_blobs().await.expect("list").is_empty());
         let tmp_entries = std::fs::read_dir(store.root().join("tmp"))
@@ -315,7 +315,7 @@ mod tests {
         store.put(&[0u8; 99][..], 99).await.expect("put");
     }
 
-    /// Reader, der nach ein paar Bytes mit einem Fehler abbricht (Verbindungsabbruch).
+    /// Reader that fails with an error after a few bytes (connection drop).
     struct Failing(bool);
     impl AsyncRead for Failing {
         fn poll_read(
@@ -324,10 +324,10 @@ mod tests {
             buf: &mut tokio::io::ReadBuf<'_>,
         ) -> std::task::Poll<std::io::Result<()>> {
             if self.0 {
-                return std::task::Poll::Ready(Err(std::io::Error::other("abgebrochen")));
+                return std::task::Poll::Ready(Err(std::io::Error::other("aborted")));
             }
             self.0 = true;
-            buf.put_slice(b"teil");
+            buf.put_slice(b"part");
             std::task::Poll::Ready(Ok(()))
         }
     }
@@ -343,12 +343,12 @@ mod tests {
     #[tokio::test]
     async fn crash_before_rename_leaves_only_sweepable_tmp() {
         let (_d, store) = store().await;
-        // Absturz mitten im Schreiben: nur .part-Datei, kein Blob.
+        // Crash in the middle of writing: only a .part file, no blob.
         let stale = store
             .root()
             .join("tmp")
             .join("01ARZ3NDEKTSV4RRFFQ69G5FAV.part");
-        std::fs::write(&stale, b"halb").expect("write");
+        std::fs::write(&stale, b"half").expect("write");
         assert!(store.list_blobs().await.expect("list").is_empty());
         assert_eq!(store.sweep_tmp().await.expect("sweep"), 1);
         assert!(!stale.exists());

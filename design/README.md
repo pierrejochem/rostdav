@@ -1,10 +1,10 @@
 # Design
 
-| Ordner | Inhalt |
+| Folder | Contents |
 |---|---|
-| `mockups/logo/` | Logo-Entwurf: Hauptlogo, Varianten, Farben und Schriften |
-| `mockups/web-ui/` | Web-UI-Entwurf: Dateien, Geräte & Sicherheit, Einstellungen, Administration, Gerät verbinden, zweiter Faktor |
+| `mockups/logo/` | Logo draft: main logo, variants, colors and fonts |
+| `mockups/web-ui/` | Web UI draft: files, devices & security, settings, administration, connect device, second factor |
 
-Die `.dc.html`-Dateien stammen aus den Design-Canvases „Rostdav Logo“ und „Rostdav Web-UI“ auf claude.ai. Sie brauchen die Canvas-Laufzeit und öffnen sich nicht direkt im Browser; als Referenz für Struktur, Texte und Farben sind sie lesbar. Interaktiv ansehen lassen sie sich im jeweiligen Canvas.
+The `.dc.html` files come from the "Rostdav Logo" and "Rostdav Web UI" design canvases on claude.ai. They need the canvas runtime and do not open directly in a browser; they are readable as a reference for structure, text and colors. To view them interactively, use the respective canvas.
 
-Umsetzungshinweise: [`docs/ui.md`](../docs/ui.md). Fertige Logo-Dateien: [`assets/brand/`](../assets/brand/).
+Implementation notes: [`docs/ui.md`](../docs/ui.md). Finished logo files: [`assets/brand/`](../assets/brand/).

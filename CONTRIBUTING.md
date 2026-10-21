@@ -1,37 +1,37 @@
-# Mitarbeit
+# Contributing
 
-## Einrichtung
+## Setup
 
-1. Rust über [rustup](https://rustup.rs) installieren. `rust-toolchain.toml` wählt die passende Toolchain mit `rustfmt` und `clippy` automatisch.
-2. Optional: [`just`](https://github.com/casey/just) und `cargo-deny` installieren:
+1. Install Rust via [rustup](https://rustup.rs). `rust-toolchain.toml` automatically selects the matching toolchain with `rustfmt` and `clippy`.
+2. Optional: install [`just`](https://github.com/casey/just) and `cargo-deny`:
    ```sh
    cargo install just cargo-deny --locked
    ```
-3. IDE: VS Code mit den empfohlenen Erweiterungen (`.vscode/extensions.json`) oder RustRover. Beide lesen den Cargo-Workspace direkt.
+3. IDE: VS Code with the recommended extensions (`.vscode/extensions.json`) or RustRover. Both read the Cargo workspace directly.
 
-## Täglicher Ablauf
+## Daily workflow
 
 ```sh
-just          # Liste aller Befehle
-just run      # Server mit Pretty-Logs und ./data starten
-just check    # fmt, clippy, Tests – vor jedem Commit
-just smoke    # Smoke-Test gegen das gebaute Binary
-just deny     # Abhängigkeiten, Lizenzen, Sicherheitsmeldungen
+just          # list all commands
+just run      # start the server with pretty logs and ./data
+just check    # fmt, clippy, tests – before every commit
+just smoke    # smoke test against the built binary
+just deny     # dependencies, licenses, security advisories
 ```
 
-Ohne `just`: die Befehle stehen in der `justfile`.
+Without `just`: the commands are in the `justfile`.
 
-## Regeln
+## Rules
 
-- Arbeitsregeln für Menschen und Agenten: [`AGENTS.md`](AGENTS.md).
-- Kleine Commits, je Commit ein Thema; Tests für jede Funktion und jeden behobenen Fehler.
-- Entscheidungen mit Langzeitwirkung als ADR unter `docs/adr/` (fortlaufende Nummer).
-- Kompatibilitätsaussagen nur mit Quelle in `docs/compatibility.md`.
+- Working rules for humans and agents: [`AGENTS.md`](AGENTS.md).
+- Small commits, one topic per commit; tests for every function and every fixed bug.
+- Decisions with long-term impact as an ADR under `docs/adr/` (sequential number).
+- Compatibility statements only with a source in `docs/compatibility.md`.
 
-## Commit-Nachrichten
+## Commit messages
 
-Deutsch oder Englisch, erste Zeile ≤ 72 Zeichen, mit Meilenstein-Präfix, z. B. `M2: PROPFIND mit Depth 1`.
+First line ≤ 72 characters, with a milestone prefix, e.g. `M2: PROPFIND with Depth 1`.
 
-## Lizenz von Beiträgen
+## License of contributions
 
-Beiträge werden, sofern nicht ausdrücklich anders angegeben, unter MIT OR Apache-2.0 eingebracht.
+Unless explicitly stated otherwise, contributions are submitted under MIT OR Apache-2.0.

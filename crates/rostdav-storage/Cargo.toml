@@ -1,6 +1,6 @@
 [package]
 name = "rostdav-storage"
-description = "Blob-Speicher von Rostdav"
+description = "Blob storage of Rostdav"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

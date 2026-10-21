@@ -1,63 +1,63 @@
-# Installation und Betrieb
+# Installation and operation
 
-> Stand M0: nur für die Entwicklung. Produktivbetrieb erst ab Phase 5.
+> Status M0: for development only. Production use only from phase 5.
 
-## Bauen
+## Building
 
 ```sh
 cargo build --release
 ./target/release/rostdav --version
 ```
 
-## Konfiguration
+## Configuration
 
-Vorlage: [`rostdav.example.toml`](../rostdav.example.toml). Vorrang: Umgebungsvariablen > Datei > Defaults.
+Template: [`rostdav.example.toml`](../rostdav.example.toml). Precedence: environment variables > file > defaults.
 
-| Schlüssel | Umgebungsvariable | Standard |
+| Key | Environment variable | Default |
 |---|---|---|
 | `server.listen` | `ROSTDAV_SERVER__LISTEN` | `127.0.0.1:8080` |
 | `storage.data_dir` | `ROSTDAV_STORAGE__DATA_DIR` | `./data` |
 | `database.url` | `ROSTDAV_DATABASE__URL` | `sqlite://<data_dir>/db/rostdav.sqlite` |
 | `log.format` | `ROSTDAV_LOG__FORMAT` | `json` |
-| `log.level` | `ROSTDAV_LOG__LEVEL` | `info` (`RUST_LOG` hat Vorrang) |
+| `log.level` | `ROSTDAV_LOG__LEVEL` | `info` (`RUST_LOG` takes precedence) |
 
-Konfigurationsdatei: `--config <pfad>` oder `ROSTDAV_CONFIG`; ohne Angabe wird `./rostdav.toml` gelesen, falls vorhanden. Unbekannte Schlüssel sind ein Fehler. Wirksame Werte anzeigen:
+Configuration file: `--config <path>` or `ROSTDAV_CONFIG`; if neither is given, `./rostdav.toml` is read if present. Unknown keys are an error. Show effective values:
 
 ```sh
 rostdav check-config
 ```
 
-## Datenverzeichnis
+## Data directory
 
 ```text
 data/
-  blobs/    Dateiinhalte (unveränderlich)
-  tmp/      laufende Schreibvorgänge
-  uploads/  Chunks laufender Uploads
-  db/       SQLite-Datenbank
+  blobs/    file contents (immutable)
+  tmp/      in-progress writes
+  uploads/  chunks of in-progress uploads
+  db/       SQLite database
 ```
 
-Rechte 0700, Eigentümer ist der Dienstbenutzer. `tmp/` und `blobs/` müssen auf demselben Dateisystem liegen.
+Mode 0700, owned by the service user. `tmp/` and `blobs/` must be on the same file system.
 
-## Reverse Proxy (geplant)
+## Reverse proxy (planned)
 
-Rostdav terminiert kein TLS. Beispielkonfigurationen für Caddy, nginx und Traefik folgen in Phase 5. Zu beachten:
+Rostdav does not terminate TLS. Example configurations for Caddy, nginx and Traefik follow in phase 5. Things to note:
 
-- Große Uploads erlauben (Body-Limit und Timeouts des Proxys)
-- `/.well-known/caldav` und `/.well-known/carddav` werden nicht benötigt
-- Trusted-Proxy-Konfiguration in Rostdav auf den Proxy beschränken
+- Allow large uploads (body limit and timeouts of the proxy)
+- `/.well-known/caldav` and `/.well-known/carddav` are not needed
+- Restrict the trusted-proxy configuration in Rostdav to the proxy
 
 ## Health-Checks
 
 - Liveness: `GET /healthz`
 - Readiness: `GET /readyz`
 
-## Backup und Wiederherstellung (geplant)
+## Backup and restore (planned)
 
-1. Datenbank sichern (SQLite-Online-Backup bzw. `pg_dump`).
-2. Danach `blobs/` sichern. Da Blobs unveränderlich sind und die Datenbank nie auf unvollständige Blobs zeigt, ist diese Reihenfolge konsistent.
-3. Wiederherstellung: beides zurückspielen, `rostdav admin fsck` ausführen (ab M1).
+1. Back up the database (SQLite online backup or `pg_dump`).
+2. Then back up `blobs/`. Since blobs are immutable and the database never points to incomplete blobs, this order is consistent.
+3. Restore: restore both, run `rostdav admin fsck` (from M1).
 
-## Herunterfahren
+## Shutdown
 
-`SIGTERM` oder `Ctrl-C`: laufende Anfragen werden beendet, dann schließt die Datenbank. Exit-Code 0.
+`SIGTERM` or `Ctrl-C`: in-flight requests are completed, then the database is closed. Exit code 0.

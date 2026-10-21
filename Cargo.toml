@@ -17,7 +17,7 @@ edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pierrejochem/rostdav"
 rust-version = "1.85"
-# Interne Crates; ausgeliefert wird das Binary.
+# Internal crates; the binary is what gets shipped.
 publish = false
 
 [workspace.dependencies]

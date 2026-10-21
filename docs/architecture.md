@@ -1,10 +1,10 @@
-# Architektur
+# Architecture
 
-Stand: Vorschlag aus Phase 1, abhängig von der Freigabe von [ADR 0001](adr/0001-technologie-stack.md) und [ADR 0002](adr/0002-speichermodell.md).
+Status: proposal from phase 1, subject to approval of [ADR 0001](adr/0001-technology-stack.md) and [ADR 0002](adr/0002-storage-model.md).
 
-## Überblick
+## Overview
 
-Rostdav ist ein modularer Monolith: ein Prozess, ein Binary, klar getrennte Crates in einem Cargo-Workspace. Die Abhängigkeitsrichtung zeigt immer nach innen (Protokolle → Dienste → Domäne), der Compiler erzwingt sie über die Crate-Grenzen.
+Rostdav is a modular monolith: one process, one binary, clearly separated crates in a Cargo workspace. The dependency direction always points inward (protocols → services → domain); the compiler enforces it across crate boundaries.
 
 ```mermaid
 flowchart TB
@@ -16,86 +16,86 @@ flowchart TB
   RP[Reverse Proxy / TLS]
   A & B & C --> RP --> HTTP
 
-  subgraph rostdav[Prozess rostdav]
-    HTTP[HTTP-Schicht: axum + Tower-Layer]
-    HTTP --> DAV[dav: WebDAV-Adapter]
+  subgraph rostdav[Process rostdav]
+    HTTP[HTTP layer: axum + Tower layers]
+    HTTP --> DAV[dav: WebDAV adapter]
     HTTP --> COMPAT[compat: status.php, OCS, Login Flow v2]
-    HTTP --> WEB[web: HTML-Oberfläche]
+    HTTP --> WEB[web: HTML interface]
     DAV & COMPAT & WEB --> APP
 
-    subgraph APP[app: Dienste]
+    subgraph APP[app: services]
       ID[Identity]
       FS[File Service]
       VER[Versioning]
       SH[Sharing]
       ADM[Admin + Audit]
     end
-    APP --> META[meta: Datenbank]
-    FS --> STORE[storage: Blob-Speicher]
-    JOBS[Hintergrundaufgaben] --> APP
+    APP --> META[meta: database]
+    FS --> STORE[storage: blob store]
+    JOBS[Background tasks] --> APP
   end
   META --> DB[(SQLite / PostgreSQL)]
-  STORE --> DISK[(Datenverzeichnis)]
+  STORE --> DISK[(Data directory)]
 ```
 
 ## Crates
 
-| Crate | Verantwortung | Darf abhängen von |
+| Crate | Responsibility | May depend on |
 |---|---|---|
-| `rostdav-core` | Domänentypen (`UserId`, `NodeId`, `Etag`, `Permissions`, `LogicalPath`), Fehlertypen, Validierung von Namen und Pfaden | – |
-| `rostdav-meta` | Schema, Migrationen, Repositories für alle Tabellen | core |
-| `rostdav-storage` | `BlobStore`-Trait, Implementierung für das lokale Dateisystem, temporäre Dateien, atomares Ablegen | core |
-| `rostdav-app` | Dienste: Identity, File Service, Versioning, Sharing, Admin, Audit, Hintergrundaufgaben; Autorisierung | core, meta, storage |
-| `rostdav-dav` | WebDAV-Methoden, PROPFIND/PROPPATCH-XML, Nextcloud-Properties, Chunked Upload | core, app |
-| `rostdav-compat` | `status.php`, Capabilities, OCS-Endpunkte (User, Sharing), Login Flow v2 | core, app |
-| `rostdav-web` | HTML-Seiten (askama), Sitzungen, CSRF, statische Assets | core, app |
-| `rostdav` (Binary) | Konfiguration, Verdrahtung, Router, CLI (`serve`, `admin …`) | alle |
+| `rostdav-core` | Domain types (`UserId`, `NodeId`, `Etag`, `Permissions`, `LogicalPath`), error types, validation of names and paths | – |
+| `rostdav-meta` | Schema, migrations, repositories for all tables | core |
+| `rostdav-storage` | `BlobStore` trait, implementation for the local file system, temporary files, atomic placement | core |
+| `rostdav-app` | Services: Identity, File Service, Versioning, Sharing, Admin, Audit, background tasks; authorization | core, meta, storage |
+| `rostdav-dav` | WebDAV methods, PROPFIND/PROPPATCH XML, Nextcloud properties, chunked upload | core, app |
+| `rostdav-compat` | `status.php`, capabilities, OCS endpoints (user, sharing), Login Flow v2 | core, app |
+| `rostdav-web` | HTML pages (askama), sessions, CSRF, static assets | core, app |
+| `rostdav` (binary) | Configuration, wiring, router, CLI (`serve`, `admin …`) | all |
 
-Regel: Protokoll-Crates kennen weder Datenbank noch Dateisystem. Nur `rostdav-app` koordiniert `meta` und `storage`.
+Rule: protocol crates know neither the database nor the file system. Only `rostdav-app` coordinates `meta` and `storage`.
 
-## Anfrageverarbeitung
+## Request handling
 
-Tower-Layer in dieser Reihenfolge:
+Tower layers in this order:
 
-1. **Request-ID und Tracing** – jede Anfrage bekommt eine ID; Logfelder werden zentral geschwärzt (`Authorization`, Cookies, Tokens).
-2. **Limits** – Header-Größe, Body-Limit je Route (XML klein, Uploads groß), Timeouts.
-3. **Trusted Proxy** – Client-IP und Schema nur aus konfigurierten Proxies übernehmen.
-4. **Authentifizierung** – erzeugt einen `Principal`:
-   - Basic Auth mit **App-Passwort** → `Principal { user, via: AppPassword(id) }`
-   - Basic Auth mit **Kontopasswort** → nur erlaubt, wenn weder 2FA aktiv noch „WebDAV nur mit App-Passwörtern“ gesetzt ist
-   - Sitzungs-Cookie → nur für `rostdav-web`
-   - Öffentlicher Link-Token → eingeschränkter Principal für die Freigabe
-5. **Rate Limiting** – pro IP und pro Benutzername auf alle Anmeldewege, inklusive Login-Flow-Polling und 2FA-Codes.
-6. **CSRF** – nur für zustandsändernde Web-Routen.
-7. **Handler** → Dienst → Autorisierung → Ergebnis → Fehlerabbildung.
+1. **Request ID and tracing** – every request gets an ID; log fields are redacted centrally (`Authorization`, cookies, tokens).
+2. **Limits** – header size, body limit per route (small for XML, large for uploads), timeouts.
+3. **Trusted proxy** – take client IP and scheme only from configured proxies.
+4. **Authentication** – produces a `Principal`:
+   - Basic Auth with **app password** → `Principal { user, via: AppPassword(id) }`
+   - Basic Auth with **account password** → only allowed if neither 2FA is active nor "WebDAV with app passwords only" is set
+   - Session cookie → only for `rostdav-web`
+   - Public link token → restricted principal for the share
+5. **Rate limiting** – per IP and per username on all sign-in paths, including login flow polling and 2FA codes.
+6. **CSRF** – only for state-changing web routes.
+7. **Handler** → service → authorization → result → error mapping.
 
-### Fehlerabbildung
+### Error mapping
 
-Ein zentraler Fehlertyp in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, `PreconditionFailed`, `QuotaExceeded`, `Locked`, `TooLarge`, `BadRequest`, `Unavailable`, `Internal`). Jede Protokollschicht bildet ihn ab:
+A central error type in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, `PreconditionFailed`, `QuotaExceeded`, `Locked`, `TooLarge`, `BadRequest`, `Unavailable`, `Internal`). Each protocol layer maps it:
 
-- WebDAV: Statuscodes nach RFC 4918, `<d:error>`-Body wie bei Nextcloud (Format in M5 aus Mitschnitten übernehmen)
-- OCS: Envelope mit v1-/v2-Statuscodes
-- Web: Fehlerseite ohne interne Details
+- WebDAV: status codes per RFC 4918, `<d:error>` body as in Nextcloud (take the format from recordings in M5)
+- OCS: envelope with v1/v2 status codes
+- Web: error page without internal details
 
-`Internal` wird mit Request-ID geloggt, der Client sieht nur die ID.
+`Internal` is logged with the request ID; the client sees only the ID.
 
-## Autorisierung
+## Authorization
 
-- Jede Operation erhält `(Principal, NodeId, Aktion)`. Die effektiven Rechte ergeben sich aus Besitz oder Freigabe (Rechte-Bitmaske wie Nextcloud: lesen, ändern, anlegen, löschen, teilen).
-- Pfade werden nur zum Auflösen benutzt; geprüft wird auf dem aufgelösten Knoten.
-- Eine Funktion `authorize()` in `rostdav-app`, kein Handler prüft selbst. Negativtests decken jede Aktion ab.
+- Every operation receives `(Principal, NodeId, Action)`. The effective permissions result from ownership or share (permission bitmask as in Nextcloud: read, update, create, delete, share).
+- Paths are used only for resolution; the check is performed on the resolved node.
+- A single function `authorize()` in `rostdav-app`; no handler checks on its own. Negative tests cover every action.
 
-## Pfadauflösung
+## Path resolution
 
-1. URL-Pfad prozentdekodieren (genau einmal), UTF-8 erzwingen.
-2. In Segmente teilen; leere Segmente, `.`, `..`, Steuerzeichen und `/` in Namen ablehnen.
-3. Jedes Segment NFC-normalisieren, Längenlimit prüfen.
-4. Über `nodes` ab dem Wurzelknoten des Principals bzw. Mountpunkt der Freigabe auflösen.
-5. `Destination`-Header: nur gleicher Host und gleiche Basis-URL, dann wie oben.
+1. Percent-decode the URL path (exactly once), enforce UTF-8.
+2. Split into segments; reject empty segments, `.`, `..`, control characters and `/` in names.
+3. NFC-normalize each segment, check length limit.
+4. Resolve via `nodes` starting from the principal's root node or the share's mount point.
+5. `Destination` header: same host and same base URL only, then as above.
 
-## Datenmodell (Kern)
+## Data model (core)
 
-| Tabelle | Wichtige Spalten |
+| Table | Key columns |
 |---|---|
 | `users` | id, login, display_name, email, password_hash, role, quota_bytes, used_bytes, disabled, theme, locale, created_at |
 | `app_passwords` | id, user_id, name, token_hash, created_via (login_flow/manual), last_used_at, last_ip, created_at |
@@ -103,7 +103,7 @@ Ein zentraler Fehlertyp in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, 
 | `login_flows` | poll_token_hash, login_token_hash, client_name, state, user_id, app_password_id, expires_at |
 | `totp` | user_id, secret_enc, enabled_at, last_used_step |
 | `recovery_codes` | id, user_id, code_hash, used_at |
-| `nodes` | siehe ADR 0002 |
+| `nodes` | see ADR 0002 |
 | `blobs` | id, size, checksum, created_at |
 | `versions` | id, node_id, blob_id, size, mtime, author_app_password_id, created_at |
 | `shares` | id, node_id, owner_id, share_type (user/link), recipient_id, permissions, token_hash, password_hash, expires_at, mount_parent_id, created_at |
@@ -112,40 +112,40 @@ Ein zentraler Fehlertyp in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, 
 | `audit_log` | id, at, actor_id, action, target, ip, details_json |
 | `settings` | key, value_json, updated_by, updated_at |
 
-Alle Tokens (App-Passwörter, Sitzungen, Login-Flow, Link-Token) werden nur als Hash gespeichert. App-Passwörter und Tokens sind hochentropisch, daher reicht für sie ein schneller Hash (SHA-256) mit zeitkonstantem Vergleich. Kontopasswörter und Link-Passwörter verwenden Argon2id.
+All tokens (app passwords, sessions, login flow, link tokens) are stored only as hashes. App passwords and tokens are high-entropy, so a fast hash (SHA-256) with constant-time comparison is sufficient for them. Account passwords and link passwords use Argon2id.
 
-## Hintergrundaufgaben
+## Background tasks
 
-Laufen im selben Prozess als `tokio`-Tasks mit Intervall und Sperre gegen Doppelausführung:
+Run in the same process as `tokio` tasks with an interval and a lock against double execution:
 
-| Aufgabe | Intervall |
+| Task | Interval |
 |---|---|
-| Abgelaufene Login-Flows, Sitzungen, Sperren entfernen | 5 min |
-| Verwaiste Chunk-Uploads löschen | stündlich |
-| Versionen nach Aufbewahrungsregeln ausdünnen | täglich |
-| Blob-Bereinigung (Mark-and-Sweep) | täglich |
-| Ereignisprotokoll nach Aufbewahrung kürzen | täglich |
+| Remove expired login flows, sessions, lockouts | 5 min |
+| Delete orphaned chunk uploads | hourly |
+| Thin out versions according to retention rules | daily |
+| Blob cleanup (mark-and-sweep) | daily |
+| Trim event log according to retention | daily |
 
-Zustand und letzte Ausführung erscheinen unter Administration → Status.
+State and last run appear under Administration → Status.
 
-## Konfiguration
+## Configuration
 
-Vorrang: Kommandozeile > Umgebungsvariablen (`ROSTDAV_*`) > Konfigurationsdatei (`rostdav.toml`) > Datenbank-Einstellungen aus der Oberfläche > Defaults. Werte aus den oberen drei Ebenen sind in der Oberfläche schreibgeschützt. Geheimnisse (Schlüssel für TOTP-Secrets, ggf. DB-Passwort) nur aus Umgebung oder Secret-Datei.
+Precedence: command line > environment variables (`ROSTDAV_*`) > configuration file (`rostdav.toml`) > database settings from the UI > defaults. Values from the upper three levels are read-only in the UI. Secrets (key for TOTP secrets, possibly DB password) only from the environment or a secret file.
 
-## Bedrohungsmodell (Kurzfassung, Details in `docs/security.md`)
+## Threat model (short version, details in `docs/security.md`)
 
-| Bedrohung (STRIDE) | Beispiel | Maßnahme |
+| Threat (STRIDE) | Example | Mitigation |
 |---|---|---|
-| Spoofing | Passwort-Raten über WebDAV | Rate Limit pro IP und Benutzer, App-Passwort-Pflicht optional, 2FA |
-| Tampering | Pfad-Manipulation, `Destination` auf fremden Host | Physische Pfade unabhängig von Eingaben, strikte Validierung |
-| Repudiation | Admin löscht Benutzer unbemerkt | Ereignisprotokoll für alle Admin- und Sicherheitsaktionen |
-| Information Disclosure | Zugriff auf fremde Datei-ID, Fehlermeldung mit Pfad | Autorisierung pro Knoten, generische Fehler |
-| Denial of Service | Riesige PROPFIND-Bäume, endlose Uploads | `Depth: infinity` aus, Limits, Timeouts, Quota |
-| Elevation of Privilege | Benutzer ruft Admin-Route auf | Rollenprüfung im Dienst, nicht nur in der Oberfläche |
+| Spoofing | Password guessing via WebDAV | Rate limit per IP and user, app password requirement optional, 2FA |
+| Tampering | Path manipulation, `Destination` pointing to a foreign host | Physical paths independent of input, strict validation |
+| Repudiation | Admin deletes a user unnoticed | Event log for all admin and security actions |
+| Information Disclosure | Access to another user's file ID, error message containing a path | Authorization per node, generic errors |
+| Denial of Service | Huge PROPFIND trees, endless uploads | `Depth: infinity` off, limits, timeouts, quota |
+| Elevation of Privilege | User calls an admin route | Role check in the service, not only in the UI |
 
-## Betrieb
+## Operation
 
-- Ein Binary plus Datenverzeichnis (`db/`, `blobs/`, `tmp/`, `uploads/`), Container-Image auf Basis von `distroless` oder `scratch`.
-- Betrieb hinter einem Reverse Proxy mit TLS; Rostdav selbst spricht HTTP auf localhost oder einem internen Netz.
-- `/healthz` (Prozess lebt) und `/readyz` (Datenbank und Speicher erreichbar).
-- Backup: SQLite-Online-Backup bzw. `pg_dump`, danach Blob-Verzeichnis. Da Blobs unveränderlich sind, ist diese Reihenfolge konsistent.
+- One binary plus data directory (`db/`, `blobs/`, `tmp/`, `uploads/`), container image based on `distroless` or `scratch`.
+- Run behind a reverse proxy with TLS; Rostdav itself speaks HTTP on localhost or an internal network.
+- `/healthz` (process is alive) and `/readyz` (database and storage reachable).
+- Backup: SQLite online backup or `pg_dump`, then the blob directory. Since blobs are immutable, this order is consistent.

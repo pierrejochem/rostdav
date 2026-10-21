@@ -1,4 +1,4 @@
-# Entwicklungsbefehle für Rostdav. `just` ohne Argument listet alle.
+# Development commands for Rostdav. `just` without arguments lists all.
 
 default:
     @just --list
@@ -7,7 +7,7 @@ default:
 run *ARGS:
     ROSTDAV_LOG__FORMAT=pretty ROSTDAV_LOG__LEVEL=info,rostdav=debug cargo run -p rostdav -- serve {{ARGS}}
 
-# Formatierung, Clippy und Tests – vor jedem Commit
+# Formatting, Clippy and tests - before every commit
 check:
     cargo fmt --all -- --check
     cargo clippy --workspace --all-targets -- -D warnings
@@ -21,12 +21,12 @@ fmt:
 test *ARGS:
     cargo test --workspace {{ARGS}}
 
-# Smoke-Test gegen das gebaute Debug-Binary
+# Smoke test against the built debug binary
 smoke:
     cargo build -p rostdav
     scripts/smoke.sh ./target/debug/rostdav
 
-# Abhängigkeiten, Lizenzen, Sicherheitsmeldungen
+# Dependencies, licenses, security advisories
 deny:
     cargo deny check advisories licenses bans sources
 
@@ -34,7 +34,7 @@ deny:
 config:
     cargo run -q -p rostdav -- check-config
 
-# Lokale Daten löschen (fragt nach)
-[confirm("Lokales ./data wirklich löschen?")]
+# Delete local data (asks for confirmation)
+[confirm("Really delete local ./data?")]
 clean-data:
     rm -rf ./data

@@ -1,43 +1,43 @@
 # Administration
 
-Anforderungen: Abschnitt 2.8 der [Anweisung](anweisung.md). Entwurf: `design/mockups/web-ui/Admin.dc.html`.
+Requirements: section 2.8 of the [instructions](instructions.md). Design: `design/mockups/web-ui/Admin.dc.html`.
 
-> Stand M0: noch nicht implementiert. Erste CLI-Befehle folgen in M1, vollständig in M7.
+> Status M0: not yet implemented. The first CLI commands follow in M1, the full set in M7.
 
-## Rollen
+## Roles
 
-| Rolle | Rechte |
+| Role | Permissions |
 |---|---|
-| `user` | Eigene Dateien, Freigaben, Geräte, Einstellungen |
-| `admin` | Zusätzlich Benutzerverwaltung, Server- und Sicherheitseinstellungen, Ereignisprotokoll |
+| `user` | Own files, shares, devices, settings |
+| `admin` | Additionally user management, server and security settings, event log |
 
-Regeln: Ein Administrator kann sich nicht selbst deaktivieren; die letzte Admin-Rolle lässt sich nicht entfernen.
+Rules: An administrator cannot disable themselves; the last admin role cannot be removed.
 
-## CLI (geplant)
+## CLI (planned)
 
-| Befehl | Meilenstein |
+| Command | Milestone |
 |---|---|
 | `rostdav admin user add <login> [--admin]` | M1 |
 | `rostdav admin user list` | M7 |
 | `rostdav admin user disable <login>` / `enable` | M7 |
 | `rostdav admin user reset-2fa <login>` | M12 |
-| `rostdav admin user set-quota <login> <größe>` | M7 |
+| `rostdav admin user set-quota <login> <size>` | M7 |
 | `rostdav admin fsck` | M1 |
-| `rostdav admin import <pfad> --user <login>` | M7 |
-| `rostdav admin audit export --since <datum>` | M7 |
+| `rostdav admin import <path> --user <login>` | M7 |
+| `rostdav admin audit export --since <date>` | M7 |
 
-## Einstellungen und Vorrang
+## Settings and precedence
 
-Kommandozeile > Umgebung (`ROSTDAV_*`) > Konfigurationsdatei > Datenbank (Oberfläche) > Defaults. Werte aus den oberen Ebenen sind in der Oberfläche schreibgeschützt und als „durch Konfiguration festgelegt“ markiert.
+Command line > environment (`ROSTDAV_*`) > configuration file > database (UI) > defaults. Values from the upper levels are read-only in the UI and marked as "set by configuration".
 
-## Ereignisprotokoll
+## Event log
 
-Felder: Zeitpunkt, Akteur, Aktion, Ziel, IP (konfigurierbar anonymisiert), Details als JSON. Niemals Dateiinhalte, Passwörter oder Tokens. Export als JSON Lines.
+Fields: timestamp, actor, action, target, IP (anonymization configurable), details as JSON. Never file contents, passwords or tokens. Export as JSON Lines.
 
-| Aktion | Beispiel |
+| Action | Example |
 |---|---|
-| `auth.login`, `auth.login_failed`, `auth.locked` | Anmeldungen und Sperren |
-| `device.connected`, `device.revoked` | Login Flow, App-Passwörter |
-| `2fa.enabled`, `2fa.disabled`, `2fa.reset` | Zwei-Faktor |
-| `admin.user_created`, `admin.user_disabled`, `admin.settings_changed` | Admin-Aktionen |
-| `share.created`, `share.revoked` | Freigaben |
+| `auth.login`, `auth.login_failed`, `auth.locked` | Sign-ins and lockouts |
+| `device.connected`, `device.revoked` | Login flow, app passwords |
+| `2fa.enabled`, `2fa.disabled`, `2fa.reset` | Two-factor |
+| `admin.user_created`, `admin.user_disabled`, `admin.settings_changed` | Admin actions |
+| `share.created`, `share.revoked` | Shares |

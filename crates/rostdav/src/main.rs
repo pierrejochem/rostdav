@@ -21,29 +21,29 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Startet den Server.
+    /// Starts the server.
     Serve,
-    /// Verwaltung (Benutzer).
+    /// Administration (users).
     #[command(subcommand)]
     Admin(AdminCommand),
-    /// Gibt die wirksame Konfiguration aus (ohne Geheimnisse).
+    /// Prints the effective configuration (without secrets).
     CheckConfig,
 }
 
 #[derive(Subcommand)]
 enum AdminCommand {
-    /// Benutzerverwaltung.
+    /// User management.
     #[command(subcommand)]
     User(UserCommand),
 }
 
 #[derive(Subcommand)]
 enum UserCommand {
-    /// Legt einen Benutzer an. Das Passwort wird als eine Zeile von stdin gelesen
-    /// (nie als Argument, damit es nicht in Prozesslisten oder der Shell-History landet).
+    /// Creates a user. The password is read as one line from stdin
+    /// (never as an argument, so it does not end up in process lists or shell history).
     Add {
         name: String,
-        /// Benutzer erhält Administratorrechte.
+        /// The user is granted administrator rights.
         #[arg(long)]
         admin: bool,
     },
@@ -73,14 +73,14 @@ async fn user_add(cfg: Config, name: &str, admin: bool) -> anyhow::Result<()> {
     std::io::stdin()
         .lock()
         .read_line(&mut line)
-        .context("Passwort konnte nicht von stdin gelesen werden")?;
+        .context("could not read password from stdin")?;
     let password = line.trim_end_matches(['\r', '\n']);
 
     let state = rostdav::build_state(&cfg).await?;
     let result = state.add_user(name, password, admin).await;
     state.shutdown().await;
-    let user = result.map_err(|e| anyhow::anyhow!("Benutzer nicht angelegt: {e}"))?;
-    println!("Benutzer {} angelegt", user.name);
+    let user = result.map_err(|e| anyhow::anyhow!("user not created: {e}"))?;
+    println!("user {} created", user.name);
     Ok(())
 }
 
@@ -88,7 +88,7 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
     rostdav::telemetry::init(&cfg.log);
     tracing::info!(
         version = rostdav_core::VERSION,
-        "{} startet",
+        "{} starting",
         rostdav_core::PRODUCT_NAME
     );
 
@@ -97,23 +97,23 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
 
     let listener = tokio::net::TcpListener::bind(cfg.server.listen)
         .await
-        .with_context(|| format!("Adresse {} konnte nicht gebunden werden", cfg.server.listen))?;
-    tracing::info!(listen = %cfg.server.listen, "bereit");
+        .with_context(|| format!("could not bind address {}", cfg.server.listen))?;
+    tracing::info!(listen = %cfg.server.listen, "ready");
 
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
-        .context("Server beendet mit Fehler")?;
+        .context("server exited with error")?;
 
     state.shutdown().await;
-    tracing::info!("beendet");
+    tracing::info!("stopped");
     Ok(())
 }
 
 async fn shutdown_signal() {
     let ctrl_c = async {
         if let Err(err) = tokio::signal::ctrl_c().await {
-            tracing::error!(error = %err, "Ctrl-C-Handler fehlgeschlagen");
+            tracing::error!(error = %err, "Ctrl-C handler failed");
         }
     };
     #[cfg(unix)]
@@ -122,7 +122,7 @@ async fn shutdown_signal() {
             Ok(mut sig) => {
                 sig.recv().await;
             }
-            Err(err) => tracing::error!(error = %err, "SIGTERM-Handler fehlgeschlagen"),
+            Err(err) => tracing::error!(error = %err, "SIGTERM handler failed"),
         }
     };
     #[cfg(not(unix))]
@@ -132,5 +132,5 @@ async fn shutdown_signal() {
         () = ctrl_c => {},
         () = terminate => {},
     }
-    tracing::info!("Herunterfahren angefordert");
+    tracing::info!("shutdown requested");
 }

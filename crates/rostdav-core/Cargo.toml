@@ -1,6 +1,6 @@
 [package]
 name = "rostdav-core"
-description = "Domänentypen und Fehler von Rostdav"
+description = "Domain types and errors of Rostdav"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

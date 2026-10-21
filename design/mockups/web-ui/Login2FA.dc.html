@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Rostdav – Zweiter Faktor</title>
+<title>Rostdav – Second Factor</title>
 <script src="./support.js"></script>
 </head>
 <body>
@@ -33,7 +33,7 @@ button{font:inherit}
 
 <div style="width: 100%; max-width: 440px; background: #1F2229; border: 1px solid #2E313A; border-radius: 20px; padding: 32px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px">
 <div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: #C9C2B9">
-<span style="height: 26px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 13px; background: #2A2D35; color: #E9E3DB; font-weight: 600">Schritt 2 von 2</span>
+<span style="height: 26px; display: inline-flex; align-items: center; padding: 0 10px; border-radius: 13px; background: #2A2D35; color: #E9E3DB; font-weight: 600">Step 2 of 2</span>
 <span>Nextcloud Android</span>
 </div>
 <div>
@@ -42,25 +42,25 @@ button{font:inherit}
 </div>
 <form style="display: flex; flex-direction: column; gap: 14px">
 <sc-if value="{{useTotp}}" hint-placeholder-val="{{true}}">
-<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Code aus der Authenticator-App
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Code from the authenticator app
 <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="min-height: 60px; padding: 0 16px; border-radius: 12px; border: 1px solid #3A3D45; background: #15171C; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 28px; letter-spacing: 12px; text-align: center; color: #F4EFE8">
 </label>
 </sc-if>
 <sc-if value="{{useRecovery}}" hint-placeholder-val="{{false}}">
-<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Wiederherstellungscode
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Recovery code
 <input type="text" autocomplete="off" placeholder="xxxx-xxxx-xxxx" style="min-height: 52px; padding: 0 16px; border-radius: 12px; border: 1px solid #3A3D45; background: #15171C; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 18px; letter-spacing: 2px; color: #F4EFE8">
 </label>
 </sc-if>
-<button type="button" style="min-height: 50px; margin-top: 6px; border-radius: 12px; border: none; background: #C2491D; color: #FFFFFF; font-size: 16px; font-weight: 700; cursor: pointer">Bestätigen und Zugriff erlauben</button>
+<button type="button" style="min-height: 50px; margin-top: 6px; border-radius: 12px; border: none; background: #C2491D; color: #FFFFFF; font-size: 16px; font-weight: 700; cursor: pointer">Confirm and allow access</button>
 <button type="button" onClick="{{toggle}}" style="min-height: 44px; border-radius: 12px; border: none; background: transparent; color: #F2A65A; font-weight: 600; cursor: pointer">{{toggleLabel}}</button>
 </form>
 <div style="display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: #A8A29C">
 <svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px; margin-top: 2px"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18Z"></path><path d="M12 7v5l3 2"></path></svg>
-<span>Nach fünf falschen Codes wird die Anmeldung für einige Minuten gesperrt.</span>
+<span>After five wrong codes, sign-in is locked for a few minutes.</span>
 </div>
 </div>
 
-<a href="Login.dc.html" style="font-size: 14px; font-weight: 600">Zurück zur Anmeldung</a>
+<a href="Login.dc.html" style="font-size: 14px; font-weight: 600">Back to sign-in</a>
 </div>
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
@@ -74,9 +74,9 @@ const r = this.state.recovery;
 return {
 useTotp: !r,
 useRecovery: r,
-heading: r ? 'Wiederherstellungscode' : 'Bestätige deine Anmeldung',
-lead: r ? 'Jeder Code funktioniert nur einmal. Danach siehst du, wie viele noch übrig sind.' : 'Gib den sechsstelligen Code aus deiner Authenticator-App ein.',
-toggleLabel: r ? 'Stattdessen Authenticator-App verwenden' : 'Kein Zugriff auf die App? Wiederherstellungscode verwenden',
+heading: r ? 'Recovery code' : 'Confirm your sign-in',
+lead: r ? 'Each code works only once. Afterwards you will see how many are left.' : 'Enter the six-digit code from your authenticator app.',
+toggleLabel: r ? 'Use the authenticator app instead' : 'No access to the app? Use a recovery code',
 toggle: () => this.setState({ recovery: !r })
 };
 }

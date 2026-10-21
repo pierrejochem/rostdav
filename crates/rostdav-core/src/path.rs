@@ -1,8 +1,8 @@
-//! Namen und logische Pfade.
+//! Names and logical paths.
 //!
-//! Alles, was von Clients kommt, läuft durch [`Name::parse`] bzw.
-//! [`LogicalPath::from_url_path`]. Logische Pfade sind nie physische Pfade
-//! (ADR 0002): Der Speicher adressiert Blobs nur über ihre ID.
+//! Everything coming from clients passes through [`Name::parse`] or
+//! [`LogicalPath::from_url_path`]. Logical paths are never physical paths
+//! (ADR 0002): storage addresses blobs only by their ID.
 
 use std::fmt;
 
@@ -11,16 +11,16 @@ use unicode_normalization::UnicodeNormalization;
 
 use crate::{Error, Result};
 
-/// Maximale Länge eines Namens in Bytes (wie gängige Dateisysteme).
+/// Maximum length of a name in bytes (like common file systems).
 pub const MAX_NAME_BYTES: usize = 255;
 /// Maximale Anzahl Segmente eines Pfads.
 pub const MAX_DEPTH: usize = 64;
 
-/// Ein einzelnes Pfadsegment.
+/// A single path segment.
 ///
-/// Der Name bleibt wie übergeben erhalten (Anzeige); [`Name::key`] liefert die
-/// NFC-Form, über die Eindeutigkeit innerhalb eines Ordners entschieden wird.
-/// Groß-/Kleinschreibung zählt, wie bei Nextcloud.
+/// The name is kept as given (for display); [`Name::key`] returns the NFC
+/// form that decides uniqueness within a folder.
+/// Case is significant, as in Nextcloud.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Name {
     display: String,
@@ -33,15 +33,15 @@ impl Name {
             return Err(Error::BadRequest("leerer Name"));
         }
         if raw == "." || raw == ".." {
-            return Err(Error::BadRequest("ungültiger Name"));
+            return Err(Error::BadRequest("invalid name"));
         }
         if raw.chars().any(|c| c == '/' || c == '\\' || c.is_control()) {
-            return Err(Error::BadRequest("Name enthält unzulässige Zeichen"));
+            return Err(Error::BadRequest("name contains forbidden characters"));
         }
         let key: String = raw.nfc().collect();
-        // Nach der Normalisierung prüfen: sie darf die Länge ändern.
+        // Check after normalization: it may change the length.
         if raw.len() > MAX_NAME_BYTES || key.len() > MAX_NAME_BYTES {
-            return Err(Error::BadRequest("Name zu lang"));
+            return Err(Error::BadRequest("name too long"));
         }
         Ok(Self {
             display: raw.to_owned(),
@@ -49,12 +49,12 @@ impl Name {
         })
     }
 
-    /// Name, wie der Client ihn gesendet hat.
+    /// Name as the client sent it.
     pub fn as_str(&self) -> &str {
         &self.display
     }
 
-    /// NFC-Form für `UNIQUE(parent_id, name_key)`.
+    /// NFC form for `UNIQUE(parent_id, name_key)`.
     pub fn key(&self) -> &str {
         &self.key
     }
@@ -77,20 +77,20 @@ impl LogicalPath {
         Self::default()
     }
 
-    /// Parst den Pfadteil einer URL (noch prozentkodiert, ohne Präfix).
+    /// Parses the path part of a URL (still percent-encoded, without prefix).
     ///
-    /// Dekodiert genau einmal. `%2F` und `%00` im Segment werden abgelehnt,
-    /// ebenso `.`/`..` und ungültiges UTF-8. Doppelte Schrägstriche und
-    /// ein abschließender Schrägstrich sind zulässig und werden ignoriert.
+    /// Decodes exactly once. `%2F` and `%00` in a segment are rejected,
+    /// as are `.`/`..` and invalid UTF-8. Duplicate slashes and
+    /// a trailing slash are allowed and ignored.
     pub fn from_url_path(raw: &str) -> Result<Self> {
         let mut segments = Vec::new();
         for part in raw.split('/').filter(|s| !s.is_empty()) {
             let decoded = percent_decode_str(part)
                 .decode_utf8()
-                .map_err(|_| Error::BadRequest("Pfad ist kein gültiges UTF-8"))?;
+                .map_err(|_| Error::BadRequest("path is not valid UTF-8"))?;
             segments.push(Name::parse(&decoded)?);
             if segments.len() > MAX_DEPTH {
-                return Err(Error::BadRequest("Pfad zu tief"));
+                return Err(Error::BadRequest("path too deep"));
             }
         }
         Ok(Self { segments })
@@ -104,7 +104,7 @@ impl LogicalPath {
         self.segments.is_empty()
     }
 
-    /// Letztes Segment und Elternpfad; `None` bei der Wurzel.
+    /// Last segment and parent path; `None` for the root.
     pub fn split_last(&self) -> Option<(LogicalPath, &Name)> {
         let (last, rest) = self.segments.split_last()?;
         Some((
@@ -123,7 +123,7 @@ mod tests {
     fn bad(raw: &str) {
         assert!(
             matches!(LogicalPath::from_url_path(raw), Err(Error::BadRequest(_))),
-            "{raw:?} hätte abgelehnt werden müssen"
+            "{raw:?} should have been rejected"
         );
     }
 
@@ -176,15 +176,15 @@ mod tests {
 
     #[test]
     fn decoded_once_only() {
-        // %252e%252e wird zu dem Namen "%2e%2e", nicht zu "..".
+        // %252e%252e becomes the name "%2e%2e", not "..".
         let p = LogicalPath::from_url_path("/%252e%252e").expect("p");
         assert_eq!(p.segments()[0].as_str(), "%2e%2e");
     }
 
     #[test]
     fn percent_decoded_unicode() {
-        let p = LogicalPath::from_url_path("/B%C3%BCcher/%E6%97%A5%E6%9C%AC").expect("p");
-        assert_eq!(p.segments()[0].as_str(), "Bücher");
+        let p = LogicalPath::from_url_path("/caf%C3%A9/%E6%97%A5%E6%9C%AC").expect("p");
+        assert_eq!(p.segments()[0].as_str(), "café");
         assert_eq!(p.segments()[1].as_str(), "日本");
     }
 
@@ -198,8 +198,8 @@ mod tests {
 
     #[test]
     fn case_is_significant() {
-        let a = Name::parse("Datei").expect("n");
-        let b = Name::parse("datei").expect("n");
+        let a = Name::parse("File").expect("n");
+        let b = Name::parse("file").expect("n");
         assert_ne!(a.key(), b.key());
     }
 
@@ -207,7 +207,7 @@ mod tests {
     fn length_limits() {
         assert!(Name::parse(&"a".repeat(255)).is_ok());
         assert!(Name::parse(&"a".repeat(256)).is_err());
-        // 128 * 2 Bytes = 256 Bytes
+        // 128 * 2 bytes = 256 bytes
         assert!(Name::parse(&"é".repeat(128)).is_err());
     }
 

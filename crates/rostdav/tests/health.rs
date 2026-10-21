@@ -1,4 +1,4 @@
-//! Integrationstests für Health- und Bereitschaftsendpunkte.
+//! Integration tests for the health and readiness endpoints.
 
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
@@ -42,7 +42,7 @@ async fn readyz_unavailable_when_tmp_missing() {
     let res = get(app, "/readyz").await;
     assert_eq!(res.status(), StatusCode::SERVICE_UNAVAILABLE);
     let body = res.into_body().collect().await.expect("body").to_bytes();
-    // Keine internen Pfade oder Ursachen in der Antwort.
+    // No internal paths or causes in the response.
     assert_eq!(&body[..], br#"{"status":"unavailable"}"#);
 }
 

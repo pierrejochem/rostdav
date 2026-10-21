@@ -1,21 +1,21 @@
-# Beispielkonfiguration für Rostdav.
-# Kopieren nach rostdav.toml. Jeder Wert lässt sich über Umgebungsvariablen
-# überschreiben: ROSTDAV_<ABSCHNITT>__<SCHLÜSSEL>, z. B. ROSTDAV_SERVER__LISTEN.
+# Example configuration for Rostdav.
+# Copy to rostdav.toml. Every value can be overridden via environment
+# variables: ROSTDAV_<SECTION>__<KEY>, e.g. ROSTDAV_SERVER__LISTEN.
 
 [server]
-# HTTP ohne TLS; im Produktivbetrieb hinter einem Reverse Proxy.
+# HTTP without TLS; in production behind a reverse proxy.
 listen = "127.0.0.1:8080"
 
 [storage]
-# Enthält blobs/, tmp/, uploads/ und db/. Wird mit Rechten 0700 angelegt.
+# Contains blobs/, tmp/, uploads/ and db/. Created with mode 0700.
 data_dir = "./data"
 
 [database]
-# Ohne Angabe: sqlite://<data_dir>/db/rostdav.sqlite
+# If omitted: sqlite://<data_dir>/db/rostdav.sqlite
 # url = "sqlite:///srv/rostdav/db/rostdav.sqlite"
 
 [log]
-# "json" für den Betrieb, "pretty" für die Entwicklung.
+# "json" for production, "pretty" for development.
 format = "json"
-# Filter wie bei RUST_LOG, z. B. "info,rostdav=debug".
+# Filter as for RUST_LOG, e.g. "info,rostdav=debug".
 level = "info"

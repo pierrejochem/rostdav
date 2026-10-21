@@ -1,45 +1,45 @@
-# Arbeitsregeln für Coding-Agenten
+# Working rules for coding agents
 
-Kurzfassung der Projektanweisung. Bei Widersprüchen gilt die vollständige Anweisung bzw. die ADRs.
+Short version of the project instructions. In case of conflict, the full instructions and the ADRs prevail.
 
-## Ziel
+## Goal
 
-Rostdav: schlanker Dateiserver, kompatibel mit den unveränderten Nextcloud-Apps. So wenig eigene Implementierung wie möglich, so viel echte Protokollkompatibilität wie nötig.
+Rostdav: lean file server, compatible with the unmodified Nextcloud apps. As little custom implementation as possible, as much real protocol compatibility as necessary.
 
-## Architekturregeln
+## Architecture rules
 
-- Modularer Monolith, Crates und Abhängigkeitsrichtung laut `docs/architecture.md`.
-- Protokoll-Crates (`dav`, `compat`, `web`) greifen nie direkt auf Datenbank oder Dateisystem zu.
-- Autorisierung nur über `authorize()` in `rostdav-app`, auf dem aufgelösten Knoten.
-- Physische Pfade nie aus Benutzereingaben ableiten.
-- Datenbank referenziert nie einen unvollständigen Blob.
+- Modular monolith; crates and dependency direction as per `docs/architecture.md`.
+- Protocol crates (`dav`, `compat`, `web`) never access the database or file system directly.
+- Authorization only via `authorize()` in `rostdav-app`, on the resolved node.
+- Never derive physical paths from user input.
+- The database never references an incomplete blob.
 
-## Kompatibilität
+## Compatibility
 
-- Kein Antwortfeld erfinden. Jede Kompatibilitätsaussage nennt ihre Quelle (Client-Code, Doku oder Fixture).
-- Capabilities kündigen nur Getestetes an.
+- Never invent a response field. Every compatibility statement names its source (client code, documentation or fixture).
+- Capabilities only advertise what has been tested.
 
-## Sicherheit
+## Security
 
-- Keine Passwörter, Tokens, `Authorization`-Header oder Dateiinhalte in Logs.
-- Tokens nur gehasht speichern, zeitkonstant vergleichen.
-- XML ohne DTD/Entitäten parsen, Größen- und Tiefenlimits.
-- Negativtests für Autorisierung, Pfade und Freigaben sind Pflicht.
+- No passwords, tokens, `Authorization` headers or file contents in logs.
+- Store tokens only hashed, compare in constant time.
+- Parse XML without DTD/entities, with size and depth limits.
+- Negative tests for authorization, paths and shares are mandatory.
 
-## Arbeitsweise
+## Way of working
 
-- Kleine Schritte, je Schritt ein Commit. Tests für jede Funktion und jeden behobenen Fehler.
-- Vor jedem Commit: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
-- Neue Abhängigkeiten nur mit Begründung im Commit oder ADR.
-- Testergebnisse nie erfinden; nicht ausgeführte Tests als solche kennzeichnen.
+- Small steps, one commit per step. Tests for every function and every fixed bug.
+- Before every commit: `cargo fmt --check`, `cargo clippy -- -D warnings`, `cargo test`.
+- New dependencies only with a justification in the commit or an ADR.
+- Never invent test results; mark tests that were not run as such.
 
-## Freigabepunkte (anhalten und fragen)
+## Approval points (stop and ask)
 
-1. Stack und Architektur
-2. Datenbankschema vor der ersten Persistierung
-3. Änderungen an Authentifizierung, Token-Format oder Berechtigungsmodell nach Phase 2
-4. Irreversible Operationen auf Daten oder Repositories
+1. Stack and architecture
+2. Database schema before first persistence
+3. Changes to authentication, token format or permission model after phase 2
+4. Irreversible operations on data or repositories
 
-## Abschlussbericht nach jeder Arbeitseinheit
+## Final report after every unit of work
 
-Implementiert · geänderte Dateien · ausgeführte und nicht ausgeführte Tests · tatsächliche Ergebnisse · Annahmen und Risiken · nächster Schritt.
+Implemented · changed files · tests run and not run · actual results · assumptions and risks · next step.
