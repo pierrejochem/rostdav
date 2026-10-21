@@ -1414,6 +1414,7 @@ dependencies = [
  "rostdav-storage",
  "tempfile",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -25,5 +25,7 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
     if swept > 0 {
         tracing::warn!(swept, "removed incomplete writes");
     }
-    Ok(AppState::new(db, store))
+    Ok(AppState::new(db, store).with_limits(rostdav_app::Limits {
+        max_upload_bytes: cfg.limits.max_upload_bytes,
+    }))
 }

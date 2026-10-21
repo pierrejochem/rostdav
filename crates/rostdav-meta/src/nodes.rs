@@ -98,9 +98,7 @@ fn to_node(r: Row) -> Result<Node> {
 
 fn db_err(e: sqlx::Error) -> Error {
     match &e {
-        sqlx::Error::Database(d) if d.is_unique_violation() => {
-            Error::Conflict("name already exists")
-        }
+        sqlx::Error::Database(d) if d.is_unique_violation() => Error::AlreadyExists,
         _ => Error::internal(e),
     }
 }
@@ -226,6 +224,28 @@ impl Db {
             .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(Error::internal)
+    }
+
+    /// Sets or clears the owner's quota (admin CLI, tests).
+    pub async fn set_quota(&self, owner_id: i64, quota: Option<i64>) -> Result<()> {
+        sqlx::query("UPDATE users SET quota_bytes = ? WHERE id = ?")
+            .bind(quota)
+            .bind(owner_id)
+            .execute(self.pool())
+            .await
+            .map_err(db_err)?;
+        Ok(())
+    }
+
+    /// Bytes the owner may still add, or `None` without a quota.
+    pub async fn quota_headroom(&self, owner_id: i64) -> Result<Option<i64>> {
+        let (quota, used): (Option<i64>, i64) =
+            sqlx::query_as("SELECT quota_bytes, used_bytes FROM users WHERE id = ?")
+                .bind(owner_id)
+                .fetch_one(self.pool())
+                .await
+                .map_err(db_err)?;
+        Ok(quota.map(|q| (q - used).max(0)))
     }
 
     pub async fn node_by_id(&self, id: i64) -> Result<Option<Node>> {
@@ -647,7 +667,7 @@ mod tests {
         assert_eq!(db.resolve(uid, &p).await.expect("r"), Some(b));
         assert!(matches!(
             db.create_dir(root, &n("a")).await,
-            Err(Error::Conflict(_))
+            Err(Error::AlreadyExists)
         ));
         // NFC-equivalent name conflicts as well
         db.create_dir(root, &n("\u{e9}")).await.expect("composed");

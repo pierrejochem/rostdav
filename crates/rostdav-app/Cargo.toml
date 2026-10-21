@@ -13,6 +13,7 @@ rostdav-meta.workspace = true
 rostdav-storage.workspace = true
 tokio.workspace = true
 argon2.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -14,6 +14,10 @@ data_dir = "./data"
 # If omitted: sqlite://<data_dir>/db/rostdav.sqlite
 # url = "sqlite:///srv/rostdav/db/rostdav.sqlite"
 
+[limits]
+# Maximum size of a single upload in bytes (default: 16 GiB).
+# max_upload_bytes = 17179869184
+
 [log]
 # "json" for production, "pretty" for development.
 format = "json"

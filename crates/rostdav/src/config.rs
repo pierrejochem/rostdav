@@ -17,7 +17,23 @@ pub struct Config {
     pub server: Server,
     pub storage: Storage,
     pub database: Database,
+    pub limits: Limits,
     pub log: Log,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Limits {
+    /// Maximum size of a single upload in bytes.
+    pub max_upload_bytes: u64,
+}
+
+impl Default for Limits {
+    fn default() -> Self {
+        Self {
+            max_upload_bytes: 16 * 1024 * 1024 * 1024,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

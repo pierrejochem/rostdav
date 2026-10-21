@@ -19,6 +19,8 @@ pub enum Error {
     Forbidden,
     #[error("conflict: {0}")]
     Conflict(&'static str),
+    #[error("already exists")]
+    AlreadyExists,
     #[error("precondition failed")]
     PreconditionFailed,
     #[error("storage quota exceeded")]
