@@ -11,6 +11,7 @@ publish.workspace = true
 rostdav-core.workspace = true
 sqlx.workspace = true
 tracing.workspace = true
+ulid.workspace = true
 
 [dev-dependencies]
 tokio.workspace = true
