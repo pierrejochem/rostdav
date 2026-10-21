@@ -34,6 +34,10 @@ pub struct Node {
     pub etag: String,
     pub blob_id: Option<String>,
     pub checksum: Option<String>,
+    /// Verbatim `OC-Checksum` sent by the client, e.g. `SHA1:…`.
+    pub client_checksum: Option<String>,
+    /// Unix time the content was stored; 0 if unknown.
+    pub upload_time: i64,
 }
 
 /// A blob that is already completely stored on disk.
@@ -61,7 +65,7 @@ pub struct Written {
     pub replaced: bool,
 }
 
-const COLS: &str = "id, owner_id, parent_id, name, kind, size, mtime, etag, blob_id, checksum";
+const COLS: &str = "id, owner_id, parent_id, name, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time";
 
 type Row = (
     i64,
@@ -74,6 +78,8 @@ type Row = (
     String,
     Option<String>,
     Option<String>,
+    Option<String>,
+    i64,
 );
 
 fn to_node(r: Row) -> Result<Node> {
@@ -93,6 +99,8 @@ fn to_node(r: Row) -> Result<Node> {
         etag: r.7,
         blob_id: r.8,
         checksum: r.9,
+        client_checksum: r.10,
+        upload_time: r.11,
     })
 }
 
@@ -345,6 +353,20 @@ impl Db {
         mtime: Option<i64>,
         cond: &WriteCondition,
     ) -> Result<Written> {
+        self.commit_file_ext(parent_id, name, blob, mtime, None, cond)
+            .await
+    }
+
+    /// Like [`commit_file`](Self::commit_file), also recording the client's checksum.
+    pub async fn commit_file_ext(
+        &self,
+        parent_id: i64,
+        name: &Name,
+        blob: &NewBlob,
+        mtime: Option<i64>,
+        client_checksum: Option<&str>,
+        cond: &WriteCondition,
+    ) -> Result<Written> {
         let now = now_secs();
         let mtime = mtime.unwrap_or(now);
         let mut tx = self.write_tx().await?;
@@ -375,7 +397,8 @@ impl Db {
         let (id, delta, replaced) = match existing {
             Some(old) => {
                 sqlx::query(
-                    "UPDATE nodes SET size = ?, mtime = ?, etag = ?, blob_id = ?, checksum = ?, updated_at = ?
+                    "UPDATE nodes SET size = ?, mtime = ?, etag = ?, blob_id = ?, checksum = ?, client_checksum = ?,
+                     upload_time = ?, updated_at = ?
                      WHERE id = ?",
                 )
                 .bind(blob.size)
@@ -383,6 +406,8 @@ impl Db {
                 .bind(new_etag())
                 .bind(&blob.id)
                 .bind(&blob.checksum)
+                .bind(client_checksum)
+                .bind(now)
                 .bind(now)
                 .bind(old.id)
                 .execute(&mut *tx)
@@ -392,8 +417,8 @@ impl Db {
             }
             None => {
                 let id: i64 = sqlx::query_scalar(
-                    "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, size, mtime, etag, blob_id, checksum, created_at, updated_at)
-                     VALUES (?, ?, ?, ?, 'file', ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                    "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, 'file', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
                 )
                 .bind(parent.owner_id)
                 .bind(parent.id)
@@ -404,6 +429,8 @@ impl Db {
                 .bind(new_etag())
                 .bind(&blob.id)
                 .bind(&blob.checksum)
+                .bind(client_checksum)
+                .bind(now)
                 .bind(now)
                 .bind(now)
                 .fetch_one(&mut *tx)
@@ -590,8 +617,8 @@ async fn copy_one(
         NodeKind::Dir => "dir",
     };
     sqlx::query_scalar(
-        "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, size, mtime, etag, blob_id, checksum, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(src.owner_id)
     .bind(parent)
@@ -603,6 +630,8 @@ async fn copy_one(
     .bind(new_etag())
     .bind(&src.blob_id)
     .bind(&src.checksum)
+    .bind(&src.client_checksum)
+    .bind(if src.kind == NodeKind::File { now } else { 0 })
     .bind(now)
     .bind(now)
     .fetch_one(conn)

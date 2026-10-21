@@ -7,7 +7,7 @@ mod auth;
 mod nodes;
 mod users;
 
-pub use auth::{AppPassword, LoginFlow, PollResult};
+pub use auth::{AppPassword, LoginFlow, MAX_UPLOAD_SESSIONS_PER_USER, PollResult, UploadSession};
 pub use nodes::{NewBlob, Node, NodeKind, WriteCondition, Written};
 pub use users::{NewUser, User};
 

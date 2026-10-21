@@ -28,6 +28,19 @@ pub struct LoginFlow {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UploadSession {
+    pub id: i64,
+    pub user_id: i64,
+    pub transfer_id: String,
+    /// Directory name below `<data>/uploads/`.
+    pub dir: String,
+    pub created_at: i64,
+}
+
+/// Open chunked-upload sessions allowed per user.
+pub const MAX_UPLOAD_SESSIONS_PER_USER: i64 = 200;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PollResult {
     /// Unknown, expired or not yet granted.
     Pending,
@@ -226,6 +239,98 @@ impl Db {
         )
     }
 
+    // ---- chunked upload sessions ---------------------------------------------
+
+    /// Registers a session; [`Error::AlreadyExists`] if the transfer ID is in use.
+    pub async fn create_upload_session(
+        &self,
+        user_id: i64,
+        transfer_id: &str,
+        dir: &str,
+    ) -> Result<UploadSession> {
+        let open: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM upload_sessions WHERE user_id = ?")
+                .bind(user_id)
+                .fetch_one(self.pool())
+                .await
+                .map_err(err)?;
+        if open >= MAX_UPLOAD_SESSIONS_PER_USER {
+            return Err(Error::Conflict("too many open uploads"));
+        }
+        let created_at = now_secs();
+        let id: i64 = sqlx::query_scalar(
+            "INSERT INTO upload_sessions (user_id, transfer_id, dir, created_at) VALUES (?, ?, ?, ?) RETURNING id",
+        )
+        .bind(user_id)
+        .bind(transfer_id)
+        .bind(dir)
+        .bind(created_at)
+        .fetch_one(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(UploadSession {
+            id,
+            user_id,
+            transfer_id: transfer_id.to_owned(),
+            dir: dir.to_owned(),
+            created_at,
+        })
+    }
+
+    pub async fn find_upload_session(
+        &self,
+        user_id: i64,
+        transfer_id: &str,
+    ) -> Result<Option<UploadSession>> {
+        let row: Option<(i64, String, i64)> = sqlx::query_as(
+            "SELECT id, dir, created_at FROM upload_sessions WHERE user_id = ? AND transfer_id = ?",
+        )
+        .bind(user_id)
+        .bind(transfer_id)
+        .fetch_optional(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(row.map(|(id, dir, created_at)| UploadSession {
+            id,
+            user_id,
+            transfer_id: transfer_id.to_owned(),
+            dir,
+            created_at,
+        }))
+    }
+
+    pub async fn delete_upload_session(&self, id: i64) -> Result<()> {
+        sqlx::query("DELETE FROM upload_sessions WHERE id = ?")
+            .bind(id)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(())
+    }
+
+    /// Sessions created before `cutoff` (unix seconds).
+    pub async fn upload_sessions_older_than(&self, cutoff: i64) -> Result<Vec<UploadSession>> {
+        let rows: Vec<(i64, i64, String, String, i64)> = sqlx::query_as(
+            "SELECT id, user_id, transfer_id, dir, created_at FROM upload_sessions WHERE created_at < ?",
+        )
+        .bind(cutoff)
+        .fetch_all(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(rows
+            .into_iter()
+            .map(
+                |(id, user_id, transfer_id, dir, created_at)| UploadSession {
+                    id,
+                    user_id,
+                    transfer_id,
+                    dir,
+                    created_at,
+                },
+            )
+            .collect())
+    }
+
     pub async fn find_user_by_id(&self, id: i64) -> Result<Option<crate::User>> {
         let row: Option<(i64, String, String, bool)> =
             sqlx::query_as("SELECT id, name, password_hash, is_admin FROM users WHERE id = ?")
@@ -352,6 +457,49 @@ mod tests {
             .await
             .expect("force");
         assert_eq!(db.poll_flow("p").await.expect("poll"), PollResult::Pending);
+    }
+
+    #[tokio::test]
+    async fn upload_sessions_unique_per_user_and_expire() {
+        let (_d, db) = test_db().await;
+        let (a, b) = (user(&db, "anna").await, user(&db, "bob").await);
+        let dir = |c: char| c.to_string().repeat(26);
+        let s = db
+            .create_upload_session(a, "t1", &dir('A'))
+            .await
+            .expect("create");
+        assert!(matches!(
+            db.create_upload_session(a, "t1", &dir('B')).await,
+            Err(Error::AlreadyExists)
+        ));
+        db.create_upload_session(b, "t1", &dir('C'))
+            .await
+            .expect("other user, same transfer id");
+        assert_eq!(
+            db.find_upload_session(a, "t1").await.expect("f"),
+            Some(s.clone())
+        );
+        assert!(
+            db.find_upload_session(a, "nope")
+                .await
+                .expect("f")
+                .is_none()
+        );
+        assert_eq!(
+            db.upload_sessions_older_than(s.created_at + 1)
+                .await
+                .expect("old")
+                .len(),
+            2
+        );
+        assert!(
+            db.upload_sessions_older_than(s.created_at - 1)
+                .await
+                .expect("old")
+                .is_empty()
+        );
+        db.delete_upload_session(s.id).await.expect("del");
+        assert!(db.find_upload_session(a, "t1").await.expect("f").is_none());
     }
 
     #[tokio::test]

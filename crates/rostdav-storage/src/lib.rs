@@ -18,8 +18,10 @@ use rostdav_core::{Error, Result};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
 mod blob;
+mod chunks;
 
 pub use blob::{BlobId, StoredBlob};
+pub use chunks::{ChunkInfo, ChunkName};
 
 const SUBDIRS: [&str; 4] = ["blobs", "tmp", "uploads", "db"];
 
@@ -50,7 +52,7 @@ impl LocalStore {
     }
 
     /// Physical path of a blob: `blobs/<id[0..2]>/<id[2..4]>/<id>`.
-    fn blob_path(&self, id: &BlobId) -> PathBuf {
+    pub(crate) fn blob_path(&self, id: &BlobId) -> PathBuf {
         let s = id.as_str();
         self.root
             .join("blobs")
@@ -107,6 +109,18 @@ impl LocalStore {
             hasher.update(&buf[..n]);
             file.write_all(&buf[..n]).await.map_err(Error::internal)?;
         }
+        self.finish_blob(file, tmp, id, hasher, size).await
+    }
+
+    /// fsync, atomic rename into `blobs/`, fsync of the directory.
+    pub(crate) async fn finish_blob(
+        &self,
+        mut file: tokio::fs::File,
+        tmp: &Path,
+        id: &BlobId,
+        hasher: blake3::Hasher,
+        size: u64,
+    ) -> Result<StoredBlob> {
         file.flush().await.map_err(Error::internal)?;
         file.sync_all().await.map_err(Error::internal)?;
         drop(file);
@@ -205,7 +219,7 @@ impl LocalStore {
 }
 
 /// `fsync` on a directory so the `rename` survives a crash.
-async fn sync_dir(dir: &Path) -> Result<()> {
+pub(crate) async fn sync_dir(dir: &Path) -> Result<()> {
     #[cfg(unix)]
     {
         let d = tokio::fs::File::open(dir).await.map_err(Error::internal)?;
