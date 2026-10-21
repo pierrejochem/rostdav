@@ -1,6 +1,6 @@
 # ADR 0002: Speichermodell für Dateien und Metadaten
 
-- Status: **Vorgeschlagen** (Freigabepunkt 2)
+- Status: **Akzeptiert** (Freigabepunkt 2, 2026-10-21)
 - Datum: 2026-10-21
 
 ## Kontext

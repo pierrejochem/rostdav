@@ -9,6 +9,8 @@ publish.workspace = true
 
 [dependencies]
 thiserror.workspace = true
+unicode-normalization.workspace = true
+percent-encoding.workspace = true
 
 [lints]
 workspace = true

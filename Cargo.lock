@@ -1314,7 +1314,9 @@ dependencies = [
 name = "rostdav-core"
 version = "0.1.0"
 dependencies = [
+ "percent-encoding",
  "thiserror",
+ "unicode-normalization",
 ]
 
 [[package]]

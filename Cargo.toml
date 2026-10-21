@@ -43,6 +43,8 @@ tower-http = { version = "0.6", features = ["trace", "request-id", "sensitive-he
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
 tempfile = "3"
+unicode-normalization = "0.1"
+percent-encoding = "2"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
