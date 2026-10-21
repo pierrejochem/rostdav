@@ -1,0 +1,100 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PROPFIND",
+    "path": "/remote.php/dav/files/admin/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/xml",
+      "Depth": "0"
+    },
+    "body": {
+      "length": 471,
+      "sha256": "5715c4bff8b0723f46eda9b6a6268329c02d1b7f8ebc85b655e784b4a9aa0e96",
+      "text": "<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:prop><d:getlastmodified/><d:getcontentlength/><d:getcontenttype/><d:resourcetype/><d:getetag/><oc:id/><oc:fileid/><oc:size/><oc:permissions/><oc:favorite/><oc:owner-id/><oc:owner-display-name/><oc:share-types/><oc:checksums/><oc:downloadURL/><nc:has-preview/><nc:mount-type/><nc:is-encrypted/><nc:creation_time/><nc:upload_time/></d:prop></d:propfind>"
+    }
+  },
+  "response": {
+    "status": 401,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:13 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "WWW-Authenticate",
+        "Basic realm=\"Nextcloud\", charset=\"UTF-8\""
+      ],
+      [
+        "Content-Length",
+        "630"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 630,
+      "sha256": "6fc77989d8eb7c9d97961e217359c4a27adbb74ad89b406437cc6f1daa4b5b01",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\NotAuthenticated</s:exception>\n  <s:message>No public access to this resource., AppAPIAuth has not passed, This request is not for a federated calendar, No 'Authorization: Basic' header found. Either the client didn't send one, or the server is misconfigured, No 'Authorization: Bearer' header found. Either the client didn't send one, or the server is mis-configured, No 'Authorization: Basic' header found. Either the client didn't send one, or the server is misconfigured</s:message>\n</d:error>\n"
+    }
+  }
+}

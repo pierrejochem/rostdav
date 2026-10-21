@@ -1,0 +1,80 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/status.php",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:09 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Access-Control-Allow-Origin",
+        "*"
+      ],
+      [
+        "Content-Length",
+        "170"
+      ],
+      [
+        "Content-Type",
+        "application/json"
+      ]
+    ],
+    "body": {
+      "length": 170,
+      "sha256": "428aece0bf47248335ded01be7f77a3c1bee7d941953b3fadb174f9d8e98d21e",
+      "text": "{\"installed\":true,\"maintenance\":false,\"needsDbUpgrade\":false,\"version\":\"35.0.2.2\",\"versionstring\":\"35.0.2\",\"edition\":\"\",\"productname\":\"Nextcloud\",\"extendedSupport\":false}"
+    }
+  }
+}

@@ -1,0 +1,118 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v1.php/cloud/user?format=json",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:12 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "H30bjXaaLjxmjfD7NYyv"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "1241"
+      ],
+      [
+        "Content-Type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 1241,
+      "sha256": "464f312324441f3f388a9e074b2a479b48226eb785db366473c02761dc676c06",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":100,\"message\":\"OK\",\"totalitems\":\"\",\"itemsperpage\":\"\"},\"data\":{\"enabled\":true,\"storageLocation\":\"\\/var\\/www\\/html\\/data\\/admin\",\"id\":\"admin\",\"firstLoginTimestamp\":1792618093,\"lastLoginTimestamp\":1792618332,\"lastLogin\":1792618332000,\"backend\":\"Database\",\"subadmin\":[],\"quota\":{\"free\":-3,\"used\":65646160,\"total\":-3,\"relative\":0,\"quota\":-3},\"manager\":\"\",\"avatarScope\":\"v2-federated\",\"email\":null,\"emailScope\":\"v2-federated\",\"additional_mail\":[],\"additional_mailScope\":[],\"displayname\":\"admin\",\"display-name\":\"admin\",\"displaynameScope\":\"v2-federated\",\"phone\":\"\",\"phoneScope\":\"v2-local\",\"address\":\"\",\"addressScope\":\"v2-local\",\"website\":\"\",\"websiteScope\":\"v2-local\",\"twitter\":\"\",\"twitterScope\":\"v2-local\",\"bluesky\":\"\",\"blueskyScope\":\"v2-local\",\"fediverse\":\"\",\"fediverseScope\":\"v2-local\",\"organisation\":\"\",\"organisationScope\":\"v2-local\",\"role\":\"\",\"roleScope\":\"v2-local\",\"headline\":\"\",\"headlineScope\":\"v2-local\",\"biography\":\"\",\"biographyScope\":\"v2-local\",\"profile_enabled\":\"1\",\"profile_enabledScope\":\"v2-local\",\"pronouns\":\"\",\"pronounsScope\":\"v2-federated\",\"groups\":[\"admin\"],\"language\":\"en\",\"locale\":\"\",\"timezone\":\"UTC\",\"notify_email\":null,\"backendCapabilities\":{\"setDisplayName\":true,\"setPassword\":true}}}}"
+    }
+  }
+}

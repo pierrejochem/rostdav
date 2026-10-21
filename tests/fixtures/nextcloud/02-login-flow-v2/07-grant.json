@@ -1,0 +1,99 @@
+{
+  "synthetic_request": true,
+  "note": "browser step: the user presses 'Grant access'",
+  "request": {
+    "method": "POST",
+    "path": "/login/v2/grant",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/x-www-form-urlencoded",
+      "requesttoken": "<redacted>",
+      "Origin": "http://{{host}}",
+      "Referer": "http://{{host}}/login/v2/flow/{{flow_token}}",
+      "Cookie": "<redacted>"
+    },
+    "body": {
+      "length": 75,
+      "sha256": "00f612b9248154e52851ddec22068cfc6bc4cf8042868b7a75f95ee03329348f",
+      "text": "stateToken={{state_token}}"
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:11 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "8wwz0MSK7PWdVuruTAGY"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "17516"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 17516,
+      "sha256": "c246a379a38a073226d7c02fcedd3abd1f2eaf69e00b80d21c003f95e9f8d76a",
+      "omitted": true
+    }
+  }
+}

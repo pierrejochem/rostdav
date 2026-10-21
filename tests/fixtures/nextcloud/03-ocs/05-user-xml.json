@@ -1,0 +1,122 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v2.php/cloud/user",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:12 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "726uLgxnvXWy2kgPekGT"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "1926"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 1926,
+      "sha256": "722100c06bd9ca8eea40439c61cee605e375fe22e1d5fc4836794dd066687196",
+      "text": "<?xml version=\"1.0\"?>\n<ocs>\n <meta>\n  <status>ok</status>\n  <statuscode>200</statuscode>\n  <message>OK</message>\n </meta>\n <data>\n  <enabled>1</enabled>\n  <storageLocation>/var/www/html/data/admin</storageLocation>\n  <id>admin</id>\n  <firstLoginTimestamp>1792618093</firstLoginTimestamp>\n  <lastLoginTimestamp>1792618332</lastLoginTimestamp>\n  <lastLogin>1792618332000</lastLogin>\n  <backend>Database</backend>\n  <subadmin/>\n  <quota>\n   <free>-3</free>\n   <used>65646160</used>\n   <total>-3</total>\n   <relative>0</relative>\n   <quota>-3</quota>\n  </quota>\n  <manager></manager>\n  <avatarScope>v2-federated</avatarScope>\n  <email/>\n  <emailScope>v2-federated</emailScope>\n  <additional_mail/>\n  <additional_mailScope/>\n  <displayname>admin</displayname>\n  <display-name>admin</display-name>\n  <displaynameScope>v2-federated</displaynameScope>\n  <phone></phone>\n  <phoneScope>v2-local</phoneScope>\n  <address></address>\n  <addressScope>v2-local</addressScope>\n  <website></website>\n  <websiteScope>v2-local</websiteScope>\n  <twitter></twitter>\n  <twitterScope>v2-local</twitterScope>\n  <bluesky></bluesky>\n  <blueskyScope>v2-local</blueskyScope>\n  <fediverse></fediverse>\n  <fediverseScope>v2-local</fediverseScope>\n  <organisation></organisation>\n  <organisationScope>v2-local</organisationScope>\n  <role></role>\n  <roleScope>v2-local</roleScope>\n  <headline></headline>\n  <headlineScope>v2-local</headlineScope>\n  <biography></biography>\n  <biographyScope>v2-local</biographyScope>\n  <profile_enabled>1</profile_enabled>\n  <profile_enabledScope>v2-local</profile_enabledScope>\n  <pronouns></pronouns>\n  <pronounsScope>v2-federated</pronounsScope>\n  <groups>\n   <element>admin</element>\n  </groups>\n  <language>en</language>\n  <locale></locale>\n  <timezone>UTC</timezone>\n  <notify_email/>\n  <backendCapabilities>\n   <setDisplayName>1</setDisplayName>\n   <setPassword>1</setPassword>\n  </backendCapabilities>\n </data>\n</ocs>\n"
+    }
+  }
+}

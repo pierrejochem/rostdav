@@ -1,0 +1,116 @@
+{
+  "synthetic_request": true,
+  "note": "WebDAV SEARCH probe",
+  "request": {
+    "method": "SEARCH",
+    "path": "/remote.php/dav/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "text/xml",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 54,
+      "sha256": "e431ad95ad15896f6f516dc53591ec1b60d7509e58e08da42c56f6015025d011",
+      "text": "<?xml version=\"1.0\"?><d:searchrequest xmlns:d=\"DAV:\"/>"
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:18 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "X-Request-Id",
+        "tdVpNTpmofbR8ZDk1Pii"
+      ],
+      [
+        "Content-Length",
+        "63"
+      ],
+      [
+        "Connection",
+        "close"
+      ],
+      [
+        "Content-Type",
+        "text/html; charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 63,
+      "sha256": "f52b184b3aae2ae61a00045d4bd5d63e1ebe8133ff41db6c19933c3c45e9a67c",
+      "omitted": true
+    }
+  }
+}

@@ -1,0 +1,119 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PROPFIND",
+    "path": "/remote.php/dav/uploads/admin/rec-transfer-1",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/xml",
+      "Depth": "1",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:18 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Vary",
+        "Brief,Prefer"
+      ],
+      [
+        "DAV",
+        "1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, nc-paginate, nextcloud-checksum-update, nc-calendar-search, nc-enable-birthday-calendar, 2"
+      ],
+      [
+        "X-Request-Id",
+        "yHeuPle4YW76du58Pikj"
+      ],
+      [
+        "Content-Length",
+        "1711"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 1711,
+      "sha256": "f9f2b5433245fcf0dba5d8cf2342905aea48b191f89bd2b9b0ecc11347fe372b",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/uploads/admin/rec-transfer-1/</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 21:32:18 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/uploads/admin/rec-transfer-1/.file</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 21:32:18 GMT</d:getlastmodified><d:getcontentlength>20</d:getcontentlength><d:resourcetype/><d:getetag>&quot;6ad92f62a9b71&quot;</d:getetag><d:getcontenttype>application/octet-stream</d:getcontenttype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/uploads/admin/rec-transfer-1/00001</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 21:32:18 GMT</d:getlastmodified><d:getcontentlength>10</d:getcontentlength><d:resourcetype/><d:getetag>&quot;1f30978e64d622ec9608f41902d8f400&quot;</d:getetag><d:getcontenttype>application/octet-stream</d:getcontenttype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/uploads/admin/rec-transfer-1/00002</d:href><d:propstat><d:prop><d:getlastmodified>Wed, 21 Oct 2026 21:32:18 GMT</d:getlastmodified><d:getcontentlength>10</d:getcontentlength><d:resourcetype/><d:getetag>&quot;524713e317c5c5f4dfd7dd5bf1fcdff5&quot;</d:getetag><d:getcontenttype>application/octet-stream</d:getcontenttype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}

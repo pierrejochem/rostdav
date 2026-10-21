@@ -32,7 +32,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 
 ## Phase 3: App compatibility (P1)
 
-### M3 – Reference recordings
+### M3 – Reference recordings (server side done 2026-10-21; app side open)
 - Nextcloud (same major version as emulated) in Docker, reference app in the Android emulator, record traffic with mitmproxy
 - Flows: add server, Login Flow v2, open folder, upload small/large, download, rename, move, delete, sign out
 - Sanitized fixtures to `tests/fixtures/nextcloud/`, findings with sources in `docs/compatibility.md`

@@ -1,0 +1,126 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v2.php/cloud/capabilities",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:11 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "s7YniughCCWLGk1gNkfY"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "ETag",
+        "\"d94244ae6d97f7ccd65ef2bdcc49871f\""
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "10990"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 10990,
+      "sha256": "8f9d3f803bf8da3a9a725c60ce1c7630ab24a46836f540d3e1070932c264e10a",
+      "text": "<?xml version=\"1.0\"?>\n<ocs>\n <meta>\n  <status>ok</status>\n  <statuscode>200</statuscode>\n  <message>OK</message>\n </meta>\n <data>\n  <version>\n   <major>35</major>\n   <minor>0</minor>\n   <micro>2</micro>\n   <string>35.0.2</string>\n   <edition></edition>\n   <extendedSupport></extendedSupport>\n  </version>\n  <capabilities>\n   <core>\n    <pollinterval>60</pollinterval>\n    <webdav-root>remote.php/webdav</webdav-root>\n    <reference-api>1</reference-api>\n    <reference-regex>(\\s|\\n|^)(https?:\\/\\/)([-A-Z0-9+_.]+(?::[0-9]+)?(?:\\/[-A-Z0-9+&amp;@#%?=~_|!:,.;()]*)*)(\\s|\\n|$)</reference-regex>\n    <mod-rewrite-working>1</mod-rewrite-working>\n    <user>\n     <language></language>\n     <locale></locale>\n     <timezone>UTC</timezone>\n    </user>\n    <can-create-app-token>1</can-create-app-token>\n   </core>\n   <bruteforce>\n    <delay>0</delay>\n    <allow-listed></allow-listed>\n   </bruteforce>\n   <activity>\n    <apiv2>\n     <element>filters</element>\n     <element>filters-api</element>\n     <element>previews</element>\n     <element>rich-strings</element>\n    </apiv2>\n   </activity>\n   <app_api>\n    <loglevel>2</loglevel>\n    <version>35.0.0</version>\n   </app_api>\n   <circles>\n    <version>35.0.0</version>\n    <status>\n     <globalScale></globalScale>\n    </status>\n    <settings>\n     <frontendEnabled>1</frontendEnabled>\n     <allowedCircles>524287</allowedCircles>\n     <allowedUserTypes>31</allowedUserTypes>\n     <membersLimit>-1</membersLimit>\n    </settings>\n    <circle>\n     <constants>\n      <flags>\n       <element>Single</element>\n       <element>Personal</element>\n       <element>System</element>\n       <element>Visible</element>\n       <element>Open</element>\n       <element>Invite</element>\n       <element>Join request</element>\n       <element>Friends</element>\n       <element>Password protected</element>\n       <element>No Owner</element>\n       <element>Hidden</element>\n       <element>Backend</element>\n       <element>Local</element>\n       <element>Root</element>\n       <element>Team invite</element>\n       <element>Federated</element>\n       <element>Mount point</element>\n       <element>App</element>\n       <element>SCIM</element>\n      </flags>\n      <source>\n       <core>\n        <element>Nextcloud Account</element>\n        <element>Nextcloud Group</element>\n        <element>Email address</element>\n        <element>Contact</element>\n        <element>Team</element>\n        <element>Nextcloud App</element>\n       </core>\n       <extra>\n        <element>Teams App</element>\n        <element>Admin Command Line</element>\n       </extra>\n      </source>\n     </constants>\n     <config>\n      <coreFlags>\n       <element>1</element>\n       <element>2</element>\n       <element>4</element>\n      </coreFlags>\n      <systemFlags>\n       <element>512</element>\n       <element>1024</element>\n       <element>2048</element>\n      </systemFlags>\n     </config>\n    </circle>\n    <member>\n     <constants>\n      <level>\n       <element>Member</element>\n       <element>Moderator</element>\n       <element>Admin</element>\n       <element>Owner</element>\n      </level>\n     </constants>\n     <type>\n      <element>single</element>\n      <element>user</element>\n      <element>group</element>\n      <element>mail</element>\n      <element>contact</element>\n      <element>circle</element>\n      <element>app</element>\n     </type>\n    </member>\n    <teamResourceProviders>\n     <element>files</element>\n    </teamResourceProviders>\n   </circles>\n   <files>\n    <comments>1</comments>\n    <!--\"blacklisted_files\" is deprecated as of Nextcloud 30, use \"forbidden_filenames\" instead-->\n    <blacklisted_files>\n     <element>.htaccess</element>\n    </blacklisted_files>\n    <forbidden_filenames>\n     <element>.htaccess</element>\n    </forbidden_filenames>\n    <forbidden_filename_basenames/>\n    <forbidden_filename_characters>\n     <element>\\</element>\n     <element>/</element>\n     <element>\n</element>\n    </forbidden_filename_characters>\n    <forbidden_filename_extensions>\n     <element>.filepart</element>\n     <element>.part</element>\n    </forbidden_filename_extensions>\n    <bigfilechunking>1</bigfilechunking>\n    <chunked_upload>\n     <max_size>104857600</max_size>\n     <max_parallel_count>5</max_parallel_count>\n    </chunked_upload>\n    <file_conversions/>\n    <windows_compatible_filenames></windows_compatible_filenames>\n    <directEditing>\n     <url>http://{{host}}/ocs/v2.php/apps/files/api/v1/directEditing</url>\n     <etag>a06de184638770e4a2c8945adac4ba91</etag>\n     <supportsFileId>1</supportsFileId>\n    </directEditing>\n    <locking>1.0</locking>\n    <api-feature-lock-type>1</api-feature-lock-type>\n    <undelete>1</undelete>\n    <delete_from_trash>1</delete_from_trash>\n    <versioning>1</versioning>\n    <version_labeling>1</version_labeling>\n    <version_deletion>1</version_deletion>\n   </files>\n   <dav>\n    <chunking>1.0</chunking>\n    <public_shares_chunking>1</public_shares_chunking>\n    <search_supports_creation_time>1</search_supports_creation_time>\n    <search_supports_upload_time>1</search_supports_upload_time>\n    <search_supports_last_activity>1</search_supports_last_activity>\n    <bulkupload>1.0</bulkupload>\n    <absence-supported>1</absence-supported>\n    <absence-replacement>1</absence-replacement>\n   </dav>\n   <downloadlimit>\n    <enabled>1</enabled>\n    <default-limit>-1</default-limit>\n   </downloadlimit>\n   <files_sharing>\n    <api_enabled>1</api_enabled>\n    <public>\n     <enabled>1</enabled>\n     <password>\n      <enforced></enforced>\n      <askForOptionalPassword></askForOptionalPassword>\n     </password>\n     <expire_date>\n      <enabled></enabled>\n     </expire_date>\n     <multiple_links>1</multiple_links>\n     <expire_date_internal>\n      <enabled></enabled>\n     </expire_date_internal>\n     <expire_date_remote>\n      <enabled></enabled>\n     </expire_date_remote>\n     <send_mail></send_mail>\n     <upload>1</upload>\n     <upload_files_drop>1</upload_files_drop>\n     <custom_tokens></custom_tokens>\n    </public>\n    <resharing>1</resharing>\n    <user>\n     <send_mail></send_mail>\n     <expire_date>\n      <enabled>1</enabled>\n     </expire_date>\n    </user>\n    <group_sharing>1</group_sharing>\n    <group>\n     <enabled>1</enabled>\n     <expire_date>\n      <enabled>1</enabled>\n     </expire_date>\n    </group>\n    <default_permissions>31</default_permissions>\n    <exclude_reshare_from_edit></exclude_reshare_from_edit>\n    <federation>\n     <outgoing>1</outgoing>\n     <incoming>1</incoming>\n     <expire_date>\n      <enabled>1</enabled>\n     </expire_date>\n     <expire_date_supported>\n      <enabled>1</enabled>\n     </expire_date_supported>\n    </federation>\n    <sharee>\n     <minSearchStringLength>0</minSearchStringLength>\n     <query_lookup_default></query_lookup_default>\n     <always_show_unique>1</always_show_unique>\n    </sharee>\n    <sharebymail>\n     <enabled>1</enabled>\n     <send_password_by_mail>1</send_password_by_mail>\n     <upload_files_drop>\n      <enabled>1</enabled>\n     </upload_files_drop>\n     <password>\n      <enabled>1</enabled>\n      <enforced></enforced>\n     </password>\n     <expire_date>\n      <enabled>1</enabled>\n      <enforced></enforced>\n     </expire_date>\n    </sharebymail>\n   </files_sharing>\n   <notifications>\n    <ocs-endpoints>\n     <element>list</element>\n     <element>get</element>\n     <element>delete</element>\n     <element>delete-all</element>\n     <element>icons</element>\n     <element>rich-strings</element>\n     <element>action-web</element>\n     <element>user-status</element>\n     <element>exists</element>\n     <element>test-push</element>\n     <element>list-filter</element>\n    </ocs-endpoints>\n    <push>\n     <element>devices</element>\n     <element>object-data</element>\n     <element>delete</element>\n    </push>\n    <admin-notifications>\n     <element>ocs</element>\n     <element>cli</element>\n    </admin-notifications>\n   </notifications>\n   <password_policy>\n    <api>\n     <generate>http://{{host}}/ocs/v2.php/apps/password_policy/api/v1/generate</generate>\n     <validate>http://{{host}}/ocs/v2.php/apps/password_policy/api/v1/validate</validate>\n    </api>\n    <policies>\n     <account>\n      <minLength>10</minLength>\n      <enforceHaveIBeenPwned>1</enforceHaveIBeenPwned>\n      <enforceNonCommonPassword>1</enforceNonCommonPassword>\n      <enforceNumericCharacters></enforceNumericCharacters>\n      <enforceSpecialCharacters></enforceSpecialCharacters>\n      <enforceUpperLowerCase></enforceUpperLowerCase>\n     </account>\n    </policies>\n    <minLength>10</minLength>\n    <enforceNonCommonPassword>1</enforceNonCommonPassword>\n    <enforceNumericCharacters></enforceNumericCharacters>\n    <enforceSpecialCharacters></enforceSpecialCharacters>\n    <enforceUpperLowerCase></enforceUpperLowerCase>\n   </password_policy>\n   <provisioning_api>\n    <version>2.0.0</version>\n    <AccountPropertyScopesVersion>2</AccountPropertyScopesVersion>\n    <AccountPropertyScopesFederatedEnabled>1</AccountPropertyScopesFederatedEnabled>\n    <AccountPropertyScopesPublishedEnabled></AccountPropertyScopesPublishedEnabled>\n   </provisioning_api>\n   <recommendations>\n    <enabled>1</enabled>\n   </recommendations>\n   <systemtags>\n    <enabled>1</enabled>\n   </systemtags>\n   <theming>\n    <name>Nextcloud</name>\n    <productName>Nextcloud</productName>\n    <url>https://nextcloud.com</url>\n    <imprintUrl></imprintUrl>\n    <privacyUrl></privacyUrl>\n    <slogan>a safe home for all your data</slogan>\n    <color>#00679e</color>\n    <color-text>#ffffff</color-text>\n    <color-element>#00679e</color-element>\n    <color-element-bright>#00679e</color-element-bright>\n    <color-element-dark>#00679e</color-element-dark>\n    <logo>http://{{host}}/core/img/logo/logo.svg?v=0</logo>\n    <background>http://{{host}}/apps/theming/img/background/jo-myoung-hee-fluid.webp</background>\n    <background-text>#ffffff</background-text>\n    <background-plain></background-plain>\n    <background-default>1</background-default>\n    <logoheader>http://{{host}}/core/img/logo/logo.svg?v=0</logoheader>\n    <favicon>http://{{host}}/core/img/logo/logo.svg?v=0</favicon>\n    <primaryColor>#00679e</primaryColor>\n    <backgroundColor>#00679e</backgroundColor>\n    <defaultPrimaryColor>#00679e</defaultPrimaryColor>\n    <defaultBackgroundColor>#00679e</defaultBackgroundColor>\n    <inverted></inverted>\n    <cacheBuster>68423728</cacheBuster>\n    <enabledThemes>\n     <element>default</element>\n    </enabledThemes>\n    <toastTimeout>7000</toastTimeout>\n    <toastTimeoutValues>\n     <element>7000</element>\n     <element>15000</element>\n     <element>30000</element>\n     <element>-1</element>\n    </toastTimeoutValues>\n   </theming>\n   <user_status>\n    <enabled>1</enabled>\n    <restore>1</restore>\n    <supports_emoji>1</supports_emoji>\n    <supports_busy>1</supports_busy>\n   </user_status>\n   <weather_status>\n    <enabled>1</enabled>\n   </weather_status>\n  </capabilities>\n </data>\n</ocs>\n"
+    }
+  }
+}

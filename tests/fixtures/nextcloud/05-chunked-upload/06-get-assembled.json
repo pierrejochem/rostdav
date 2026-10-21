@@ -1,0 +1,129 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/remote.php/dav/files/admin/Docs/chunked.bin",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:19 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Last-Modified",
+        "Tue, 14 Nov 2023 22:16:40 GMT"
+      ],
+      [
+        "ETag",
+        "\"6dec9f2765b9408fd7a96b0c6c0af2eb\""
+      ],
+      [
+        "Content-Length",
+        "20"
+      ],
+      [
+        "X-Request-Id",
+        "shDLXXEso0tDD43MwqyD"
+      ],
+      [
+        "OC-ETag",
+        "\"6dec9f2765b9408fd7a96b0c6c0af2eb\""
+      ],
+      [
+        "Content-Disposition",
+        "attachment; filename*=UTF-8''chunked.bin; filename=\"chunked.bin\""
+      ],
+      [
+        "X-Accel-Buffering",
+        "no"
+      ],
+      [
+        "Content-Type",
+        "application/x-bin"
+      ]
+    ],
+    "body": {
+      "length": 20,
+      "sha256": "91d64712ba9d8b9684e7231c65a152c928263a56550baba13baf21c83a00f792",
+      "text": "AAAAAAAAAABBBBBBBBBB"
+    }
+  }
+}

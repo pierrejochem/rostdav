@@ -1,0 +1,112 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "MOVE",
+    "path": "/remote.php/dav/files/admin/Docs/x.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Destination": "http://{{host}}/remote.php/dav/files/admin/Docs/gr%C3%BC%C3%9Fe%20%231.txt",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 204,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:17 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "OC-ETag",
+        "\"ca96d23ba6c31cfceffdda7164a19d06\""
+      ],
+      [
+        "ETag",
+        "\"ca96d23ba6c31cfceffdda7164a19d06\""
+      ],
+      [
+        "OC-FileId",
+        "00000130ocb0ngxhatbv"
+      ],
+      [
+        "X-Request-Id",
+        "30yKaoj7X4tsY4ArsijL"
+      ]
+    ],
+    "body": {
+      "empty": true
+    }
+  }
+}

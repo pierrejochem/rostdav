@@ -1,0 +1,137 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/index.php/avatar/admin/64",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Wed, 21 Oct 2026 21:32:19 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "lHEG2Z8gsjLgJCFvOW69"
+      ],
+      [
+        "Cache-Control",
+        "private, max-age=86400, immutable"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "Last-Modified",
+        "Wed, 21 Oct 2026 21:31:20 GMT"
+      ],
+      [
+        "ETag",
+        "\"d791ae79c8e373c8e34378166d8aa3df\""
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "X-NC-IsCustomAvatar",
+        "0"
+      ],
+      [
+        "Content-Disposition",
+        "inline; filename=\"avatar.64.png\""
+      ],
+      [
+        "Expires",
+        "Thu, 22 Oct 2026 21:32:19 GMT"
+      ],
+      [
+        "Content-Length",
+        "884"
+      ],
+      [
+        "Content-Type",
+        "image/png"
+      ]
+    ],
+    "body": {
+      "length": 884,
+      "sha256": "91b6e26811135bdca5e8497092b8ef631c7224f4bcff9bbf2ee525b859856d19",
+      "base64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAYAAACqaXHeAAAACXBIWXMAAA7EAAAOxAGVKw4bAAADJklEQVR4nO2a204TQRyHv7YslSLtigJGKXJIjKhE0Hhhote8g6/gA/kSXnnrE5gAnjUSbQHlJEh36bKUbtv1orDZJiUc7Mz/gvklTXa2M90v3xzSmWyiuueEXOAkpQGkYwRIA0jHCJAGkI4RIA0gHSNAGkA6RoA0gHSMAGkA6RgB0gDSMQKkAaRz4QV0ST24tl9m9e0rABKJJPmnz0mkLO0cYgKc4gJ7m4Wo7K58wh57qJ1DbAo4xfnWcmH+mJpqIyLA/1Og6pWaAF3dzXvbK1TL29pZRASUYr19bfJZdC0xCrQLaAQVyr+/AmBlsvTffkIimQLAWXoPYUMrj3YB7tIHGvUaAH037pDsStM7NAFAreJRXvuulUe7gFJs8cuO3Acgd2squqd7GmgVUCmtUSmtA2BlcmQGxgDIDt+LFkNvfZFapayNSauAeO/aYzPRdSJlkR2+C0AYhjjFd9qYtAkI6zXc5Y9R2R6dafk+LkTnNNAmYPfXZ+pBBYDMtRGsy/0t32cGx7EyOQCq3g7+1pIWLm0Cjhv+8dij023rq4wWAVXvL3uHPZpMWWTzU23r5WLTYvfXFxrBgXI2LQLivdk3PEnSSret1913lczVPACNeoC78rFtvU5G/W4wbLSs6v7WMsU3L4+tHvi70bVTmOfKxGOleMoFlNcWqVW8qBz4LoHvnqrt/s4qB+4m6dyQKjz1U8ApzP1ne7WLodIRUKt4eOuLUXli9gVWr31iO3flE+tzr4HmBmnwwWy0Yep0lI4Ap7hAGDZfQssM3CJtXydpXTrxY49ORwtlvbpPefWbMka1AmLD98r4o1O3S6QsciN6NkjKBPh/ilS9neZDrDTZ/P0ztbdjwryNHwS+01G+oygTED/1yeWnznzi29M/zKXY6u8UFzrGFo8SAfFTHwB7/HynvfFR4BQWgM6/1KpEgLv8gUY9ACCdHaDn8N/dWZMbnY5W/8B32dv42THGoygRUGrZ+Jz/rD/V3UPfzcm2v9upJMzL0hc8RoA0gHSMAGkA6RgB0gDSMQKkAaRjBEgDSMcIkAaQjhEgDSAdI0AaQDoXXsA/FFwDXJ/vge8AAAAASUVORK5CYII="
+    }
+  }
+}
