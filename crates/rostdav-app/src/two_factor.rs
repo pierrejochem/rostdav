@@ -758,9 +758,13 @@ mod tests {
     /// The code an authenticator app would show for a setup, and the base32 secret.
     fn current_code(setup: &TwoFactorSetup, offset: i64) -> String {
         let raw = decode_b32(&setup.secret);
+        // one base step per test binary: a 30 s boundary in the middle of a test must not turn
+        // "the same code again" into a new, valid code
+        static BASE: std::sync::OnceLock<i64> = std::sync::OnceLock::new();
+        let base = *BASE.get_or_init(now_step);
         format!(
             "{:06}",
-            hotp(&raw, u64::try_from(now_step() + offset).expect("step"))
+            hotp(&raw, u64::try_from(base + offset).expect("step"))
         )
     }
 
