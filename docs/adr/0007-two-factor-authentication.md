@@ -1,7 +1,7 @@
 # ADR 0007: Optional two-factor authentication (TOTP)
 
 - Status: **Proposed** (approval point 3: change to authentication)
-- Date: 2026-10-23
+- Date: 2026-10-22
 - Inputs: requirements in [instructions.md](../instructions.md) (P2, "Optional two-factor authentication"), [ADR 0003](0003-app-passwords-and-login-flow.md), [ADR 0006](0006-web-interface.md), the designs "Second factor" and the two-factor card on "Devices & security" in `design/mockups/web-ui/`.
 
 ## Context
