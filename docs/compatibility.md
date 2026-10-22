@@ -229,7 +229,7 @@ Server address entered as `http://10.0.2.2:8081`. The app was driven through `ad
 | Download 30 MB | `GET` 200, hash identical on the device | none |
 | Rename | `MOVE` 201 | none |
 | Delete | `DELETE` 204, file appears in `trashbin/<user>/trash` | none |
-| Favorite | `PROPPATCH` on the file answered 405 (`oc:favorite` was always 0, the Favorites tab needs `REPORT` `oc:filter-files`) | implemented, see Favorites below |
+| Favorite | `PROPPATCH` on the file answered 405 (`oc:favorite` was always 0, the Favorites tab needs `REPORT` `oc:filter-files`) | implemented, see Favorites below; seen with the app: `PROPPATCH` 207 on the folder, star and Favorites tab show it (the app did not send a `REPORT` in this run) |
 
 Both bugs were invisible to the contract tests because the fixtures contained neither request.
 
