@@ -22,6 +22,7 @@ mod shares;
 mod trash;
 mod uploads;
 mod versions;
+mod web;
 
 pub use access::{Access, MountView, Need, Origin, authorize_access};
 pub use admin::{Actor, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport};
@@ -36,6 +37,7 @@ pub use shares::{
 pub use trash::{TrashEntry, TrashOptions};
 pub use uploads::UploadListing;
 pub use versions::{VersionEntry, VersionListing, VersioningOptions};
+pub use web::{UsageOverview, WebOptions, WebSession};
 
 use rostdav_core::Result;
 use rostdav_meta::Db;
@@ -71,6 +73,7 @@ struct AppConfig {
     audit: AuditOptions,
     versioning: VersioningOptions,
     trash: TrashOptions,
+    web: WebOptions,
 }
 
 /// Operating limits.
@@ -147,6 +150,15 @@ impl AppState {
     pub fn with_versioning(self, versioning: VersioningOptions) -> Self {
         let config = AppConfig {
             versioning,
+            ..self.inner.config.clone()
+        };
+        self.reconfigured(config)
+    }
+
+    #[must_use]
+    pub fn with_web(self, web: WebOptions) -> Self {
+        let config = AppConfig {
+            web,
             ..self.inner.config.clone()
         };
         self.reconfigured(config)

@@ -427,6 +427,10 @@ impl AppState {
         self.purge_old_events().await?;
         self.cleanup_versions().await?;
         self.cleanup_trash().await?;
+        self.inner
+            .db
+            .purge_sessions(self.inner.config.web.idle_secs)
+            .await?;
         let ids = self.inner.db.delete_unreferenced_blobs().await?;
         for id in &ids {
             self.inner.store.delete_blob(&BlobId::parse(id)?).await?;
