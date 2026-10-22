@@ -2892,11 +2892,17 @@ fn totp_now(secret_b32: &str, offset: i64) -> String {
             key.push(((buf >> bits) & 0xff) as u8);
         }
     }
-    let step = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .expect("time")
-        .as_secs()
-        / 30;
+    // One base step for the whole test binary (it runs for seconds, well inside the
+    // server's +-1 step window), so a 30 s boundary in the middle of a test cannot turn
+    // "the same code again" into a new, valid code.
+    static BASE: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+    let step = *BASE.get_or_init(|| {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("time")
+            .as_secs()
+            / 30
+    });
     let counter = u64::try_from(i64::try_from(step).expect("step") + offset).expect("counter");
     let mut m = <Hmac<sha1::Sha1> as Mac>::new_from_slice(&key).expect("key");
     m.update(&counter.to_be_bytes());
