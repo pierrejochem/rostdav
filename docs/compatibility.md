@@ -233,6 +233,7 @@ Server address entered as `http://10.0.2.2:8081`. The app was driven through `ad
 | Capabilities | The app's parser throws `No value for bigfilechunking` and then stores **no** capabilities at all (so undelete, versioning and sharing options stay off). Reference sends `files.bigfilechunking: true` | `files.bigfilechunking: false` added (old chunking is not implemented, only v2); test in `tests/signin.rs`; capabilities parse now ("Get Capabilities completed") |
 | Share with a user | Sharee search (`sharees`) finds bob; `POST shares`, `GET/PUT shares/1` all 200; bob sees `/Docs` (permissions 15) in `shared_with_me`, lists it and writes `from-bob.txt` into it; the owner sees the new file | none |
 | Trash in the app | After the capabilities fix the left sidebar still has no "Deleted files" entry (the app version may hide it or it lives elsewhere); trash restore through the app is **not verified**; the trashbin is covered by `tests/trash.rs` against reference fixtures | open |
+| Login Flow with 2FA | Account with two-factor on: the flow page asks user and password, then "Confirm your sign-in" with the six-digit code; after the code "Device connected"; closing the tab, the app lists the account's files. The account password alone on WebDAV answers 401 (ADR 0007) | none |
 
 Both bugs were invisible to the contract tests because the fixtures contained neither request.
 
