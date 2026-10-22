@@ -275,6 +275,8 @@ async fn pages_carry_security_headers_and_no_inline_style() {
         assert_eq!(r.h("x-frame-options"), "DENY");
         assert_eq!(r.h("x-content-type-options"), "nosniff");
         assert_eq!(r.h("cache-control"), "no-store");
+        // `no-referrer` would make browsers send `Origin: null` on form posts
+        assert_eq!(r.h("referrer-policy"), "same-origin");
         let html = r.text();
         assert!(!html.contains("<style"), "inline style block");
         assert!(!html.contains(" style="), "inline style attribute");

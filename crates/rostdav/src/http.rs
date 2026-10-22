@@ -81,7 +81,9 @@ pub fn router_with(state: AppState, opts: &HttpOptions) -> Router {
             header::X_CONTENT_TYPE_OPTIONS,
             HeaderValue::from_static("nosniff"),
         ))
-        .layer(SetResponseHeaderLayer::overriding(
+        // not overriding: web pages send `same-origin`, because with `no-referrer`
+        // browsers put `Origin: null` on form posts and the same-origin check fails
+        .layer(SetResponseHeaderLayer::if_not_present(
             header::REFERRER_POLICY,
             HeaderValue::from_static("no-referrer"),
         ));
