@@ -1,0 +1,30 @@
+# Live development: edit the code on the host, the server rebuilds and restarts
+# (like a Vite dev server, but for Rust).
+#
+#   docker compose -f compose.dev.yaml up --build
+#   open http://localhost:8080   (user: demo, password: korrekt-pferd-batterie)
+#
+# Data lives in the named volume `rostdav-data`; `down -v` resets it.
+services:
+  rostdav:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    ports:
+      - "8080:8080"
+    environment:
+      ROSTDAV_SERVER__LISTEN: "0.0.0.0:8080"
+      ROSTDAV_STORAGE__DATA_DIR: /data
+      ROSTDAV_LOG__FORMAT: pretty
+      ROSTDAV_LOG__LEVEL: info,rostdav=debug
+    volumes:
+      - .:/app
+      - rostdav-data:/data
+      - cargo-registry:/usr/local/cargo/registry
+      # build output stays in a volume: fast and not mixed with host builds
+      - cargo-target:/app/target
+
+volumes:
+  rostdav-data:
+  cargo-registry:
+  cargo-target:

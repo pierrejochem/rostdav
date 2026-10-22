@@ -51,6 +51,13 @@ Walks the directory without following symbolic links (they are skipped and repor
 
 Command line > environment (`ROSTDAV_*`) > configuration file > database (UI) > defaults. Values from the upper levels are read-only in the UI and marked as "set by configuration".
 
+## Web sessions
+
+Browser sessions live in the `sessions` table (token hash only). Set the lifetimes in `[web]`:
+`session_idle_hours` (default 8) and `session_max_days` (default 14). Disabling a user ends
+their browser sessions at the next request; expired sessions are removed by the garbage run.
+Users can end their other sessions on the Devices page.
+
 ## Event log
 
 Fields: timestamp, actor, action, target, IP, details as JSON. Never file contents, passwords or tokens. Export as JSON Lines (`rostdav admin audit export`):

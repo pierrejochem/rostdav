@@ -44,6 +44,12 @@ data_dir = "./data"
 # Items older than this many days are deleted for good (0 = keep until emptied).
 # retention_days = 30
 
+[web]
+# Browser sessions of the web interface end after this many hours without activity ...
+# session_idle_hours = 8
+# ... or after this many days at the latest.
+# session_max_days = 14
+
 [limits]
 # Maximum size of a single upload in bytes (default: 16 GiB).
 # max_upload_bytes = 17179869184

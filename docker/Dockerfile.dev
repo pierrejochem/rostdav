@@ -1,0 +1,10 @@
+# Development image: Rust toolchain plus cargo-watch. The source is bind-mounted
+# by compose.dev.yaml, so nothing of the project is copied into the image.
+FROM rust:1-bookworm
+
+RUN cargo install cargo-watch --locked \
+    && rm -rf /usr/local/cargo/registry
+WORKDIR /app
+COPY docker/dev-entrypoint.sh /usr/local/bin/dev-entrypoint.sh
+RUN chmod +x /usr/local/bin/dev-entrypoint.sh
+ENTRYPOINT ["dev-entrypoint.sh"]

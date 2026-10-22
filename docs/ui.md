@@ -27,6 +27,33 @@ The `.dc.html` files are sources of the design canvas and need its runtime (`sup
 
 Avoid collisions with Nextcloud paths that the apps call: check the UI routes against `docs/compatibility.md` before M11.
 
+## Implemented (slice 11a, ADR 0006)
+
+| Route | Page |
+|---|---|
+| `/login`, `POST /logout` | Sign-in with account password, sign-out |
+| `/files[/<path>]`, `/download/<path>`, `/action/{mkdir,upload,delete}` | Files: browse, download, new folder, upload, delete (confirm page) |
+| `/trash`, `/trash/{restore,delete,empty}` | Trash: restore, permanent delete, empty (confirm pages) |
+| `/devices`, `/devices/{create,revoke,sign-out-others}` | App passwords (shown once), browser sessions |
+| `/settings`, `POST /settings/theme` | Theme (system/light/dark), WebDAV address, storage overview |
+| `/s/<token>`, `/s/<token>/{unlock,dl,upload}` | Public link page: list, download, password form, upload |
+| `/login/v2/flow/<token>` | Connect device (Login Flow v2) |
+| `/static/{app,login}.css` | Embedded stylesheets |
+
+Route check against `docs/compatibility.md`: none of these paths is used by the Nextcloud apps' WebDAV, OCS or `status.php` calls. `/s/<token>` is the address Nextcloud itself uses for public links, so links created through the OCS API open in this page.
+
+Security properties (each has a test in `crates/rostdav/tests/web.rs`):
+
+- Session cookie `rostdav_session`: random 256-bit value, stored only as a hash, `HttpOnly`, `SameSite=Lax`, `Secure` behind HTTPS (`X-Forwarded-Proto`). Accepted on web routes only, never on WebDAV or OCS.
+- Every state-changing request needs a same-origin `Origin`/`Referer` and a CSRF token bound to the session. Anonymous forms (sign-in, link password, link upload) use a double-submit cookie.
+- Content-Security-Policy `default-src 'none'; style-src 'self'; …`: no inline styles or scripts. All user-controlled text is HTML-escaped.
+- Downloads are always `attachment` with `nosniff` and `sandbox`.
+- Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
+
+Not yet: Settings for language/profile, share dialog, version panel, chunked browser upload, administration pages, second factor (slices 11b–11d, M12).
+
+Development with live reload: `docker compose -f compose.dev.yaml up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
+
 ## Design-Tokens
 
 - All colors come from `tokens.css`; templates use only `var(--…)`.

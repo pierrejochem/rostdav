@@ -8,7 +8,7 @@ A lean, self-hosted file server in Rust with WebDAV that works with the official
 
 ## Status
 
-**Phase 4, M0–M5 and M7–M10 implemented:** runnable server with WebDAV (RFC 4918 class 1) under `/remote.php/dav/files/<user>/`, `status.php`, OCS capabilities and user endpoints, Login Flow v2 with app passwords, and rate limiting on all sign-in paths. The Nextcloud WebDAV extensions (`oc:`/`nc:` properties, upload headers, chunked upload v2, quota) are in (M5); administration (users, consistency check, import, event log) works from the CLI (M7), and overwritten files keep versions with restore through the Nextcloud versions endpoint (M8), and folders can be shared with other users or through public links (M9). Deleted files go to a trash with restore (M10). The test with the real app (M6) is deferred to the end. Progress: [docs/plan.md](docs/plan.md).
+**Phase 4, M0–M5 and M7–M10 implemented:** runnable server with WebDAV (RFC 4918 class 1) under `/remote.php/dav/files/<user>/`, `status.php`, OCS capabilities and user endpoints, Login Flow v2 with app passwords, and rate limiting on all sign-in paths. The Nextcloud WebDAV extensions (`oc:`/`nc:` properties, upload headers, chunked upload v2, quota) are in (M5); administration (users, consistency check, import, event log) works from the CLI (M7), and overwritten files keep versions with restore through the Nextcloud versions endpoint (M8), and folders can be shared with other users or through public links (M9). Deleted files go to a trash with restore (M10). A first web interface (M11a) offers sign-in, files, trash, devices, settings and public link pages. The test with the real app (M6) is deferred to the end. Progress: [docs/plan.md](docs/plan.md).
 
 ## Quick start
 
@@ -18,6 +18,8 @@ cargo run -p rostdav -- serve
 curl http://127.0.0.1:8080/healthz      # {"status":"ok"}
 curl http://127.0.0.1:8080/readyz       # {"status":"ok"}
 ```
+
+Live development in Docker (rebuilds and restarts on every code change): `docker compose -f compose.dev.yaml up --build`, then open <http://localhost:8080> (user `demo`, password `korrekt-pferd-batterie`; development only).
 
 With [`just`](https://github.com/casey/just): `just run`, `just check`, `just smoke`. IDE setup and workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
 

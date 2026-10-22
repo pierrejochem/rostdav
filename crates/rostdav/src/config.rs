@@ -22,6 +22,7 @@ pub struct Config {
     pub audit: Audit,
     pub versioning: Versioning,
     pub trash: Trash,
+    pub web: Web,
     pub log: Log,
 }
 
@@ -39,6 +40,24 @@ impl Default for Trash {
         Self {
             enabled: true,
             retention_days: 30,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Web {
+    /// A browser session ends after this many hours without activity (at least 1).
+    pub session_idle_hours: u32,
+    /// A browser session ends after this many days regardless of activity (at least 1).
+    pub session_max_days: u32,
+}
+
+impl Default for Web {
+    fn default() -> Self {
+        Self {
+            session_idle_hours: 8,
+            session_max_days: 14,
         }
     }
 }
