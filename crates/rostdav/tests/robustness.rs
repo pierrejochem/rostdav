@@ -301,10 +301,7 @@ fn mutate_xml(r: &mut Rng, base: &str) -> Vec<u8> {
             b.insert(i, *r.pick(&[b'<', b'>', b'&', b'"', 0u8, 0xff, b'\'']));
         }
         2 => b = format!(r#"<!DOCTYPE x [<!ENTITY a "{}">]>{}"#, "A".repeat(1000), base).into_bytes(),
-        3 => b = format!(
-            r#"<!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;"><!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">]><d:propfind xmlns:d="DAV:"><d:prop><d:getetag>&lol3;</d:getetag></d:prop></d:propfind>"#
-        )
-        .into_bytes(),
+        3 => b = r#"<!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;"><!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">]><d:propfind xmlns:d="DAV:"><d:prop><d:getetag>&lol3;</d:getetag></d:prop></d:propfind>"#.as_bytes().to_vec(),
         4 => b = format!(r#"<!DOCTYPE x [<!ENTITY xxe SYSTEM "file:///etc/passwd">]><d:propfind xmlns:d="DAV:"><d:prop><d:{}/></d:prop></d:propfind>"#, "&xxe;").into_bytes(),
         5 => b = format!("{}{}", "<a>".repeat(5000), "</a>".repeat(5000)).into_bytes(),
         6 => b = format!(r#"<d:propfind xmlns:d="DAV:"><d:prop>{}</d:prop></d:propfind>"#, "<d:x/>".repeat(20_000)).into_bytes(),
