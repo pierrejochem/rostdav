@@ -30,3 +30,4 @@ a:focus-visible,button:focus-visible,input:focus-visible{outline:2px solid var(-
 label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:14px}
 .muted{color:var(--muted);font-size:14px}
 @media (max-width:600px){th.hide,td.hide{display:none}}
+h2{font-size:17px;margin:24px 0 8px}code{font-family:ui-monospace,monospace;word-break:break-all}select{min-height:40px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);color:var(--text);font:inherit}

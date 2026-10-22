@@ -94,7 +94,7 @@ fn url_of(prefix: &str, p: &LogicalPath) -> String {
     s
 }
 
-fn human(n: i64) -> String {
+pub fn human(n: i64) -> String {
     const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
     let mut v = n as f64;
     let mut u = 0;

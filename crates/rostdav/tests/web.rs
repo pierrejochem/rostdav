@@ -748,3 +748,68 @@ async fn devices_page_create_revoke_and_sessions() {
     assert_eq!(get(&e, "/files", &c2).await.status, StatusCode::SEE_OTHER);
     assert_eq!(get(&e, "/files", &c).await.status, StatusCode::OK);
 }
+
+#[tokio::test]
+async fn settings_theme_address_and_storage() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    upload(
+        &e,
+        &c,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, ""),
+            ("file", Some("a.txt"), "hello"),
+        ],
+    )
+    .await;
+
+    let s = get(&e, "/settings", &c).await;
+    assert_eq!(s.status, StatusCode::OK);
+    let html = s.text();
+    assert!(html.contains("http://files.test/remote.php/dav/files/anna/"));
+    assert!(html.contains("5 B"));
+    assert!(!html.contains("data-theme"));
+
+    assert_eq!(
+        post_form(
+            &e,
+            "/settings/theme",
+            &c,
+            &[("csrf", "forged"), ("theme", "dark")]
+        )
+        .await
+        .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/settings/theme",
+            &c,
+            &[("csrf", &csrf), ("theme", "neon")]
+        )
+        .await
+        .status,
+        StatusCode::BAD_REQUEST
+    );
+    let r = post_form(
+        &e,
+        "/settings/theme",
+        &c,
+        &[("csrf", &csrf), ("theme", "dark")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(
+        get(&e, "/files", &c)
+            .await
+            .text()
+            .contains("data-theme=\"dark\"")
+    );
+
+    // the preference is per user
+    let cb = login(&e, "bob").await;
+    assert!(!get(&e, "/files", &cb).await.text().contains("data-theme"));
+}

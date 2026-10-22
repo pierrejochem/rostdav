@@ -276,3 +276,100 @@ pub async fn sign_out_others(
         Err(e) => error_response_to(&a, &e, "/devices", "devices"),
     }
 }
+
+// ---- settings -----------------------------------------------------------------------------
+
+fn bytes(n: i64) -> String {
+    crate::pages::human(n)
+}
+
+pub async fn settings(
+    State(state): State<AppState>,
+    a: Authed,
+    parts: axum::http::request::Parts,
+) -> Response {
+    settings_page(&state, &a, &parts.headers, StatusCode::OK, "").await
+}
+
+async fn settings_page(
+    state: &AppState,
+    a: &Authed,
+    headers: &axum::http::HeaderMap,
+    status: StatusCode,
+    notice: &str,
+) -> Response {
+    let p = &a.session.principal;
+    let u = match state.usage_overview(p).await {
+        Ok(u) => u,
+        Err(e) => return error_response_to(a, &e, "/files", "settings"),
+    };
+    let host = headers
+        .get(axum::http::header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    let https = headers
+        .get("x-forwarded-proto")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.eq_ignore_ascii_case("https"));
+    let url = format!(
+        "{}://{}/remote.php/dav/files/{}/",
+        if https { "https" } else { "http" },
+        host,
+        crate::layout::enc(&p.name)
+    );
+    let quota = u.quota.map_or_else(|| "unlimited".to_owned(), bytes);
+    let opt = |v: &str, label: &str| {
+        let sel = if a.theme == v || (a.theme.is_empty() && v == "system") {
+            " selected"
+        } else {
+            ""
+        };
+        format!("<option value=\"{v}\"{sel}>{label}</option>")
+    };
+    let body = format!(
+        "<h1>Settings</h1>{notice}\
+         <h2>Appearance</h2>\
+         <form class=\"inline\" method=\"post\" action=\"/settings/theme\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
+         <label>Theme<select name=\"theme\">{}{}{}</select></label><button type=\"submit\">Save</button></form>\
+         <h2>WebDAV address</h2><p class=\"muted\">Use this address in a WebDAV client, with an app password from Devices.</p>\
+         <p><code>{}</code></p>\
+         <h2>Storage</h2>\
+         <table><tbody><tr><td>Files</td><td class=\"num\">{}</td></tr><tr><td>Older versions</td><td class=\"num\">{}</td></tr>\
+         <tr><td>Trash</td><td class=\"num\">{}</td></tr><tr><th>Used</th><th class=\"num\">{}</th></tr>\
+         <tr><td>Quota</td><td class=\"num\">{}</td></tr></tbody></table>",
+        esc(&a.csrf),
+        opt("system", "Follow system"),
+        opt("light", "Light"),
+        opt("dark", "Dark"),
+        esc(&url),
+        bytes(u.files),
+        bytes(u.versions),
+        bytes(u.trash),
+        bytes(u.used),
+        quota
+    );
+    layout::app(status, "Settings", &a.theme, "settings", &a.csrf, &body)
+}
+
+#[derive(Deserialize)]
+pub struct ThemeForm {
+    csrf: String,
+    theme: String,
+}
+
+pub async fn set_theme(
+    State(state): State<AppState>,
+    a: Authed,
+    Form(f): Form<ThemeForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state
+        .set_pref(&a.session.principal, "theme", &f.theme)
+        .await
+    {
+        Ok(()) => Redirect::to("/settings").into_response(),
+        Err(e) => error_response_to(&a, &e, "/settings", "settings"),
+    }
+}

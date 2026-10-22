@@ -38,6 +38,8 @@ pub fn router() -> Router<AppState> {
             "/trash/empty",
             get(pages_more::trash_empty_confirm).post(pages_more::trash_empty),
         )
+        .route("/settings", get(pages_more::settings))
+        .route("/settings/theme", post(pages_more::set_theme))
         .route("/devices", get(pages_more::devices))
         .route("/devices/create", post(pages_more::device_create))
         .route("/devices/revoke", post(pages_more::device_revoke))
