@@ -61,3 +61,16 @@ Rostdav does not terminate TLS. Example configurations for Caddy, nginx and Trae
 ## Shutdown
 
 `SIGTERM` or `Ctrl-C`: in-flight requests are completed, then the database is closed. Exit code 0.
+
+
+## Measured performance (load tests)
+
+`cargo test --release -p rostdav --test load -- --ignored --nocapture --test-threads=1`, 2026-10-22, one developer machine (Linux, local SSD, release build). The tests call the router in-process: no TCP, TLS or reverse proxy, so these numbers are what the application itself does, not what a client sees. SQLite runs with `synchronous = FULL` (every commit is fsynced).
+
+| Scenario | Result |
+|---|---|
+| One 512 MiB file | upload 480 MiB/s, download 197 MiB/s, peak memory 29 → 33 MiB (the file is streamed) |
+| 5000 small files (1 KiB, sequential) | PUT ≈ 420 files/s, PROPFIND depth 1 of all 5000 in 146 ms (1.9 MB of XML), GET ≈ 1100 files/s |
+| 32 parallel uploads of 8 MiB (16 plain, 16 chunked) | 256 MiB in 0.56 s, all files complete and not mixed up, peak memory 157 MiB |
+
+Small-file throughput is bound by the fsync of each commit, not by the CPU. Only sequential small files were measured, not many clients with many files.

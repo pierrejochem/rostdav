@@ -44,6 +44,9 @@ Binding requirements: section 5 of the [instructions](instructions.md). Short ve
 
 - `crates/rostdav/tests/authz_matrix.rs`: anonymous, wrong password, another user, a disabled user and a read-only public link try 26 doors (WebDAV new and legacy paths, traversal variants, chunked upload, versions, trashbin, OCS sharing, public.php) against one user's data; afterwards that data must be byte-identical. It found the lockout weakness described in ADR 0003 (amendment).
 
+- `crates/rostdav/tests/robustness.rs`: 3500 seeded pseudo-random requests (traversal and encoding tricks on every WebDAV door, DOCTYPE/entity/nesting/attribute bombs and random bytes as XML, odd header values). Required: no 5xx, nothing slow, no entity expansion, nothing outside the data layout. `cargo fuzz` targets (coverage-guided) are not part of the repository yet; this needs a nightly toolchain.
+- `crates/rostdav/tests/load.rs` (ignored by default, run with `--ignored`): a 512 MiB file, 5000 small files, 32 parallel uploads. It found a pool deadlock: `Db::resolve` held one database connection while asking the pool for a second, so with eight or more simultaneous requests every connection waited for another and the server answered 500 after 30 s (fixed; regression test `many_concurrent_resolves_do_not_deadlock`).
+
 ## Dependencies
 
 - `cargo deny` in CI: security advisories, licenses, provenance.

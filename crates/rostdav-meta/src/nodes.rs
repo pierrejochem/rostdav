@@ -302,8 +302,10 @@ impl Db {
     /// Resolves a path below the owner's root. `None` if a segment is missing
     /// or a non-final segment is a file.
     pub async fn resolve(&self, owner_id: i64, path: &LogicalPath) -> Result<Option<Node>> {
-        let mut conn = self.pool().acquire().await.map_err(Error::internal)?;
+        // The root comes first and releases its connection: holding one connection while
+        // asking the pool for another deadlocks when every connection is in that position.
         let mut cur = self.root_node(owner_id).await?;
+        let mut conn = self.pool().acquire().await.map_err(Error::internal)?;
         for seg in path.segments() {
             if cur.kind != NodeKind::Dir {
                 return Ok(None);
@@ -1064,5 +1066,54 @@ mod tests {
             db.resolve(ub, &p).await.expect("r").map(|n| n.id),
             Some(c.node.id)
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn many_concurrent_resolves_do_not_deadlock() {
+        // more tasks than pool connections, all resolving paths at once: an operation that
+        // holds a connection while asking the pool for a second one hangs here
+        let (_d, db) = test_db().await;
+        let (owner, root) = user(&db, "anna").await;
+        db.create_dir(root, &n("d")).await.expect("dir");
+        let mut tasks = Vec::new();
+        for _ in 0..64 {
+            let db = db.clone();
+            tasks.push(tokio::spawn(async move {
+                for _ in 0..20 {
+                    let p = LogicalPath::from_url_path("d").expect("path");
+                    assert!(db.resolve(owner, &p).await.expect("resolve").is_some());
+                }
+            }));
+        }
+        let all = async {
+            for t in tasks {
+                t.await.expect("task");
+            }
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(20), all)
+            .await
+            .expect("64 tasks resolving concurrently finished (no pool deadlock)");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn many_concurrent_commits_do_not_deadlock() {
+        let (_d, db) = test_db().await;
+        let (owner, root) = user(&db, "anna").await;
+        let mut tasks = Vec::new();
+        for i in 0..40 {
+            let db = db.clone();
+            tasks.push(tokio::spawn(async move {
+                put(&db, root, &format!("f{i}"), &format!("b{i}"), 10).await;
+            }));
+        }
+        let all = async {
+            for t in tasks {
+                t.await.expect("task");
+            }
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(20), all)
+            .await
+            .expect("40 concurrent commits finished (no deadlock)");
+        assert_eq!(used(&db, owner).await, 400);
     }
 }

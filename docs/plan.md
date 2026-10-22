@@ -72,7 +72,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 
 ## Phase 5: Hardening and delivery
 
-- Security tests (authorization matrix, fuzzing of paths and XML with `cargo fuzz`), load tests (large files, many small files, parallel uploads)
+- Security tests: authorization matrix ✅, robustness tests for paths/XML/headers ✅ (seeded random inputs; coverage-guided `cargo fuzz` not done), load tests ✅ (`tests/load.rs`, results in docs/deployment.md)
 - Container image, Compose example with reverse proxy, backup/restore test
 - Operations documentation
 
