@@ -143,6 +143,10 @@ pub struct Limits {
     pub max_upload_bytes: u64,
     /// Maximum size of one chunk of a chunked upload in bytes.
     pub max_chunk_bytes: u64,
+    /// Chunked uploads that were not finished within this many hours are removed (at least 1).
+    pub upload_retention_hours: u32,
+    /// Quota of users created from now on: `10G`, `500M`, bytes or `unlimited`.
+    pub default_quota: String,
 }
 
 impl Default for Limits {
@@ -150,6 +154,8 @@ impl Default for Limits {
         Self {
             max_upload_bytes: 16 * 1024 * 1024 * 1024,
             max_chunk_bytes: 100 * 1024 * 1024,
+            upload_retention_hours: 24,
+            default_quota: "unlimited".to_owned(),
         }
     }
 }

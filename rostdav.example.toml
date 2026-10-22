@@ -63,6 +63,10 @@ data_dir = "./data"
 # max_upload_bytes = 17179869184
 # Maximum size of one chunk of a chunked upload (default: 100 MiB).
 # max_chunk_bytes = 104857600
+# Unfinished chunked uploads are removed after this many hours (default: 24).
+# upload_retention_hours = 24
+# Quota of users created from now on: 10G, 500M, bytes or unlimited (default).
+# default_quota = "unlimited"
 
 [log]
 # "json" for production, "pretty" for development.

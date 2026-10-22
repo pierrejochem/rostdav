@@ -58,6 +58,24 @@ Browser sessions live in the `sessions` table (token hash only). Set the lifetim
 their browser sessions at the next request; expired sessions are removed by the garbage run.
 Users can end their other sessions on the Devices page.
 
+## Retention and cleanup
+
+One background task runs every five minutes (never inside a request). It applies these rules; all are set in the configuration file or `ROSTDAV_<SECTION>__<KEY>` variables (see `rostdav.example.toml`) and shown on Administration › Server.
+
+| What | Setting | Default |
+|---|---|---|
+| Versions per file | `[versioning] max_versions` | 50 (0 = unlimited) |
+| Age of versions | `[versioning] max_age_days` | 365 (0 = keep) |
+| Share of a user's quota that versions may use | `[versioning] max_quota_share_percent` | 50 (0 = no limit) |
+| Trash | `[trash] retention_days` | 30 (0 = until emptied) |
+| Unfinished chunked uploads | `[limits] upload_retention_hours` | 24 |
+| Event log | `[audit] retention_days` | 365 (0 = keep) |
+| Browser sessions | `[web] session_idle_hours`, `session_max_days` | 8 h, 14 d |
+| Unconfirmed two-factor setups | fixed | 1 h |
+| Unreferenced blobs | always | after retention released them |
+
+New users get `[limits] default_quota` (default `unlimited`); existing users keep their quota.
+
 ## Two-factor authentication
 
 Users turn on TOTP (authenticator app) themselves under Devices & security; see [ADR 0007](adr/0007-two-factor-authentication.md). What an administrator needs to know:

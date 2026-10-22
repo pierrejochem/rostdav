@@ -304,3 +304,44 @@ fn reset_2fa_works_from_the_command_line() {
     let events = c.ok(&["audit", "export"], "");
     assert!(events.contains("admin.2fa_reset"), "{events}");
 }
+
+#[test]
+fn default_quota_and_upload_retention_come_from_the_configuration() {
+    let c = Cli::new();
+    // a bad value stops the command with a clear message
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_rostdav"));
+    let o = cmd
+        .args(["admin", "user", "list"])
+        .env("ROSTDAV_STORAGE__DATA_DIR", c.dir.path().join("data"))
+        .env("ROSTDAV_LIMITS__DEFAULT_QUOTA", "lots")
+        .output()
+        .expect("run");
+    assert!(!o.status.success());
+    assert!(
+        String::from_utf8_lossy(&o.stderr).contains("default_quota"),
+        "{}",
+        String::from_utf8_lossy(&o.stderr)
+    );
+
+    // a valid value applies to users created afterwards
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_rostdav"))
+        .args(["admin", "user", "add", "anna"])
+        .env("ROSTDAV_STORAGE__DATA_DIR", c.dir.path().join("data"))
+        .env("ROSTDAV_LIMITS__DEFAULT_QUOTA", "2G")
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .expect("spawn");
+    child
+        .stdin
+        .take()
+        .expect("stdin")
+        .write_all(format!("{PW}\n").as_bytes())
+        .expect("write");
+    assert!(child.wait_with_output().expect("wait").status.success());
+    let out = c.ok(&["user", "list", "--json"], "");
+    assert!(
+        out.contains("\"quota_bytes\":2147483648") || out.contains("\"quota_bytes\": 2147483648"),
+        "{out}"
+    );
+}

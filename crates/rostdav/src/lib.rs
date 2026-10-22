@@ -29,6 +29,9 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
         .with_limits(rostdav_app::Limits {
             max_upload_bytes: cfg.limits.max_upload_bytes,
             max_chunk_bytes: cfg.limits.max_chunk_bytes,
+            upload_retention_secs: i64::from(cfg.limits.upload_retention_hours.max(1)) * 3600,
+            default_quota: rostdav_app::parse_quota(&cfg.limits.default_quota)
+                .map_err(|e| anyhow::anyhow!("limits.default_quota: {e}"))?,
         })
         .with_versioning(rostdav_app::VersioningOptions {
             enabled: cfg.versioning.enabled,

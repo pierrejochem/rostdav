@@ -177,6 +177,9 @@ impl AppState {
                 is_admin,
             })
             .await?;
+        if let Some(q) = self.inner.config.limits.default_quota {
+            self.inner.db.set_quota(u.id, Some(q)).await?;
+        }
         self.audit(
             &actor.name(),
             "admin.user_created",

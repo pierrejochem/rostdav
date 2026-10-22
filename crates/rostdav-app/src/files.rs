@@ -422,7 +422,7 @@ impl AppState {
     pub async fn collect_garbage(&self) -> Result<usize> {
         // retention first, so that what it releases is collected in the same run
         let expired = self
-            .expire_uploads(crate::uploads::SESSION_MAX_AGE_SECS)
+            .expire_uploads(self.inner.config.limits.upload_retention_secs)
             .await?;
         self.purge_old_events().await?;
         self.cleanup_versions().await?;

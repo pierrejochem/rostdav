@@ -74,6 +74,10 @@ English and German. The language comes from the user's setting (Settings › Pro
 - Not translated: messages that come from the server core (for example share error texts from the OCS layer), event-log action names, and technical values on the administration Server page.
 - The scripts (`upload.js`, `password.js`, `copy.js`) carry their own small German tables and read the page language from `<html lang>`.
 
+## Data export
+
+Settings › Export your data streams a tar archive of the user's own files (folder structure kept; no received shares, versions or trash). The requirement asked for a background job with a time-limited download link for large amounts; this implementation streams the archive directly instead: nothing is written to disk, nothing is stored, there is no link that could leak, and a cancelled download stops the work. The price is that the browser must stay connected for the whole transfer. If that turns out to be a problem for very large accounts, a resumable job can be added later.
+
 Development with live reload: `docker compose up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
 
 ## Design-Tokens

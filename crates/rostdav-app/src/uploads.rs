@@ -12,9 +12,6 @@ use crate::AppState;
 use crate::access::{Need, authorize_access};
 use crate::auth::Principal;
 
-/// Sessions older than this are removed by garbage collection.
-pub const SESSION_MAX_AGE_SECS: i64 = 24 * 60 * 60;
-
 fn valid_transfer_id(id: &str) -> Result<()> {
     let ok = (1..=128).contains(&id.len())
         && id

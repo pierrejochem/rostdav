@@ -98,6 +98,10 @@ pub struct Limits {
     pub max_upload_bytes: u64,
     /// Maximum size of one chunk of a chunked upload in bytes.
     pub max_chunk_bytes: u64,
+    /// Chunked uploads that were not finished within this time are removed.
+    pub upload_retention_secs: i64,
+    /// Quota given to users created from now on (`None` = unlimited).
+    pub default_quota: Option<i64>,
 }
 
 impl Default for Limits {
@@ -105,6 +109,8 @@ impl Default for Limits {
         Self {
             max_upload_bytes: 16 * 1024 * 1024 * 1024,
             max_chunk_bytes: 100 * 1024 * 1024,
+            upload_retention_secs: 24 * 60 * 60,
+            default_quota: None,
         }
     }
 }
@@ -496,6 +502,36 @@ mod tests {
                 Err(Error::Forbidden)
             ),
             "an access grant resolved for anna is useless for bob"
+        );
+    }
+
+    #[tokio::test]
+    async fn new_users_get_the_default_quota() {
+        let (_d, st) = state().await;
+        st.add_user("anna", "korrekt-pferd-batterie", false)
+            .await
+            .expect("anna");
+        let st = st.with_limits(Limits {
+            default_quota: Some(5_000),
+            ..Limits::default()
+        });
+        st.add_user("carl", "korrekt-pferd-batterie", false)
+            .await
+            .expect("user");
+        let list = st.users_list(&crate::Actor::Cli).await.expect("list");
+        let carl = list.iter().find(|u| u.name == "carl").expect("carl");
+        assert_eq!(carl.quota_bytes, Some(5_000));
+        // users that exist already are not touched, and a later explicit quota wins
+        let anna = list.iter().find(|u| u.name == "anna").expect("anna");
+        assert_eq!(anna.quota_bytes, None);
+        st.set_quota("carl", None).await.expect("quota");
+        let list = st.users_list(&crate::Actor::Cli).await.expect("list");
+        assert_eq!(
+            list.iter()
+                .find(|u| u.name == "carl")
+                .expect("c")
+                .quota_bytes,
+            None
         );
     }
 
@@ -972,6 +1008,7 @@ mod tests {
         let st = st.with_limits(Limits {
             max_upload_bytes: 20,
             max_chunk_bytes: 8,
+            ..Limits::default()
         });
         let anna = login(&st, "anna").await;
         st.upload_create(&anna, "t").await.expect("create");
