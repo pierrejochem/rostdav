@@ -155,6 +155,30 @@ Source: `tests/fixtures/nextcloud/09-versions/` (recorded with `scripts/record_n
 | Versions of a deleted file stay reachable through the trash | gone with the file | M10 |
 | Identical re-upload still creates a version (not recorded) | no new version | saves space |
 
+## Implemented in M9: shares
+
+Source: `tests/fixtures/nextcloud/10-shares/` (`scripts/record_nextcloud_extra.py shares`), compared by `crates/rostdav/tests/sharing.rs`; design and decisions in [ADR 0004](adr/0004-shares-and-permissions.md).
+
+- **OCS Sharing API** (`/ocs/v{1,2}.php/apps/files_sharing/api/v1/`): `POST/GET shares` (by path, `subfiles`, `shared_with_me`), `GET/PUT/DELETE shares/{id}`, `GET shares/pending` (always empty), `GET sharees`. Status codes and messages are the reference's ("Cannot share with yourself", "Wrong path, file/folder does not exist", ...). The share object is a subset of the reference's fields (`storage`, `storage_id` are left out). `GET shares/{id}` answers with a one-element list, like the reference.
+- **Share types:** user (0) and public link (3). No groups, federation, mail, circles or talk.
+- **Permissions:** bits read 1, update 2, create 4, delete 8. Bit 16 (share) is accepted and ignored, so `31` is stored and reported as `15`; resharing is refused with 403 "Resharing is not allowed". Files keep only read/update. A link may be create-only (`4`, "file drop"); user shares need read.
+- **Mount points:** the recipient's root lists each share under the shared item's name (a free name: `Docs (2)` if taken). Properties as in the reference: `oc:permissions` starts with `S`, `nc:mount-type` = `shared`, `nc:is-mount-root` = `true` on the root only, `oc:owner-id` = owner, `oc:share-types` on the mount root and on the owner's shared node. The recipient may rename a mount (`MOVE` inside the root) and leave it (`DELETE`, which ends the share for the owner too). The root ETag of a user with mounts is derived from all mounted ETags, so clients notice changes inside shares.
+- **Writes** need the right bit: create (4) for new files/folders, update (2) to overwrite, delete (8) to delete; renaming needs delete + create. Denied writes answer **403**; things you may not see answer **404**. Quota and versions of writes into a share belong to the **owner**. Copies may cross trees (the copy belongs to the destination owner); **moves across trees are refused (409)**.
+- **Public links:** `/public.php/webdav/` with `Authorization: Basic <token>:<password>` (password empty if none); the shared node is the root (a file link serves the file as `/`). Tokens are 24 random characters; passwords are Argon2id hashes and never shown (`"password": "protected"`); failures count per address and per link (429 after 10). Expired or deleted links answer 401.
+- **Not for links/recipients:** versions, chunked uploads (sessions are the signed-in user's), OCS user data, share management. A link cannot reach any user namespace and a user cannot use the public one.
+- **Events:** `share.created` and `share.revoked` (owner or recipient) go to the event log.
+
+| Reference | Rostdav | Why |
+|---|---|---|
+| Resharing (`R` letter, share bit) | refused; the `R` letter appears only on the owner's own items | ADR 0004 |
+| Read-only link shows `RG` | `G` | no resharing |
+| `password` of a link share: the hash | `"protected"` | never expose hashes |
+| Link web page `/s/<token>` | 404 until M11 | scope |
+| Pending shares | always empty | shares are active immediately |
+| Groups, federation, mail shares | not offered | scope |
+| Duplicate user share: returns the existing share | same | |
+| Create-only link reveals nothing about existing names in the reference | a PUT onto an existing name is 403 instead of 201 (reveals existence) | accepted, documented |
+
 ## Not supported
 
 | Feature | App behavior without support | Source |

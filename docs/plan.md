@@ -64,7 +64,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 |---|---|---|
 | M7 ✅ | Admin CLI complete, event log (2026-10-22) | M4 |
 | M8 ✅ | Versioning incl. versions DAV endpoint and restore (2026-10-22) | M5 |
-| M9 | Shares: users, then public links (OCS Sharing API, mount points) | M5 |
+| M9 ✅ | Shares: users, then public links (OCS Sharing API, mount points) (2026-10-22, [ADR 0004](adr/0004-shares-and-permissions.md)) | M5 |
 | M10 | Trash (trashbin DAV endpoint) | M5 |
 | M11 | Web interface: files, devices, settings, administration, light/dark | M7–M10 |
 | M12 | Optional two-factor authentication | M11 |

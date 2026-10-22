@@ -67,4 +67,4 @@ Configuration (`[audit]`): `anonymize_ip` stores IPv4 addresses as /24 and IPv6 
 | `device.connected`, `device.revoked` | Login flow granted, app password revoked by sign-out |
 | `2fa.enabled`, `2fa.disabled`, `2fa.reset` | Two-factor |
 | `admin.user_created`, `admin.user_disabled`, `admin.user_enabled`, `admin.user_role_changed`, `admin.user_quota_set`, `admin.user_password_reset`, `admin.user_deleted`, `admin.fsck`, `admin.import` | Admin actions |
-| `share.created`, `share.revoked` | Shares |
+| `share.created`, `share.revoked` | A share was created / ended (by the owner, or by the recipient leaving); details hold type and permissions, never tokens |
