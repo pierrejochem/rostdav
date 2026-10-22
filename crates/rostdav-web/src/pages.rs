@@ -135,7 +135,7 @@ fn login_form(
         status,
         "Sign in",
         &format!(
-            "<div class=\"card\"><div class=\"brand\">rost<b>dav</b></div><h1>Sign in</h1>{err}\
+            "<div class=\"brand\">rost<b>dav</b></div><div class=\"card\"><h1>Sign in</h1>{err}\
              <form method=\"post\" action=\"/login\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
              <label>Username<input type=\"text\" name=\"user\" value=\"{}\" autocomplete=\"username\" required autofocus></label>\
              <label>Password<input type=\"password\" name=\"password\" autocomplete=\"current-password\" required></label>\

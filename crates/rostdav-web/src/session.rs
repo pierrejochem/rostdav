@@ -124,6 +124,7 @@ impl Authed {
         crate::layout::Chrome {
             theme: &self.theme,
             admin: self.admin,
+            name: &self.session.principal.name,
         }
     }
 }

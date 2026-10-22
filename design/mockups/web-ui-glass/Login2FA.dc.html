@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rostdav – Second factor</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{color:var(--link)}a:hover{color:var(--link-hover)}
+button,input,select{font:inherit}
+.t-dark{color-scheme:dark;--bg:#0B0C10;--orb1:rgba(194,73,29,.6);--orb2:rgba(232,120,58,.36);--orb3:rgba(122,42,18,.66);--orb4:rgba(242,166,90,.2);--text:#F4EFE8;--text-2:#C2BAB1;--text-3:#A39B92;--dav:#E8783A;--glass:linear-gradient(145deg,rgba(255,255,255,.12),rgba(255,255,255,.04));--glass-2:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.05));--glass-border:rgba(255,255,255,.15);--glass-hi:rgba(255,255,255,.24);--glass-lo:rgba(0,0,0,.30);--shadow:0 40px 80px -28px rgba(0,0,0,.8),0 12px 28px -16px rgba(0,0,0,.6);--field:rgba(5,6,8,.38);--field-border:rgba(255,255,255,.14);--link:#F2A65A;--link-hover:#F7C589;--chip:rgba(255,255,255,.08)}
+.t-light{color-scheme:light;--bg:#ECE4DA;--orb1:rgba(232,120,58,.48);--orb2:rgba(242,166,90,.42);--orb3:rgba(194,73,29,.32);--orb4:rgba(122,42,18,.18);--text:#15171C;--text-2:#4F4842;--text-3:#625A53;--dav:#C2491D;--glass:linear-gradient(145deg,rgba(255,255,255,.74),rgba(255,255,255,.42));--glass-2:linear-gradient(145deg,rgba(255,255,255,.85),rgba(255,255,255,.55));--glass-border:rgba(255,255,255,.8);--glass-hi:rgba(255,255,255,.95);--glass-lo:rgba(122,42,18,.10);--shadow:0 40px 80px -30px rgba(90,40,20,.42),0 12px 28px -18px rgba(90,40,20,.28);--field:rgba(255,255,255,.6);--field-border:rgba(122,42,18,.18);--link:#A93C15;--link-hover:#7A2A12;--chip:rgba(21,23,28,.07)}
+.app{min-height:900px;color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;background:radial-gradient(38% 50% at 20% 22%,var(--orb1),transparent 70%),radial-gradient(34% 44% at 84% 16%,var(--orb2),transparent 70%),radial-gradient(46% 56% at 70% 92%,var(--orb3),transparent 72%),radial-gradient(28% 36% at 12% 86%,var(--orb4),transparent 70%),var(--bg);position:relative;overflow:hidden}
+.glass{background:var(--glass);border:1px solid var(--glass-border);box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 -1px 0 var(--glass-lo),var(--shadow);-webkit-backdrop-filter:blur(30px) saturate(160%);backdrop-filter:blur(30px) saturate(160%)}
+.btn-rust{min-height:52px;padding:0 18px;border-radius:14px;border:1px solid rgba(255,170,120,.55);background:linear-gradient(180deg,#CF5723,#9A3612);color:#FFFFFF;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -2px 0 rgba(70,20,6,.45),0 14px 30px -10px rgba(232,120,58,.8)}
+.btn-rust:hover{color:#FFFFFF;filter:brightness(1.06)}
+.field{min-height:50px;padding:0 14px;border-radius:14px;border:1px solid var(--field-border);background:var(--field);color:var(--text);font-size:16px;box-shadow:inset 0 2px 5px rgba(0,0,0,.16)}
+.field::placeholder{color:var(--text-3)}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+:focus-visible{outline:2px solid #F2A65A;outline-offset:2px}
+</style>
+</helmet>
+<div class="app {{themeClass}}" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 30px; padding: 48px 16px">
+
+<div class="glass" aria-hidden="true" style="position: absolute; top: 10%; right: 12%; width: 190px; height: 126px; border-radius: 30px; transform: rotate(12deg); opacity: .7"></div>
+<div class="glass" aria-hidden="true" style="position: absolute; bottom: 12%; left: 8%; width: 210px; height: 140px; border-radius: 30px; transform: rotate(-10deg); opacity: .6"></div>
+<div aria-hidden="true" style="position: absolute; top: 24%; left: 20%; width: 60px; height: 60px; border-radius: 18px; transform: rotate(-20deg); background: linear-gradient(145deg,rgba(247,197,137,.9),rgba(194,73,29,.85)); box-shadow: inset 0 2px 0 rgba(255,255,255,.5), 0 20px 40px -12px rgba(232,120,58,.7); opacity: .85"></div>
+
+<div style="position: relative; display: flex; flex-direction: column; align-items: center; gap: 16px">
+<div class="glass" style="width: 112px; height: 112px; border-radius: 32px; display: flex; align-items: center; justify-content: center; transform: perspective(700px) rotateX(12deg) rotateY(14deg); box-shadow: inset 0 2px 0 var(--glass-hi), inset 0 -2px 0 var(--glass-lo), 0 36px 64px -22px rgba(194,73,29,.85), 0 12px 24px -12px rgba(0,0,0,.6)">
+<span style="width: 64px; height: 64px; border-radius: 20px; display: flex; align-items: center; justify-content: center; color: #FFFFFF; background: linear-gradient(145deg,#F59A5C,#B8441A); box-shadow: inset 0 2px 0 rgba(255,255,255,.55), inset 0 -3px 0 rgba(70,20,6,.35), 0 12px 22px -8px rgba(232,120,58,.85)"><svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 32px; height: 32px"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9c-4-1.5-7-4.5-7-9V6Z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
+</div>
+<div aria-hidden="true" style="width: 96px; height: 12px; border-radius: 50%; background: radial-gradient(closest-side, rgba(0,0,0,.45), transparent); margin-top: -2px"></div>
+</div>
+
+<div class="glass" style="position: relative; width: 100%; max-width: 448px; border-radius: 30px; padding: 32px; display: flex; flex-direction: column; gap: 22px">
+<div style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2)">
+<span style="height: 28px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: 14px; background: var(--chip); border: 1px solid var(--glass-border); color: var(--text); font-weight: 600">Step 2 of 2</span>
+<span>Nextcloud Android</span>
+</div>
+<div>
+<h1 style="margin: 0; font-size: 30px; font-weight: 700; letter-spacing: -0.9px">{{heading}}</h1>
+<p style="margin: 8px 0 0; font-size: 15px; line-height: 1.5; color: var(--text-2)">{{lead}}</p>
+</div>
+<form style="display: flex; flex-direction: column; gap: 14px">
+<sc-if value="{{useTotp}}" hint-placeholder-val="{{true}}">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Code from your authenticator app
+<input class="field mono" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" style="min-height: 66px; font-size: 30px; letter-spacing: 14px; text-align: center">
+</label>
+</sc-if>
+<sc-if value="{{useRecovery}}" hint-placeholder-val="{{false}}">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Recovery code
+<input class="field mono" type="text" autocomplete="off" placeholder="xxxx-xxxx-xxxx" style="min-height: 56px; font-size: 19px; letter-spacing: 2px">
+</label>
+</sc-if>
+<button type="button" class="btn-rust" style="margin-top: 6px">Confirm and allow access</button>
+<button type="button" onClick="{{toggle}}" style="min-height: 44px; border-radius: 14px; border: none; background: transparent; color: var(--link); font-weight: 600; cursor: pointer">{{toggleLabel}}</button>
+</form>
+<div style="display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: var(--text-2)">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true" style="width: 16px; height: 16px; margin-top: 2px"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18Z"></path><path d="M12 7v5l3 2"></path></svg>
+<span>After five wrong codes, sign-in is locked for a few minutes.</span>
+</div>
+</div>
+
+<a href="Login.dc.html" style="position: relative; font-size: 14px; font-weight: 600">Back to sign-in</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { recovery: false };
+}
+renderVals() {
+const r = this.state.recovery;
+return {
+themeClass: (this.props.theme ?? 'dark') === 'light' ? 't-light' : 't-dark',
+useTotp: !r,
+useRecovery: r,
+heading: r ? 'Recovery code' : 'Confirm your sign-in',
+lead: r ? 'Each code works only once. Afterwards you see how many are left.' : 'Enter the six-digit code from your authenticator app.',
+toggleLabel: r ? 'Use the authenticator app instead' : 'No access to the app? Use a recovery code',
+toggle: () => this.setState({ recovery: !r })
+};
+}
+}
+</script>
+</body>
+</html>

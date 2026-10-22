@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rostdav – Administration</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{color:var(--link)}a:hover{color:var(--link-hover)}
+button,input,select{font:inherit}
+.t-dark{color-scheme:dark;--bg:#0B0C10;--orb1:rgba(194,73,29,.55);--orb2:rgba(232,120,58,.32);--orb3:rgba(122,42,18,.62);--orb4:rgba(242,166,90,.16);--text:#F4EFE8;--text-2:#C2BAB1;--text-3:#A39B92;--dav:#E8783A;--glass:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03));--glass-2:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.05));--glass-border:rgba(255,255,255,.13);--glass-hi:rgba(255,255,255,.20);--glass-lo:rgba(0,0,0,.30);--shadow:0 30px 60px -24px rgba(0,0,0,.7),0 10px 24px -14px rgba(0,0,0,.6);--shadow-2:0 14px 30px -16px rgba(0,0,0,.65);--field:rgba(5,6,8,.35);--field-border:rgba(255,255,255,.12);--row-hover:rgba(255,255,255,.05);--sel:linear-gradient(145deg,rgba(232,120,58,.28),rgba(194,73,29,.12));--sel-border:rgba(242,166,90,.42);--divider:rgba(255,255,255,.07);--track:rgba(255,255,255,.08);--ok-bg:rgba(124,197,188,.14);--ok-fg:#93DCD2;--warn-bg:rgba(242,166,90,.14);--warn-fg:#F7C589;--danger-bg:rgba(194,73,29,.18);--danger-fg:#F7B07A;--danger-border:rgba(242,166,90,.35);--chip:rgba(255,255,255,.08);--link:#F2A65A;--link-hover:#F7C589;--switch-off:rgba(255,255,255,.10)}
+.t-light{color-scheme:light;--bg:#ECE4DA;--orb1:rgba(232,120,58,.42);--orb2:rgba(242,166,90,.40);--orb3:rgba(194,73,29,.28);--orb4:rgba(122,42,18,.16);--text:#15171C;--text-2:#4F4842;--text-3:#625A53;--dav:#C2491D;--glass:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.40));--glass-2:linear-gradient(145deg,rgba(255,255,255,.85),rgba(255,255,255,.55));--glass-border:rgba(255,255,255,.78);--glass-hi:rgba(255,255,255,.95);--glass-lo:rgba(122,42,18,.10);--shadow:0 30px 60px -28px rgba(90,40,20,.38),0 10px 24px -16px rgba(90,40,20,.25);--shadow-2:0 14px 30px -18px rgba(90,40,20,.35);--field:rgba(255,255,255,.58);--field-border:rgba(122,42,18,.18);--row-hover:rgba(255,255,255,.45);--sel:linear-gradient(145deg,rgba(232,120,58,.24),rgba(242,166,90,.10));--sel-border:rgba(194,73,29,.38);--divider:rgba(122,42,18,.10);--track:rgba(21,23,28,.10);--ok-bg:rgba(31,95,90,.12);--ok-fg:#1F5F5A;--warn-bg:rgba(194,73,29,.12);--warn-fg:#8A3214;--danger-bg:rgba(194,73,29,.12);--danger-fg:#8A3214;--danger-border:rgba(194,73,29,.30);--chip:rgba(21,23,28,.07);--link:#A93C15;--link-hover:#7A2A12;--switch-off:rgba(21,23,28,.16)}
+.app{min-height:900px;color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;background:radial-gradient(42% 52% at 10% 14%,var(--orb1),transparent 70%),radial-gradient(36% 46% at 92% 6%,var(--orb2),transparent 70%),radial-gradient(48% 56% at 80% 96%,var(--orb3),transparent 72%),radial-gradient(32% 40% at 30% 90%,var(--orb4),transparent 70%),var(--bg)}
+.glass{background:var(--glass);border:1px solid var(--glass-border);box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 -1px 0 var(--glass-lo),var(--shadow);-webkit-backdrop-filter:blur(28px) saturate(160%);backdrop-filter:blur(28px) saturate(160%)}
+.glass-2{background:var(--glass-2);border:1px solid var(--glass-border);box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 -1px 0 var(--glass-lo),var(--shadow-2);-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%)}
+.btn{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass-2);color:var(--text);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-shadow:inset 0 1px 0 var(--glass-hi),0 8px 18px -12px rgba(0,0,0,.55)}
+.btn:hover{border-color:var(--sel-border)}
+.btn-rust{min-height:44px;padding:0 18px;border-radius:12px;border:1px solid rgba(255,170,120,.55);background:linear-gradient(180deg,#CF5723,#9A3612);color:#FFFFFF;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -2px 0 rgba(70,20,6,.45),0 12px 26px -10px rgba(232,120,58,.75)}
+.btn-rust:hover{color:#FFFFFF;filter:brightness(1.06)}
+.btn-danger{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--danger-border);background:var(--danger-bg);color:var(--danger-fg);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+.field{min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--field-border);background:var(--field);color:var(--text);font-size:15px;box-shadow:inset 0 2px 5px rgba(0,0,0,.16)}
+.field::placeholder{color:var(--text-3)}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+.eyebrow{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
+.nav-link{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:12px;color:var(--text-2);text-decoration:none;border:1px solid transparent}
+.nav-link:hover{background:var(--row-hover);color:var(--text)}
+.nav-active{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:12px;color:var(--text);text-decoration:none;font-weight:600;background:var(--sel);border:1px solid var(--sel-border);box-shadow:inset 0 1px 0 var(--glass-hi),0 10px 22px -12px rgba(232,120,58,.6)}
+.nav-active:hover{color:var(--text)}
+.chip{display:inline-flex;align-items:center;height:26px;padding:0 10px;border-radius:13px;font-size:12px;font-weight:600}
+.meter{height:8px;border-radius:4px;background:var(--track);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+.meter>span{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,#F2A65A,#C2491D);box-shadow:0 0 12px rgba(232,120,58,.65)}
+.switch{width:56px;height:32px;border-radius:16px;padding:3px;border:1px solid var(--glass-border);cursor:pointer;display:flex;flex:none}
+.knob{width:24px;height:24px;border-radius:12px;background:linear-gradient(180deg,#FFFFFF,#E6DED5);box-shadow:0 2px 6px rgba(0,0,0,.35),inset 0 -1px 0 rgba(0,0,0,.1);display:block}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+:focus-visible{outline:2px solid #F2A65A;outline-offset:2px}
+</style>
+</helmet>
+<div class="app {{themeClass}}" style="display: flex; flex-wrap: wrap; gap: 16px; padding: 16px">
+
+<nav class="glass" aria-label="Main navigation" style="flex: 1 1 248px; max-width: 100%; border-radius: 28px; padding: 22px 14px; display: flex; flex-direction: column; gap: 26px">
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 8px">
+<svg viewBox="0 0 140 128" width="40" height="37" aria-hidden="true" style="filter: drop-shadow(0 6px 10px rgba(194,73,29,.55))">
+<defs>
+<linearGradient id="lgBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A63B16"></stop><stop offset="1" stop-color="#5A1D0B"></stop></linearGradient>
+<linearGradient id="lgFront" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7A266"></stop><stop offset="1" stop-color="#C2491D"></stop></linearGradient>
+<linearGradient id="lgShine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".6"></stop><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop></linearGradient>
+</defs>
+<path d="M18 34a8 8 0 0 1 8-8h22l8 9h44a8 8 0 0 1 8 8v51a8 8 0 0 1-8 8H26a8 8 0 0 1-8-8Z" fill="url(#lgBack)"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-9 44A4 4 0 0 1 99 102H24a4 4 0 0 1-3.9-4.8l9-44A4 4 0 0 1 33 50Z" fill="url(#lgFront)" fill-opacity=".94"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-2.6 12.2H26.4l2.7-12.2A4 4 0 0 1 33 50Z" fill="url(#lgShine)"></path>
+<rect x="110" y="84" width="10" height="10" rx="2" fill="#F2A65A" transform="rotate(12 115 89)"></rect>
+<rect x="123" y="69" width="7" height="7" rx="1.5" fill="#F7C589" transform="rotate(24 126.5 72.5)"></rect>
+</svg>
+<span style="font-size: 24px; font-weight: 700; letter-spacing: -1px">rost<span style="color: var(--dav)">dav</span></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="Main.dc.html" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></svg>All files</a>
+<a href="#" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18Z"></path><path d="M12 7v5l3 2"></path></svg>Recent</a>
+<a href="#" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Shares</a>
+<a href="#" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg>Trash bin</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div class="eyebrow" style="padding: 0 12px 6px">Account</div>
+<a href="Devices.dc.html" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12v10H4Z"></path><path d="M2 19h16"></path><path d="M19 9h3v10h-3Z"></path></svg>Devices &amp; security</a>
+<a href="Settings.dc.html" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><path d="M15 4v4M9 10v4M17 16v4"></path></svg>Settings</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div class="eyebrow" style="padding: 0 12px 6px">Server</div>
+<a href="#" class="nav-active"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z"></path><path d="M3 21a6 6 0 0 1 12 0"></path><path d="M17 11a3 3 0 1 0 0-6"></path><path d="M21 21a5 5 0 0 0-4-4.9"></path></svg>Administration</a>
+</div>
+<div class="glass-2" style="margin-top: auto; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px"><span style="font-weight: 600">Storage</span><span style="color: var(--text-2)">[USED] of [QUOTA]</span></div>
+<div class="meter"><span style="width: 38%"></span></div>
+</div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; padding: 20px 12px 24px">
+<div style="max-width: 1080px; display: flex; flex-direction: column; gap: 20px">
+<div style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px">
+<div>
+<h1 style="margin: 0; font-size: 36px; font-weight: 700; letter-spacing: -1.3px">Administration</h1>
+<p style="margin: 8px 0 0; font-size: 16px; color: var(--text-2)">Visible to administrators only.</p>
+</div>
+<div class="glass-2" style="display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; font-size: 14px; font-weight: 600"><span style="width: 9px; height: 9px; border-radius: 5px; background: #4FD1BE; box-shadow: 0 0 10px rgba(79,209,190,.9)"></span>Server running · version [ROSTDAV-VERSION]</div>
+</div>
+
+<div role="tablist" aria-label="Sections" class="glass-2" style="display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 5px; border-radius: 16px; align-self: flex-start">
+<sc-for list="{{tabs}}" as="t" hint-placeholder-count="4">
+<button type="button" role="tab" aria-selected="{{t.selected}}" onClick="{{t.pick}}" style="min-height: 42px; padding: 0 18px; border-radius: 12px; border: 1px solid {{t.border}}; background: {{t.bg}}; box-shadow: {{t.shadow}}; color: {{t.fg}}; font-weight: {{t.weight}}; cursor: pointer">{{t.label}}</button>
+</sc-for>
+</div>
+
+<sc-if value="{{isUsers}}" hint-placeholder-val="{{true}}">
+<section class="glass" aria-label="Users" style="border-radius: 24px; overflow: hidden">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 18px 20px">
+<label style="flex: 1 1 240px; display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 14px; border-radius: 14px; background: var(--field); border: 1px solid var(--field-border); color: var(--text-3); box-shadow: inset 0 2px 5px rgba(0,0,0,.16)">
+<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 18a7 7 0 1 0 0-14a7 7 0 0 0 0 14Z"></path><path d="M20 20l-4-4"></path></svg>
+<input type="search" aria-label="Search users" placeholder="Search users" style="flex: 1; min-width: 0; border: none; background: transparent; font-size: 15px; color: var(--text); outline: none">
+</label>
+<button type="button" class="btn-rust"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>Add user</button>
+</div>
+<div style="overflow-x: auto; padding: 0 10px 12px">
+<div style="min-width: 820px">
+<div class="mono" style="display: grid; grid-template-columns: minmax(0, 1.6fr) 100px minmax(0, 1fr) 80px 110px 220px; gap: 12px; padding: 10px 14px; font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-3)">
+<span>User</span><span>Role</span><span>Storage</span><span>2FA</span><span>Status</span><span></span>
+</div>
+<sc-for list="{{users}}" as="u" hint-placeholder-count="4">
+<div style="display: grid; grid-template-columns: minmax(0, 1.6fr) 100px minmax(0, 1fr) 80px 110px 220px; gap: 12px; align-items: center; min-height: 70px; padding: 0 14px; margin: 2px 0; border-radius: 16px; border: 1px solid var(--divider); opacity: {{u.opacity}}">
+<div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+<span style="width: 38px; height: 38px; border-radius: 19px; display: flex; align-items: center; justify-content: center; flex: none; color: #FFFFFF; font-weight: 700; background: {{u.avatarBg}}; box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 8px 16px -8px rgba(0,0,0,.5)">{{u.initial}}</span>
+<div style="min-width: 0"><div style="font-size: 15px; font-weight: 600">{{u.name}}</div><div class="mono" style="font-size: 13px; color: var(--text-2)">{{u.login}}</div></div>
+</div>
+<span style="font-size: 14px">{{u.role}}</span>
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div class="meter"><span style="width: {{u.quotaPct}}; background: {{u.quotaBar}}"></span></div>
+<span style="font-size: 13px; color: var(--text-2)">{{u.quotaPct}} of [QUOTA]</span>
+</div>
+<span style="font-size: 14px; font-weight: 600; color: {{u.tfaColor}}">{{u.tfa}}</span>
+<span class="chip" style="justify-self: start; background: {{u.statusBg}}; color: {{u.statusFg}}">{{u.status}}</span>
+<div style="display: flex; justify-content: flex-end; gap: 8px">
+<button type="button" class="btn" style="min-height: 40px; padding: 0 12px; font-size: 13px">Edit</button>
+<sc-if value="{{u.canToggle}}" hint-placeholder-val="{{true}}"><button type="button" class="btn-danger" onClick="{{u.toggle}}" style="min-height: 40px; padding: 0 12px; font-size: 13px">{{u.toggleLabel}}</button></sc-if>
+</div>
+</div>
+</sc-for>
+</div>
+</div>
+</section>
+</sc-if>
+
+<sc-if value="{{isServer}}" hint-placeholder-val="{{false}}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px">
+<section class="glass" aria-labelledby="h-up" style="border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="h-up" style="margin: 0; font-size: 19px; font-weight: 700">Uploads &amp; storage</h2>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Default quota per user
+<input class="field" type="text" value="[QUOTA]">
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Maximum file size
+<input class="field" type="text" value="[MAX-FILE-SIZE]">
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Delete orphaned chunk uploads after
+<select class="field"><option>24 hours</option><option>3 days</option><option>7 days</option></select>
+</label>
+</section>
+<section class="glass" aria-labelledby="h-ver" style="border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="h-ver" style="margin: 0; font-size: 19px; font-weight: 700">Versions &amp; trash bin</h2>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Maximum versions per file
+<input class="field" type="number" value="20">
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Keep versions for
+<select class="field"><option>30 days</option><option>90 days</option><option>1 year</option><option>forever</option></select>
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Maximum share of the quota
+<input class="field" type="text" value="20 %">
+</label>
+</section>
+<section class="glass" aria-labelledby="h-share" style="grid-column: 1 / -1; border-radius: 24px; padding: 10px 24px 14px">
+<h2 id="h-share" style="margin: 14px 0 4px; font-size: 19px; font-weight: 700">Shares</h2>
+<sc-for list="{{serverSwitches}}" as="p" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 16px; min-height: 74px; border-bottom: 1px solid var(--divider)">
+<div style="flex: 1; min-width: 0"><div style="font-size: 15px; font-weight: 600">{{p.label}}</div><div style="font-size: 14px; color: var(--text-2); margin-top: 2px">{{p.hint}}</div></div>
+<button type="button" class="switch" role="switch" aria-checked="{{p.checked}}" aria-label="{{p.label}}" onClick="{{p.toggle}}" style="background: {{p.bg}}; justify-content: {{p.justify}}; box-shadow: {{p.shadow}}"><span class="knob"></span></button>
+</div>
+</sc-for>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{isSecurity}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 20px">
+<section class="glass" aria-labelledby="h-sec" style="border-radius: 24px; padding: 10px 24px 4px">
+<h2 id="h-sec" style="margin: 14px 0 4px; font-size: 19px; font-weight: 700">Sign-in</h2>
+<sc-for list="{{securitySwitches}}" as="p" hint-placeholder-count="2">
+<div style="display: flex; align-items: center; gap: 16px; min-height: 74px; border-bottom: 1px solid var(--divider)">
+<div style="flex: 1; min-width: 0"><div style="font-size: 15px; font-weight: 600">{{p.label}}</div><div style="font-size: 14px; color: var(--text-2); margin-top: 2px">{{p.hint}}</div></div>
+<button type="button" class="switch" role="switch" aria-checked="{{p.checked}}" aria-label="{{p.label}}" onClick="{{p.toggle}}" style="background: {{p.bg}}; justify-content: {{p.justify}}; box-shadow: {{p.shadow}}"><span class="knob"></span></button>
+</div>
+</sc-for>
+<div style="display: flex; flex-wrap: wrap; gap: 16px; padding: 18px 0">
+<label style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Failed attempts before lockout
+<input class="field" type="number" value="5">
+</label>
+<label style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Lockout duration
+<select class="field"><option>10 minutes</option><option>1 hour</option><option>24 hours</option></select>
+</label>
+</div>
+</section>
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section class="glass" aria-labelledby="h-locks" style="flex: 1 1 320px; min-width: 0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 4px">
+<h2 id="h-locks" style="margin: 0 0 8px; font-size: 19px; font-weight: 700">Active lockouts</h2>
+<div style="display: flex; align-items: center; gap: 12px; min-height: 58px; border-bottom: 1px solid var(--divider)"><div style="flex: 1"><div class="mono" style="font-size: 14px">[IP-ADDRESS]</div><div style="font-size: 13px; color: var(--text-2)">Basic auth · locked until [TIME]</div></div><button type="button" class="btn" style="min-height: 40px; padding: 0 12px; font-size: 13px">Unlock</button></div>
+<div style="display: flex; align-items: center; gap: 12px; min-height: 58px"><div style="flex: 1"><div class="mono" style="font-size: 14px">jonas</div><div style="font-size: 13px; color: var(--text-2)">2FA code · locked until [TIME]</div></div><button type="button" class="btn" style="min-height: 40px; padding: 0 12px; font-size: 13px">Unlock</button></div>
+</section>
+<section class="glass" aria-labelledby="h-log" style="flex: 2 1 420px; min-width: 0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 4px">
+<h2 id="h-log" style="margin: 0 0 8px; font-size: 19px; font-weight: 700">Audit log</h2>
+<sc-for list="{{audit}}" as="e" hint-placeholder-count="4">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; min-height: 48px; padding: 10px 0; border-bottom: 1px solid var(--divider)">
+<span class="mono" style="width: 110px; font-size: 13px; color: var(--text-2)">{{e.when}}</span>
+<span class="mono" style="min-width: 70px; font-size: 13px; color: var(--link)">{{e.who}}</span>
+<span style="flex: 1 1 200px; font-size: 14px">{{e.what}}</span>
+</div>
+</sc-for>
+</section>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isCompat}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start">
+<section aria-labelledby="h-id" style="flex: 1 1 320px; min-width: 0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 14px; color: #F4EFE8; border: 1px solid rgba(255,190,140,.35); background: linear-gradient(145deg,rgba(194,73,29,.85),rgba(70,22,8,.92)); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 30px 60px -26px rgba(194,73,29,.75)">
+<h2 id="h-id" style="margin: 0; font-size: 19px; font-weight: 700">Identity towards clients</h2>
+<dl style="margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 16px; font-size: 14px">
+<dt style="color: #F7E2D2">productname</dt><dd class="mono" style="margin: 0; color: #F7C589">Rostdav</dd>
+<dt style="color: #F7E2D2">Reported version</dt><dd class="mono" style="margin: 0; color: #F7C589">[NEXTCLOUD-VERSION]</dd>
+<dt style="color: #F7E2D2">Tested with</dt><dd style="margin: 0">Nextcloud Android [X.Y.Z] · iOS [X.Y.Z]</dd>
+</dl>
+<div style="display: flex; align-items: center; gap: 16px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.16)">
+<div style="flex: 1"><div style="font-size: 15px; font-weight: 600">Maintenance mode</div><div style="font-size: 13px; color: #F7E2D2">Clients see “maintenance: true” and pause.</div></div>
+<button type="button" class="switch" role="switch" aria-checked="{{maint.checked}}" aria-label="Maintenance mode" onClick="{{maint.toggle}}" style="border-color: rgba(255,255,255,.3); background: {{maint.bgOnRust}}; justify-content: {{maint.justify}}"><span class="knob"></span></button>
+</div>
+</section>
+<section class="glass" aria-labelledby="h-caps" style="flex: 2 1 420px; min-width: 0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 4px">
+<h2 id="h-caps" style="margin: 0 0 4px; font-size: 19px; font-weight: 700">Announced capabilities</h2>
+<p style="margin: 0 0 10px; font-size: 14px; color: var(--text-2)">What the capabilities report to the Nextcloud apps. Only tested features are announced.</p>
+<sc-for list="{{caps}}" as="c" hint-placeholder-count="6">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-height: 54px; padding: 6px 0; border-bottom: 1px solid var(--divider)">
+<span style="flex: 1 1 160px; font-size: 15px">{{c.name}}</span>
+<span class="mono" style="font-size: 12px; color: var(--text-2)">{{c.key}}</span>
+<span class="chip" style="min-width: 116px; justify-content: center; background: {{c.bg}}; color: {{c.fg}}">{{c.state}}</span>
+</div>
+</sc-for>
+</section>
+</div>
+</sc-if>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":1320}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { tab: 'users', disabled: { scanner: true }, sw: { links: true, linkPw: true, expiry: false, force2fa: false, appPwOnly: true, maint: false } };
+}
+renderVals() {
+const tab = this.state.tab;
+const tabs = [['users', 'Users'], ['server', 'Server'], ['security', 'Security'], ['compat', 'Compatibility']].map(([id, label]) => {
+const on = tab === id;
+return {
+label,
+selected: on ? 'true' : 'false',
+bg: on ? 'linear-gradient(180deg,#CF5723,#9A3612)' : 'transparent',
+border: on ? 'rgba(255,170,120,.55)' : 'transparent',
+shadow: on ? 'inset 0 1px 0 rgba(255,255,255,.4), 0 10px 22px -10px rgba(232,120,58,.75)' : 'none',
+fg: on ? '#FFFFFF' : 'var(--text-2)',
+weight: on ? '700' : '500',
+pick: () => this.setState({ tab: id })
+};
+});
+const sw = (key, label, hint) => {
+const on = !!this.state.sw[key];
+return {
+label,
+hint,
+checked: on ? 'true' : 'false',
+bg: on ? 'linear-gradient(180deg,#CF5723,#9A3612)' : 'var(--switch-off)',
+bgOnRust: on ? 'linear-gradient(180deg,#F7C589,#E8783A)' : 'rgba(0,0,0,.3)',
+shadow: on ? 'inset 0 1px 0 rgba(255,255,255,.35), 0 0 16px rgba(232,120,58,.55)' : 'inset 0 2px 4px rgba(0,0,0,.25)',
+justify: on ? 'flex-end' : 'flex-start',
+toggle: () => this.setState({ sw: { ...this.state.sw, [key]: !on } })
+};
+};
+const avatars = ['linear-gradient(145deg,#F59A5C,#9A3612)', 'linear-gradient(145deg,#6CC7BA,#1F5F5A)', 'linear-gradient(145deg,#A39DDB,#3C3A55)', 'linear-gradient(145deg,#8E877F,#3A3D45)'];
+const raw = [
+{ id: 'pierre', name: 'Pierre', login: 'pierre', role: 'Admin', pct: 38, tfa: false, self: true },
+{ id: 'anna', name: 'Anna', login: 'anna', role: 'User', pct: 71, tfa: true },
+{ id: 'jonas', name: 'Jonas', login: 'jonas', role: 'User', pct: 92, tfa: true },
+{ id: 'scanner', name: 'Office scanner', login: 'scanner', role: 'User', pct: 3, tfa: false }
+];
+const users = raw.map((u, i) => {
+const off = !!this.state.disabled[u.id];
+return {
+...u,
+initial: u.name.charAt(0),
+avatarBg: avatars[i % avatars.length],
+quotaPct: u.pct + '%',
+quotaBar: u.pct > 85 ? 'linear-gradient(90deg,#F7B07A,#9A3612)' : 'linear-gradient(90deg,#F2A65A,#C2491D)',
+tfa: u.tfa ? 'On' : 'Off',
+tfaColor: u.tfa ? 'var(--ok-fg)' : 'var(--text-2)',
+status: off ? 'Disabled' : 'Active',
+statusBg: off ? 'var(--chip)' : 'var(--ok-bg)',
+statusFg: off ? 'var(--text-2)' : 'var(--ok-fg)',
+opacity: off ? '0.55' : '1',
+canToggle: !u.self,
+toggleLabel: off ? 'Enable' : 'Disable',
+toggle: () => this.setState({ disabled: { ...this.state.disabled, [u.id]: !off } })
+};
+});
+const caps = [
+['WebDAV file access', 'dav', true],
+['Chunked upload v2', 'dav.chunking', true],
+['Versions', 'files.versioning', true],
+['Sharing API', 'files_sharing.api_enabled', true],
+['Trash bin', 'files.undelete', false],
+['Previews', '–', false],
+['Notifications', 'notifications', false]
+].map(([name, key, on]) => ({
+name,
+key,
+state: on ? 'Announced' : 'Not announced',
+bg: on ? 'var(--ok-bg)' : 'var(--chip)',
+fg: on ? 'var(--ok-fg)' : 'var(--text-2)'
+}));
+return {
+themeClass: (this.props.theme ?? 'dark') === 'light' ? 't-light' : 't-dark',
+tabs,
+isUsers: tab === 'users',
+isServer: tab === 'server',
+isSecurity: tab === 'security',
+isCompat: tab === 'compat',
+users,
+serverSwitches: [
+sw('links', 'Allow public links', 'Users can share files via link with people without an account.'),
+sw('linkPw', 'Require a password for public links', 'Links without a password can no longer be created.'),
+sw('expiry', 'Enforce an expiry date for links', 'New links expire after the configured period at the latest.')
+],
+securitySwitches: [
+sw('force2fa', 'Require two-factor authentication for everyone', 'Off by default. Users without 2FA set it up at their next browser sign-in.'),
+sw('appPwOnly', 'WebDAV with app passwords only', 'Account passwords are rejected on WebDAV and OCS – also for users without 2FA.')
+],
+maint: sw('maint', 'Maintenance mode', ''),
+caps,
+audit: [
+{ when: 'Today 09:41', who: 'pierre', what: 'Device connected: Nextcloud Android' },
+{ when: 'Today 08:02', who: 'jonas', what: '5 wrong 2FA codes – sign-in locked' },
+{ when: 'Yesterday', who: 'anna', what: 'Two-factor authentication turned on' },
+{ when: 'Oct 14', who: 'pierre', what: 'User scanner disabled' }
+]
+};
+}
+}
+</script>
+</body>
+</html>

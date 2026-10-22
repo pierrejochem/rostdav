@@ -7,10 +7,11 @@ Requirements: sections 2.6–2.8 in [instructions.md](instructions.md). The desi
 | Source | Contents |
 |---|---|
 | Design canvas "Rostdav Web UI" (claude.ai, private) | Interactive design of all pages |
-| [`design/mockups/web-ui/`](../design/mockups/web-ui/) | Source files of the canvas pages (`.dc.html`) |
+| [`design/mockups/web-ui-glass/`](../design/mockups/web-ui-glass/) | **Current design** ("liquid glass"): source files of the canvas pages (`.dc.html`) |
+| [`design/mockups/web-ui/`](../design/mockups/web-ui/) | Earlier design, kept for reference |
 | [`design/mockups/logo/`](../design/mockups/logo/) | Logo, variants, color palette |
 | [`assets/brand/`](../assets/brand/) | Logo files as SVG |
-| [`crates/rostdav-web/static/tokens.css`](../crates/rostdav-web/static/tokens.css) | Design tokens for light and dark |
+| [`crates/rostdav-web/static/app.css`](../crates/rostdav-web/static/app.css) | Implemented stylesheet with the design tokens for light and dark |
 
 The `.dc.html` files are sources of the design canvas and need its runtime (`support.js`); they do not run directly in the browser but are easy to read (HTML with inline styles and a small logic class per page). For the implementation, structure, texts, spacing and colors matter, not the mechanism.
 

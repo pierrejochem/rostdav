@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rostdav – Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+*{box-sizing:border-box}
+a{color:var(--link)}a:hover{color:var(--link-hover)}
+button,input,select{font:inherit}
+.t-dark{color-scheme:dark;--bg:#0B0C10;--orb1:rgba(194,73,29,.55);--orb2:rgba(232,120,58,.32);--orb3:rgba(122,42,18,.62);--orb4:rgba(242,166,90,.16);--text:#F4EFE8;--text-2:#C2BAB1;--text-3:#A39B92;--dav:#E8783A;--glass:linear-gradient(145deg,rgba(255,255,255,.10),rgba(255,255,255,.03));--glass-2:linear-gradient(145deg,rgba(255,255,255,.14),rgba(255,255,255,.05));--glass-border:rgba(255,255,255,.13);--glass-hi:rgba(255,255,255,.20);--glass-lo:rgba(0,0,0,.30);--shadow:0 30px 60px -24px rgba(0,0,0,.7),0 10px 24px -14px rgba(0,0,0,.6);--shadow-2:0 14px 30px -16px rgba(0,0,0,.65);--field:rgba(5,6,8,.35);--field-border:rgba(255,255,255,.12);--row-hover:rgba(255,255,255,.05);--sel:linear-gradient(145deg,rgba(232,120,58,.28),rgba(194,73,29,.12));--sel-border:rgba(242,166,90,.42);--divider:rgba(255,255,255,.07);--track:rgba(255,255,255,.08);--ok-bg:rgba(124,197,188,.14);--ok-fg:#93DCD2;--warn-bg:rgba(242,166,90,.14);--warn-fg:#F7C589;--danger-bg:rgba(194,73,29,.18);--danger-fg:#F7B07A;--danger-border:rgba(242,166,90,.35);--chip:rgba(255,255,255,.08);--link:#F2A65A;--link-hover:#F7C589;--switch-off:rgba(255,255,255,.10)}
+.t-light{color-scheme:light;--bg:#ECE4DA;--orb1:rgba(232,120,58,.42);--orb2:rgba(242,166,90,.40);--orb3:rgba(194,73,29,.28);--orb4:rgba(122,42,18,.16);--text:#15171C;--text-2:#4F4842;--text-3:#625A53;--dav:#C2491D;--glass:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.40));--glass-2:linear-gradient(145deg,rgba(255,255,255,.85),rgba(255,255,255,.55));--glass-border:rgba(255,255,255,.78);--glass-hi:rgba(255,255,255,.95);--glass-lo:rgba(122,42,18,.10);--shadow:0 30px 60px -28px rgba(90,40,20,.38),0 10px 24px -16px rgba(90,40,20,.25);--shadow-2:0 14px 30px -18px rgba(90,40,20,.35);--field:rgba(255,255,255,.58);--field-border:rgba(122,42,18,.18);--row-hover:rgba(255,255,255,.45);--sel:linear-gradient(145deg,rgba(232,120,58,.24),rgba(242,166,90,.10));--sel-border:rgba(194,73,29,.38);--divider:rgba(122,42,18,.10);--track:rgba(21,23,28,.10);--ok-bg:rgba(31,95,90,.12);--ok-fg:#1F5F5A;--warn-bg:rgba(194,73,29,.12);--warn-fg:#8A3214;--danger-bg:rgba(194,73,29,.12);--danger-fg:#8A3214;--danger-border:rgba(194,73,29,.30);--chip:rgba(21,23,28,.07);--link:#A93C15;--link-hover:#7A2A12;--switch-off:rgba(21,23,28,.16)}
+.app{min-height:900px;color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;background:radial-gradient(42% 52% at 10% 14%,var(--orb1),transparent 70%),radial-gradient(36% 46% at 92% 6%,var(--orb2),transparent 70%),radial-gradient(48% 56% at 80% 96%,var(--orb3),transparent 72%),radial-gradient(32% 40% at 30% 90%,var(--orb4),transparent 70%),var(--bg)}
+.glass{background:var(--glass);border:1px solid var(--glass-border);box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 -1px 0 var(--glass-lo),var(--shadow);-webkit-backdrop-filter:blur(28px) saturate(160%);backdrop-filter:blur(28px) saturate(160%)}
+.glass-2{background:var(--glass-2);border:1px solid var(--glass-border);box-shadow:inset 0 1px 0 var(--glass-hi),inset 0 -1px 0 var(--glass-lo),var(--shadow-2);-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%)}
+.btn{min-height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--glass-border);background:var(--glass-2);color:var(--text);font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-shadow:inset 0 1px 0 var(--glass-hi),0 8px 18px -12px rgba(0,0,0,.55)}
+.btn:hover{border-color:var(--sel-border)}
+.btn-rust{min-height:44px;padding:0 18px;border-radius:12px;border:1px solid rgba(255,170,120,.55);background:linear-gradient(180deg,#CF5723,#9A3612);color:#FFFFFF;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;box-shadow:inset 0 1px 0 rgba(255,255,255,.42),inset 0 -2px 0 rgba(70,20,6,.45),0 12px 26px -10px rgba(232,120,58,.75)}
+.btn-rust:hover{color:#FFFFFF;filter:brightness(1.06)}
+.field{min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--field-border);background:var(--field);color:var(--text);font-size:15px;box-shadow:inset 0 2px 5px rgba(0,0,0,.16)}
+.field::placeholder{color:var(--text-3)}
+.mono{font-family:'JetBrains Mono',ui-monospace,monospace}
+.eyebrow{font-family:'JetBrains Mono',ui-monospace,monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--text-3)}
+.nav-link{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:12px;color:var(--text-2);text-decoration:none;border:1px solid transparent}
+.nav-link:hover{background:var(--row-hover);color:var(--text)}
+.nav-active{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border-radius:12px;color:var(--text);text-decoration:none;font-weight:600;background:var(--sel);border:1px solid var(--sel-border);box-shadow:inset 0 1px 0 var(--glass-hi),0 10px 22px -12px rgba(232,120,58,.6)}
+.nav-active:hover{color:var(--text)}
+.meter{height:8px;border-radius:4px;background:var(--track);box-shadow:inset 0 1px 2px rgba(0,0,0,.25)}
+.meter>span{display:block;height:8px;border-radius:4px;background:linear-gradient(90deg,#F2A65A,#C2491D);box-shadow:0 0 12px rgba(232,120,58,.65)}
+.switch{width:56px;height:32px;border-radius:16px;padding:3px;border:1px solid var(--glass-border);cursor:pointer;display:flex;flex:none}
+.knob{width:24px;height:24px;border-radius:12px;background:linear-gradient(180deg,#FFFFFF,#E6DED5);box-shadow:0 2px 6px rgba(0,0,0,.35),inset 0 -1px 0 rgba(0,0,0,.1);display:block}
+svg.i{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}
+:focus-visible{outline:2px solid #F2A65A;outline-offset:2px}
+</style>
+</helmet>
+<div class="app {{themeClass}}" style="display: flex; flex-wrap: wrap; gap: 16px; padding: 16px">
+
+<nav class="glass" aria-label="Main navigation" style="flex: 1 1 248px; max-width: 100%; border-radius: 28px; padding: 22px 14px; display: flex; flex-direction: column; gap: 26px">
+<div style="display: flex; align-items: center; gap: 12px; padding: 0 8px">
+<svg viewBox="0 0 140 128" width="40" height="37" aria-hidden="true" style="filter: drop-shadow(0 6px 10px rgba(194,73,29,.55))">
+<defs>
+<linearGradient id="lgBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A63B16"></stop><stop offset="1" stop-color="#5A1D0B"></stop></linearGradient>
+<linearGradient id="lgFront" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7A266"></stop><stop offset="1" stop-color="#C2491D"></stop></linearGradient>
+<linearGradient id="lgShine" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".6"></stop><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"></stop></linearGradient>
+</defs>
+<path d="M18 34a8 8 0 0 1 8-8h22l8 9h44a8 8 0 0 1 8 8v51a8 8 0 0 1-8 8H26a8 8 0 0 1-8-8Z" fill="url(#lgBack)"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-9 44A4 4 0 0 1 99 102H24a4 4 0 0 1-3.9-4.8l9-44A4 4 0 0 1 33 50Z" fill="url(#lgFront)" fill-opacity=".94"></path>
+<path d="M33 50h75a4 4 0 0 1 3.9 4.8l-2.6 12.2H26.4l2.7-12.2A4 4 0 0 1 33 50Z" fill="url(#lgShine)"></path>
+<rect x="110" y="84" width="10" height="10" rx="2" fill="#F2A65A" transform="rotate(12 115 89)"></rect>
+<rect x="123" y="69" width="7" height="7" rx="1.5" fill="#F7C589" transform="rotate(24 126.5 72.5)"></rect>
+</svg>
+<span style="font-size: 24px; font-weight: 700; letter-spacing: -1px">rost<span style="color: var(--dav)">dav</span></span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<a href="Main.dc.html" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"></path></svg>All files</a>
+<a href="#" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21a9 9 0 1 0 0-18a9 9 0 0 0 0 18Z"></path><path d="M12 7v5l3 2"></path></svg>Recent</a>
+<a href="#" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"></path><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"></path></svg>Shares</a>
+<a href="#" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg>Trash bin</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div class="eyebrow" style="padding: 0 12px 6px">Account</div>
+<a href="Devices.dc.html" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h12v10H4Z"></path><path d="M2 19h16"></path><path d="M19 9h3v10h-3Z"></path></svg>Devices &amp; security</a>
+<a href="#" class="nav-active"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1"></path><path d="M15 4v4M9 10v4M17 16v4"></path></svg>Settings</a>
+</div>
+<div style="display: flex; flex-direction: column; gap: 4px">
+<div class="eyebrow" style="padding: 0 12px 6px">Server</div>
+<a href="Admin.dc.html" class="nav-link"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8a4 4 0 0 0 0 8Z"></path><path d="M3 21a6 6 0 0 1 12 0"></path><path d="M17 11a3 3 0 1 0 0-6"></path><path d="M21 21a5 5 0 0 0-4-4.9"></path></svg>Administration</a>
+</div>
+<div class="glass-2" style="margin-top: auto; border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; gap: 8px; font-size: 14px"><span style="font-weight: 600">Storage</span><span style="color: var(--text-2)">[USED] of [QUOTA]</span></div>
+<div class="meter"><span style="width: 38%"></span></div>
+</div>
+</nav>
+
+<main style="flex: 999 1 560px; min-width: 0; padding: 20px 12px 24px">
+<div style="max-width: 980px; display: flex; flex-direction: column; gap: 20px">
+<div>
+<h1 style="margin: 0; font-size: 36px; font-weight: 700; letter-spacing: -1.3px">Settings</h1>
+<p style="margin: 8px 0 0; font-size: 16px; color: var(--text-2)">Personal settings for your account. Changes are saved immediately.</p>
+</div>
+
+<section class="glass" aria-labelledby="h-profile" style="border-radius: 24px; padding: 24px; display: flex; flex-wrap: wrap; gap: 28px; align-items: flex-start">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 12px">
+<div style="width: 92px; height: 92px; border-radius: 46px; display: flex; align-items: center; justify-content: center; font-size: 36px; font-weight: 700; color: #FFFFFF; border: 1px solid rgba(255,190,140,.6); background: linear-gradient(145deg,#F59A5C,#9A3612); box-shadow: inset 0 2px 0 rgba(255,255,255,.45), inset 0 -3px 0 rgba(70,20,6,.35), 0 18px 34px -14px rgba(232,120,58,.8)">P</div>
+<button type="button" class="btn" style="min-height: 36px; padding: 0 12px; font-size: 13px">Change picture</button>
+</div>
+<div style="flex: 1 1 380px; display: flex; flex-direction: column; gap: 16px">
+<h2 id="h-profile" style="margin: 0; font-size: 19px; font-weight: 700">Profile</h2>
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px">
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Display name
+<input class="field" type="text" value="Pierre">
+</label>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Email for notifications
+<input class="field" type="email" placeholder="name@example.com">
+</label>
+<div style="display: flex; flex-direction: column; gap: 6px; font-size: 14px"><span style="font-weight: 600">Username</span><span class="mono" style="min-height: 46px; display: flex; align-items: center; color: var(--text-2)">pierre · cannot be changed</span></div>
+<label style="display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 600">Language
+<select class="field"><option>English</option><option>Deutsch</option></select>
+</label>
+</div>
+</div>
+</section>
+
+<section class="glass" aria-labelledby="h-look" style="border-radius: 24px; padding: 24px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px">
+<div>
+<h2 id="h-look" style="margin: 0; font-size: 19px; font-weight: 700">Appearance</h2>
+<p style="margin: 6px 0 0; font-size: 14px; color: var(--text-2)">Try it: the whole page switches.</p>
+</div>
+<div role="radiogroup" aria-label="Color scheme" class="glass-2" style="display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 5px; border-radius: 16px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="3">
+<button type="button" role="radio" aria-checked="{{t.checked}}" onClick="{{t.pick}}" style="min-height: 42px; padding: 0 18px; border-radius: 12px; border: 1px solid {{t.border}}; background: {{t.bg}}; box-shadow: {{t.shadow}}; color: {{t.fg}}; font-weight: {{t.weight}}; cursor: pointer">{{t.label}}</button>
+</sc-for>
+</div>
+</section>
+
+<section class="glass" aria-labelledby="h-files" style="border-radius: 24px; padding: 10px 24px 14px">
+<h2 id="h-files" style="margin: 14px 0 4px; font-size: 19px; font-weight: 700">Files</h2>
+<sc-for list="{{prefs}}" as="p" hint-placeholder-count="4">
+<div style="display: flex; align-items: center; gap: 16px; min-height: 74px; border-bottom: 1px solid var(--divider)">
+<div style="flex: 1; min-width: 0"><div style="font-size: 15px; font-weight: 600">{{p.label}}</div><div style="font-size: 14px; color: var(--text-2); margin-top: 2px">{{p.hint}}</div></div>
+<button type="button" class="switch" role="switch" aria-checked="{{p.checked}}" aria-label="{{p.label}}" onClick="{{p.toggle}}" style="background: {{p.bg}}; justify-content: {{p.justify}}; box-shadow: {{p.shadow}}"><span class="knob"></span></button>
+</div>
+</sc-for>
+</section>
+
+<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: stretch">
+<section aria-labelledby="h-dav" style="flex: 3 1 380px; min-width: 0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 14px; color: #F4EFE8; border: 1px solid rgba(255,190,140,.35); background: linear-gradient(145deg,rgba(194,73,29,.85),rgba(70,22,8,.92)); box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 30px 60px -26px rgba(194,73,29,.75)">
+<h2 id="h-dav" style="margin: 0; font-size: 19px; font-weight: 700">WebDAV address</h2>
+<p style="margin: 0; font-size: 14px; line-height: 1.5; color: #F7E2D2">For rclone, davfs2, Finder or Explorer. Sign in there with an app password.</p>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; background: rgba(10,6,4,.42); border: 1px solid rgba(255,255,255,.14); box-shadow: inset 0 2px 6px rgba(0,0,0,.35)">
+<code class="mono" style="flex: 1 1 260px; font-size: 14px; color: #F7C589; overflow-wrap: anywhere">https://[YOUR-SERVER]/remote.php/dav/files/pierre/</code>
+<button type="button" style="min-height: 40px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.12); color: #FFFFFF; font-weight: 600; cursor: pointer">Copy</button>
+</div>
+<a href="Devices.dc.html" style="color: #FFE3CC; font-size: 14px; font-weight: 600">Create an app password</a>
+</section>
+
+<section class="glass" aria-labelledby="h-store" style="flex: 2 1 280px; min-width: 0; border-radius: 24px; padding: 24px; display: flex; flex-direction: column; gap: 14px">
+<h2 id="h-store" style="margin: 0; font-size: 19px; font-weight: 700">Storage</h2>
+<div style="display: flex; height: 14px; border-radius: 7px; overflow: hidden; background: var(--track); box-shadow: inset 0 1px 3px rgba(0,0,0,.3)">
+<div style="width: 30%; background: linear-gradient(180deg,#E8783A,#A93C15); box-shadow: 0 0 12px rgba(232,120,58,.6)"></div><div style="width: 6%; background: linear-gradient(180deg,#F7C589,#F2A65A)"></div><div style="width: 2%; background: var(--text-3)"></div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #C2491D"></span><span style="flex: 1">Files</span><span style="color: var(--text-2)">[SIZE]</span></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 3px; background: #F2A65A"></span><span style="flex: 1">Versions</span><span style="color: var(--text-2)">[SIZE]</span></div>
+<div style="display: flex; align-items: center; gap: 10px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--text-3)"></span><span style="flex: 1">Trash bin</span><span style="color: var(--text-2)">[SIZE]</span></div>
+</div>
+<div style="font-size: 13px; color: var(--text-2)">Quota: [QUOTA] · set by the administrator</div>
+</section>
+</div>
+
+<section class="glass" aria-labelledby="h-export" style="border-radius: 24px; padding: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px">
+<div style="flex: 1 1 320px">
+<h2 id="h-export" style="margin: 0; font-size: 19px; font-weight: 700">Export your data</h2>
+<p style="margin: 6px 0 0; font-size: 14px; color: var(--text-2)">Downloads all your files with their folder structure as an archive.</p>
+</div>
+<button type="button" class="btn">Start export</button>
+</section>
+</div>
+</main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"$preview":{"width":1440,"height":1320}}'>
+class Component extends DCLogic {
+constructor(props) {
+super(props);
+this.state = { theme: 'system', prefs: { hidden: false, confirm: true, previews: true, versions: true } };
+}
+renderVals() {
+const themes = [['light', 'Light'], ['dark', 'Dark'], ['system', 'Same as system']].map(([id, label]) => {
+const on = this.state.theme === id;
+return {
+label,
+checked: on ? 'true' : 'false',
+bg: on ? 'linear-gradient(180deg,#CF5723,#9A3612)' : 'transparent',
+border: on ? 'rgba(255,170,120,.55)' : 'transparent',
+shadow: on ? 'inset 0 1px 0 rgba(255,255,255,.4), 0 10px 22px -10px rgba(232,120,58,.75)' : 'none',
+fg: on ? '#FFFFFF' : 'var(--text-2)',
+weight: on ? '700' : '500',
+pick: () => this.setState({ theme: id })
+};
+});
+const defs = [
+['hidden', 'Show hidden files', 'Files and folders whose name starts with a dot.'],
+['confirm', 'Ask before deleting', 'Deleting is permanent while the trash bin is off.'],
+['previews', 'Load previews', 'Shows thumbnails for images in the file list.'],
+['versions', 'Keep versions when overwriting', 'Earlier states are kept according to the server’s retention rules.']
+];
+const prefs = defs.map(([key, label, hint]) => {
+const on = !!this.state.prefs[key];
+return {
+label,
+hint,
+checked: on ? 'true' : 'false',
+bg: on ? 'linear-gradient(180deg,#CF5723,#9A3612)' : 'var(--switch-off)',
+shadow: on ? 'inset 0 1px 0 rgba(255,255,255,.35), 0 0 16px rgba(232,120,58,.55)' : 'inset 0 2px 4px rgba(0,0,0,.25)',
+justify: on ? 'flex-end' : 'flex-start',
+toggle: () => this.setState({ prefs: { ...this.state.prefs, [key]: !on } })
+};
+});
+const th = this.state.theme;
+const propLight = (this.props.theme ?? 'dark') === 'light';
+const themeClass = th === 'light' ? 't-light' : th === 'dark' ? 't-dark' : (propLight ? 't-light' : 't-dark');
+return { themes, prefs, themeClass };
+}
+}
+</script>
+</body>
+</html>
