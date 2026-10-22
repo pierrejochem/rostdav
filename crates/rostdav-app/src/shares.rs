@@ -67,7 +67,7 @@ pub enum Viewer {
     Recipient,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ShareCreate {
     pub path: Option<LogicalPath>,
     /// OCS share type: 0 user, 3 link.

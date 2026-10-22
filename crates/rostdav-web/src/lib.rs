@@ -3,6 +3,7 @@
 //! Login Flow v2 page (M4) and the browser interface with sessions (M11, ADR 0006).
 
 mod layout;
+mod links;
 mod login_page;
 mod pages;
 mod pages_more;
@@ -38,6 +39,10 @@ pub fn router() -> Router<AppState> {
             "/trash/empty",
             get(pages_more::trash_empty_confirm).post(pages_more::trash_empty),
         )
+        .route("/s/{token}", get(links::view))
+        .route("/s/{token}/unlock", post(links::unlock))
+        .route("/s/{token}/dl", get(links::download))
+        .route("/s/{token}/upload", post(links::upload))
         .route("/settings", get(pages_more::settings))
         .route("/settings/theme", post(pages_more::set_theme))
         .route("/devices", get(pages_more::devices))

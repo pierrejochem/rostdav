@@ -69,7 +69,7 @@ pub fn error_response_to(a: &Authed, e: &Error, back: &str, nav: &str) -> Respon
 }
 
 /// A logical path from its plain-text form (`a/b/c`, no percent-encoding).
-fn parse_plain(raw: &str) -> Result<LogicalPath, Error> {
+pub fn parse_plain(raw: &str) -> Result<LogicalPath, Error> {
     let mut p = LogicalPath::root();
     for seg in raw.split('/').filter(|s| !s.is_empty()) {
         p = p.join(&Name::parse(seg)?);
@@ -77,7 +77,7 @@ fn parse_plain(raw: &str) -> Result<LogicalPath, Error> {
     Ok(p)
 }
 
-fn plain(p: &LogicalPath) -> String {
+pub fn plain(p: &LogicalPath) -> String {
     p.segments()
         .iter()
         .map(Name::as_str)
@@ -85,7 +85,7 @@ fn plain(p: &LogicalPath) -> String {
         .join("/")
 }
 
-fn url_of(prefix: &str, p: &LogicalPath) -> String {
+pub fn url_of(prefix: &str, p: &LogicalPath) -> String {
     let mut s = prefix.to_owned();
     for seg in p.segments() {
         s.push('/');
@@ -361,41 +361,45 @@ pub async fn download(
         Err(e) => return error_response(&a, &e, "/files"),
     };
     match state.read(&a.session.principal, &path).await {
-        Ok((node, file)) => {
-            let mut r = Response::new(Body::from_stream(ReaderStream::new(file)));
-            let h = r.headers_mut();
-            h.insert(
-                header::CONTENT_TYPE,
-                HeaderValue::from_static("application/octet-stream"),
-            );
-            h.insert(
-                header::CONTENT_LENGTH,
-                HeaderValue::from(node.size.max(0) as u64),
-            );
-            h.insert(
-                header::X_CONTENT_TYPE_OPTIONS,
-                HeaderValue::from_static("nosniff"),
-            );
-            h.insert(
-                header::CONTENT_SECURITY_POLICY,
-                HeaderValue::from_static("sandbox"),
-            );
-            let fname: String = node
-                .name
-                .chars()
-                .filter(|c| c.is_ascii_graphic() && !['"', '\\', ';', '%'].contains(c))
-                .collect();
-            if let Ok(v) = HeaderValue::from_str(&format!(
-                "attachment; filename=\"{}\"; filename*=UTF-8''{}",
-                if fname.is_empty() { "download" } else { &fname },
-                enc(&node.name)
-            )) {
-                h.insert(header::CONTENT_DISPOSITION, v);
-            }
-            r
-        }
+        Ok((node, file)) => attachment(&node, file),
         Err(e) => error_response(&a, &e, "/files"),
     }
+}
+
+/// A file as a forced download: never rendered by the browser.
+pub fn attachment(node: &rostdav_meta::Node, file: tokio::fs::File) -> Response {
+    let mut r = Response::new(Body::from_stream(ReaderStream::new(file)));
+    let h = r.headers_mut();
+    h.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("application/octet-stream"),
+    );
+    h.insert(
+        header::CONTENT_LENGTH,
+        HeaderValue::from(node.size.max(0) as u64),
+    );
+    h.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        HeaderValue::from_static("nosniff"),
+    );
+    h.insert(
+        header::CONTENT_SECURITY_POLICY,
+        HeaderValue::from_static("sandbox"),
+    );
+    h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    let fname: String = node
+        .name
+        .chars()
+        .filter(|c| c.is_ascii_graphic() && !['"', '\\', ';', '%'].contains(c))
+        .collect();
+    if let Ok(v) = HeaderValue::from_str(&format!(
+        "attachment; filename=\"{}\"; filename*=UTF-8''{}",
+        if fname.is_empty() { "download" } else { &fname },
+        enc(&node.name)
+    )) {
+        h.insert(header::CONTENT_DISPOSITION, v);
+    }
+    r
 }
 
 fn back_to(dir: &LogicalPath) -> String {
@@ -497,7 +501,7 @@ pub async fn upload(State(state): State<AppState>, a: Authed, mut mp: Multipart)
 }
 
 /// Adapts a multipart field to a byte stream for `StreamReader`.
-struct ByteStream<'a>(axum::extract::multipart::Field<'a>);
+pub struct ByteStream<'a>(pub axum::extract::multipart::Field<'a>);
 
 impl Stream for ByteStream<'_> {
     type Item = Result<axum::body::Bytes, std::io::Error>;

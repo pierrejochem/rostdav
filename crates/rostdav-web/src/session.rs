@@ -37,7 +37,17 @@ pub fn set_cookie(
     value: &str,
     max_age: Option<i64>,
 ) -> HeaderValue {
-    let mut c = format!("{name}={value}; Path=/; HttpOnly; SameSite=Lax");
+    set_cookie_at(headers, name, value, "/", max_age)
+}
+
+pub fn set_cookie_at(
+    headers: &HeaderMap,
+    name: &str,
+    value: &str,
+    path: &str,
+    max_age: Option<i64>,
+) -> HeaderValue {
+    let mut c = format!("{name}={value}; Path={path}; HttpOnly; SameSite=Lax");
     if let Some(m) = max_age {
         c.push_str(&format!("; Max-Age={m}"));
     }

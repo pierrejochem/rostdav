@@ -12,6 +12,7 @@ const HOST: &str = "files.test";
 
 struct Env {
     app: Router,
+    state: rostdav_app::AppState,
     _dir: tempfile::TempDir,
 }
 
@@ -24,7 +25,11 @@ async fn env() -> Env {
         state.add_user(n, PW, false).await.expect("user");
     }
     Env {
-        app: rostdav::http::router_with(state, &rostdav::http::HttpOptions::from_config(&cfg)),
+        app: rostdav::http::router_with(
+            state.clone(),
+            &rostdav::http::HttpOptions::from_config(&cfg),
+        ),
+        state,
         _dir: dir,
     }
 }
@@ -812,4 +817,341 @@ async fn settings_theme_address_and_storage() {
     // the preference is per user
     let cb = login(&e, "bob").await;
     assert!(!get(&e, "/files", &cb).await.text().contains("data-theme"));
+}
+
+/// anna shares `Pub` (with `f.txt` and `sub/g.txt`) as a link; returns the token.
+async fn make_link(e: &Env, perms: i64, password: Option<&str>) -> String {
+    let anna = e
+        .state
+        .authenticate("anna", PW, "192.0.2.9".parse().expect("ip"))
+        .await
+        .expect("auth");
+    let c = login(e, "anna").await;
+    let csrf = page_csrf(e, &c).await;
+    post_form(
+        e,
+        "/action/mkdir",
+        &c,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Pub")],
+    )
+    .await;
+    post_form(
+        e,
+        "/action/mkdir",
+        &c,
+        &[("csrf", &csrf), ("dir", "Pub"), ("name", "sub")],
+    )
+    .await;
+    upload(
+        e,
+        &c,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Pub"),
+            ("file", Some("f.txt"), "file one"),
+        ],
+    )
+    .await;
+    upload(
+        e,
+        &c,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Pub/sub"),
+            ("file", Some("g.txt"), "file two"),
+        ],
+    )
+    .await;
+    let v = e
+        .state
+        .share_create(
+            &anna,
+            rostdav_app::ShareCreate {
+                path: Some(rostdav_core::LogicalPath::from_url_path("Pub").expect("path")),
+                share_type: 3,
+                permissions: Some(perms),
+                password: password.map(str::to_owned),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("share");
+    v.share.token.expect("token")
+}
+
+#[tokio::test]
+async fn public_link_page_lists_and_downloads() {
+    let e = env().await;
+    let t = make_link(&e, 1, None).await;
+    let r = send(&e, "GET", &format!("/s/{t}"), &[], Body::empty()).await;
+    assert_eq!(r.status, StatusCode::OK);
+    let html = r.text();
+    assert!(html.contains("f.txt") && html.contains("sub/"));
+    assert!(
+        !html.contains("type=\"file\""),
+        "read-only link offers no upload"
+    );
+    assert!(
+        r.h("content-security-policy")
+            .contains("default-src 'none'")
+    );
+    let r = send(&e, "GET", &format!("/s/{t}?path=sub"), &[], Body::empty()).await;
+    assert!(r.text().contains("g.txt"));
+    let d = send(
+        &e,
+        "GET",
+        &format!("/s/{t}/dl?path=sub%2Fg.txt"),
+        &[],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(d.status, StatusCode::OK);
+    assert_eq!(d.body, b"file two");
+    assert!(d.h("content-disposition").starts_with("attachment"));
+    // no escape from the shared folder, no sign-in needed elsewhere
+    for uri in [
+        format!("/s/{t}?path=..%2Fsecret"),
+        format!("/s/{t}/dl?path=..%2F..%2Fx"),
+        format!("/s/{t}/dl?path=nope"),
+    ] {
+        let r = send(&e, "GET", &uri, &[], Body::empty()).await;
+        assert!(
+            r.status == StatusCode::BAD_REQUEST || r.status == StatusCode::NOT_FOUND,
+            "{uri} {}",
+            r.status
+        );
+    }
+    // unknown and malformed tokens look alike
+    for bad in ["aaaaaaaaaaaaaaa", "x", "a%2Fb"] {
+        assert_eq!(
+            send(&e, "GET", &format!("/s/{bad}"), &[], Body::empty())
+                .await
+                .status,
+            StatusCode::NOT_FOUND
+        );
+    }
+    // the cookie-less visitor cannot reach account pages
+    assert_eq!(
+        send(&e, "GET", "/files", &[], Body::empty()).await.status,
+        StatusCode::SEE_OTHER
+    );
+}
+
+#[tokio::test]
+async fn public_link_password_gate() {
+    let e = env().await;
+    let t = make_link(&e, 1, Some("open-sesame-please")).await;
+    let r = send(&e, "GET", &format!("/s/{t}"), &[], Body::empty()).await;
+    assert!(r.text().contains("Password required"));
+    assert!(!r.text().contains("f.txt"));
+    // downloads without the ticket bounce to the form
+    let d = send(
+        &e,
+        "GET",
+        &format!("/s/{t}/dl?path=f.txt"),
+        &[],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(d.status, StatusCode::SEE_OTHER);
+
+    let lc = r.cookie("rostdav_login").expect("csrf cookie");
+    let csrf = extract_csrf(&r.text());
+    let uri = format!("/s/{t}/unlock");
+    let bad = post_form(&e, &uri, &lc, &[("csrf", &csrf), ("password", "wrong")]).await;
+    assert_eq!(bad.status, StatusCode::UNAUTHORIZED);
+    assert!(bad.cookie("rostdav_link").is_none());
+    assert_eq!(
+        post_form(
+            &e,
+            &uri,
+            &lc,
+            &[("csrf", "forged"), ("password", "open-sesame-please")]
+        )
+        .await
+        .status,
+        StatusCode::FORBIDDEN
+    );
+    let ok = post_form(
+        &e,
+        &uri,
+        &lc,
+        &[("csrf", &csrf), ("password", "open-sesame-please")],
+    )
+    .await;
+    assert_eq!(ok.status, StatusCode::SEE_OTHER);
+    let c = ok
+        .cookies()
+        .into_iter()
+        .find(|c| c.starts_with("rostdav_link="))
+        .expect("ticket");
+    assert!(
+        c.contains("HttpOnly") && c.contains(&format!("Path=/s/{t}")),
+        "{c}"
+    );
+    let ticket = c.split(';').next().expect("pair").to_owned();
+
+    let r = send(
+        &e,
+        "GET",
+        &format!("/s/{t}"),
+        &[("cookie", &ticket)],
+        Body::empty(),
+    )
+    .await;
+    assert!(r.text().contains("f.txt"));
+    let d = send(
+        &e,
+        "GET",
+        &format!("/s/{t}/dl?path=f.txt"),
+        &[("cookie", &ticket)],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(d.body, b"file one");
+
+    // a ticket is bound to its link and cannot be forged
+    let other = ticket.replace(&t, "AAAAAAAAAAAA");
+    let r = send(
+        &e,
+        "GET",
+        &format!("/s/{t}"),
+        &[("cookie", &other)],
+        Body::empty(),
+    )
+    .await;
+    assert!(r.text().contains("Password required"));
+    let forged = format!("rostdav_link={t}_9999999999.deadbeef");
+    let r = send(
+        &e,
+        "GET",
+        &format!("/s/{t}"),
+        &[("cookie", &forged)],
+        Body::empty(),
+    )
+    .await;
+    assert!(r.text().contains("Password required"));
+}
+
+#[tokio::test]
+async fn public_link_upload_rules() {
+    let e = env().await;
+    let t = make_link(&e, 5, None).await; // read + create
+    let page = send(&e, "GET", &format!("/s/{t}"), &[], Body::empty()).await;
+    assert!(page.text().contains("type=\"file\""));
+    let lc = page.cookie("rostdav_login").expect("cookie");
+    let csrf = extract_csrf(&page.text());
+    let (ct, body) = multipart(&[
+        ("csrf", None, &csrf),
+        ("dir", None, ""),
+        ("file", Some("new.txt"), "from visitor"),
+    ]);
+    let o = origin();
+    let up = |body: Vec<u8>, cookie: String, origin: String| {
+        let (e, ct, uri) = (&e, ct.clone(), format!("/s/{t}/upload"));
+        async move {
+            send(
+                e,
+                "POST",
+                &uri,
+                &[
+                    ("content-type", &ct),
+                    ("cookie", &cookie),
+                    ("origin", &origin),
+                ],
+                Body::from(body),
+            )
+            .await
+        }
+    };
+    assert_eq!(
+        up(body.clone(), lc.clone(), "http://evil.test".into())
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    let (_, forged) = multipart(&[
+        ("csrf", None, "forged"),
+        ("dir", None, ""),
+        ("file", Some("new.txt"), "x"),
+    ]);
+    assert_eq!(
+        up(forged, lc.clone(), o.clone()).await.status,
+        StatusCode::FORBIDDEN
+    );
+    let r = up(body.clone(), lc.clone(), o.clone()).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let d = send(
+        &e,
+        "GET",
+        &format!("/s/{t}/dl?path=new.txt"),
+        &[],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(d.body, b"from visitor");
+    // existing files are never replaced
+    let (_, again) = multipart(&[
+        ("csrf", None, &csrf),
+        ("dir", None, ""),
+        ("file", Some("f.txt"), "overwrite!"),
+    ]);
+    let r = up(again, lc.clone(), o.clone()).await;
+    assert_ne!(r.status, StatusCode::SEE_OTHER);
+    let d = send(
+        &e,
+        "GET",
+        &format!("/s/{t}/dl?path=f.txt"),
+        &[],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(d.body, b"file one");
+
+    // a read-only link refuses uploads
+    let ro = {
+        let anna = e
+            .state
+            .authenticate("anna", PW, "192.0.2.9".parse().expect("ip"))
+            .await
+            .expect("auth");
+        let v = e
+            .state
+            .share_create(
+                &anna,
+                rostdav_app::ShareCreate {
+                    path: Some(rostdav_core::LogicalPath::from_url_path("Pub/sub").expect("p")),
+                    share_type: 3,
+                    permissions: Some(1),
+                    ..Default::default()
+                },
+            )
+            .await
+            .expect("share");
+        v.share.token.expect("t")
+    };
+    let uri = format!("/s/{ro}/upload");
+    let (_, body) = multipart(&[
+        ("csrf", None, &csrf),
+        ("dir", None, ""),
+        ("file", Some("x.txt"), "x"),
+    ]);
+    let r = send(
+        &e,
+        "POST",
+        &uri,
+        &[("content-type", &ct), ("cookie", &lc), ("origin", &o)],
+        Body::from(body),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let d = send(
+        &e,
+        "GET",
+        &format!("/s/{ro}/dl?path=x.txt"),
+        &[],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(d.status, StatusCode::NOT_FOUND);
 }

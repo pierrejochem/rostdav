@@ -198,6 +198,58 @@ impl AppState {
             )
     }
 
+    /// Whether a live public link with this token exists and whether it has a password.
+    /// `None` for unknown, expired or malformed tokens.
+    pub async fn link_needs_password(&self, token: &str) -> Result<Option<bool>> {
+        if !(8..=64).contains(&token.len()) || !token.bytes().all(|b| b.is_ascii_alphanumeric()) {
+            return Ok(None);
+        }
+        Ok(self
+            .inner
+            .db
+            .find_link(token)
+            .await?
+            .map(|s| s.password_hash.is_some()))
+    }
+
+    /// The principal of a link page visit: a password-less link, or one whose
+    /// password the visitor proved with a valid ticket. Never checks passwords.
+    pub async fn link_page_principal(
+        &self,
+        token: &str,
+        ticket: Option<&str>,
+    ) -> Result<Principal> {
+        let Some(needs) = self.link_needs_password(token).await? else {
+            return Err(Error::NotFound);
+        };
+        if needs && !ticket.is_some_and(|t| self.link_ticket_valid(token, t)) {
+            return Err(Error::Unauthenticated);
+        }
+        let s = self
+            .inner
+            .db
+            .find_link(token)
+            .await?
+            .ok_or(Error::NotFound)?;
+        Ok(Principal {
+            user_id: s.owner_id,
+            name: "public link".to_owned(),
+            is_admin: false,
+            via: Via::Link(s.id),
+            scope: Scope::Link {
+                share_id: s.id,
+                node_id: s.node_id,
+                perms: s.permissions & 15,
+            },
+        })
+    }
+
+    /// Checks the link password (rate limited) and returns a ticket for the cookie.
+    pub async fn link_unlock(&self, token: &str, password: &str, ip: IpAddr) -> Result<String> {
+        self.authenticate_link(token, password, ip).await?;
+        Ok(self.link_ticket(token))
+    }
+
     // ---- devices -------------------------------------------------------------------------
 
     pub async fn app_passwords(&self, p: &Principal) -> Result<Vec<AppPassword>> {

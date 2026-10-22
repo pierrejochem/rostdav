@@ -145,3 +145,19 @@ pub async fn static_file(axum::extract::Path(name): axum::extract::Path<String>)
     );
     r
 }
+
+/// A page for visitors without an account (public links).
+pub fn public(status: StatusCode, title: &str, body: &str) -> Response {
+    html(
+        status,
+        format!(
+            "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
+             <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
+             <meta name=\"robots\" content=\"noindex\">\
+             <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\"></head><body>\
+             <header class=\"top\"><span class=\"brand\">rost<b>dav</b></span></header>\
+             <main>{body}</main></body></html>",
+            esc(title)
+        ),
+    )
+}
