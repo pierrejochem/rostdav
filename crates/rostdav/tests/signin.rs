@@ -295,6 +295,8 @@ async fn capabilities_advertise_only_what_exists() {
         100 * 1024 * 1024
     );
     assert_eq!(caps["files"]["chunked_upload"]["max_parallel_count"], 5);
+    // required by the Android app's capabilities parser (M6)
+    assert_eq!(caps["files"]["bigfilechunking"], false);
     assert_eq!(
         caps["files"]["forbidden_filename_extensions"],
         serde_json::json!([".filepart", ".part"])

@@ -224,6 +224,9 @@ pub async fn capabilities(
     // Only what Rostdav implements. Chunked upload, sharing, notifications,
     // versions and trash are deliberately absent (docs/compatibility.md).
     let mut files = json!({
+        // The Android app's parser throws without this key (M6) and then stores no capabilities at
+        // all. `false`: the old chunking (`dav.chunking`) is not implemented, only v2 uploads.
+        "bigfilechunking": false,
         "chunked_upload": {
             "max_size": cfg.max_chunk_bytes,
             "max_parallel_count": 5,

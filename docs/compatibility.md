@@ -230,6 +230,9 @@ Server address entered as `http://10.0.2.2:8081`. The app was driven through `ad
 | Rename | `MOVE` 201 | none |
 | Delete | `DELETE` 204, file appears in `trashbin/<user>/trash` | none |
 | Favorite | `PROPPATCH` on the file answered 405 (`oc:favorite` was always 0, the Favorites tab needs `REPORT` `oc:filter-files`) | implemented, see Favorites below; seen with the app: `PROPPATCH` 207 on the folder, star and Favorites tab show it (the app did not send a `REPORT` in this run) |
+| Capabilities | The app's parser throws `No value for bigfilechunking` and then stores **no** capabilities at all (so undelete, versioning and sharing options stay off). Reference sends `files.bigfilechunking: true` | `files.bigfilechunking: false` added (old chunking is not implemented, only v2); test in `tests/signin.rs`; capabilities parse now ("Get Capabilities completed") |
+| Share with a user | Sharee search (`sharees`) finds bob; `POST shares`, `GET/PUT shares/1` all 200; bob sees `/Docs` (permissions 15) in `shared_with_me`, lists it and writes `from-bob.txt` into it; the owner sees the new file | none |
+| Trash in the app | After the capabilities fix the left sidebar still has no "Deleted files" entry (the app version may hide it or it lives elsewhere); trash restore through the app is **not verified**; the trashbin is covered by `tests/trash.rs` against reference fixtures | open |
 
 Both bugs were invisible to the contract tests because the fixtures contained neither request.
 
