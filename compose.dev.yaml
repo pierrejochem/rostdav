@@ -4,6 +4,10 @@
 #   docker compose -f compose.dev.yaml up --build
 #   open http://localhost:8080   (user: demo, password: korrekt-pferd-batterie)
 #
+# Note: on Docker Desktop, a tool that replaces a file instead of writing into it
+# (for example `sed -i`) may not show up in the container. If the server does not
+# pick up a change, save the file again from your editor or run `docker compose -f compose.dev.yaml restart`.
+#
 # Data lives in the named volume `rostdav-data`; `down -v` resets it.
 services:
   rostdav:

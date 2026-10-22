@@ -7,8 +7,7 @@ Requirements: sections 2.6–2.8 in [instructions.md](instructions.md). The desi
 | Source | Contents |
 |---|---|
 | Design canvas "Rostdav Web UI" (claude.ai, private) | Interactive design of all pages |
-| [`design/mockups/web-ui-glass/`](../design/mockups/web-ui-glass/) | **Current design** ("liquid glass"): source files of the canvas pages (`.dc.html`) |
-| [`design/mockups/web-ui/`](../design/mockups/web-ui/) | Earlier design, kept for reference |
+| [`design/mockups/web-ui-glass/`](../design/mockups/web-ui-glass/) | Design ("liquid glass"): source files of the canvas pages (`.dc.html`) |
 | [`design/mockups/logo/`](../design/mockups/logo/) | Logo, variants, color palette |
 | [`assets/brand/`](../assets/brand/) | Logo files as SVG |
 | [`crates/rostdav-web/static/app.css`](../crates/rostdav-web/static/app.css) | Implemented stylesheet with the design tokens for light and dark |
@@ -60,6 +59,8 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
 Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Not yet: security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
+
+Checks done on every page (14 pages × 360/768/1440 px × light/dark, Playwright + axe-core 4.10, tags wcag2a/aa, wcag21a/aa, wcag22aa, best-practice): no horizontal page overflow, no axe violations. Tables scroll inside a focusable region on small screens; password fields get a show/hide button (`/static/password.js`, `aria-pressed`, field name kept stable); sign-in pages have a `main` landmark. Not covered by automated checks: screen-reader announcements and keyboard order were not tried by hand.
 
 Development with live reload: `docker compose -f compose.dev.yaml up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
 

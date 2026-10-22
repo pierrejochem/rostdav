@@ -1,8 +1,8 @@
 # Administration
 
-Requirements: section 2.8 of the [instructions](instructions.md). Design: `design/mockups/web-ui/Admin.dc.html`.
+Requirements: section 2.8 of the [instructions](instructions.md). Design: `design/mockups/web-ui-glass/Admin.dc.html`.
 
-> Status M7: roles, the CLI and the event log are implemented. The web administration (`design/mockups/web-ui/Admin.dc.html`) follows in M11, two-factor reset in M12.
+> Status M7: roles, the CLI and the event log are implemented. The web administration (`design/mockups/web-ui-glass/Admin.dc.html`) follows in M11, two-factor reset in M12.
 
 ## Roles
 

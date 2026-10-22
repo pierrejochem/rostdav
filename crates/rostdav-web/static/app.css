@@ -76,7 +76,7 @@ progress{width:100%;height:8px;border:0;border-radius:4px;background:var(--track
 .empty{padding:36px;text-align:center;color:var(--text-2)}
 
 /* sign-in and public pages */
-body.bare{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:40px 16px}
+main.bare-main{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:40px 16px}
 .hero{width:112px;height:112px;border-radius:32px;display:flex;align-items:center;justify-content:center;transform:perspective(700px) rotateX(12deg) rotateY(-14deg);background:var(--glass);border:1px solid var(--glass-border);box-shadow:inset 0 2px 0 var(--glass-hi),inset 0 -2px 0 var(--glass-lo),0 36px 64px -22px rgba(194,73,29,.85),0 12px 24px -12px rgba(0,0,0,.6)}
 .hero svg{width:78px;height:72px;filter:drop-shadow(0 10px 14px rgba(194,73,29,.65))}
 .brand{font-size:38px;letter-spacing:-1.5px;text-align:center}
@@ -101,3 +101,15 @@ nav.tabs a[aria-current=page]{color:var(--text);font-weight:600;background:var(-
 
 @media (max-width:760px){nav.side{position:static}th.hide,td.hide{display:none}main.panel{padding:18px 14px}}
 @media (prefers-reduced-motion:no-preference){button,.button,.navgroup a{transition:border-color .15s,background .15s,filter .15s}}
+
+/* show-password button (static/password.js) */
+.pw{position:relative;display:flex}
+.pw input{flex:1;min-width:0;padding-right:52px}
+.pw-toggle{position:absolute;right:2px;top:1px;width:44px;min-height:44px;padding:0;border:0;background:transparent;box-shadow:none;color:var(--text-2)}
+.pw-toggle:hover{color:var(--text);border:0}
+
+/* tables scroll inside their own box instead of widening the page */
+.tbl{overflow-x:auto;max-width:100%;position:relative}
+.tbl:focus-visible{outline:2px solid #F2A65A;outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+@media (max-width:760px){td.num{white-space:normal}td.num .button,td.num button{margin:2px 0}.tbl td,.tbl th{padding:10px 8px}}

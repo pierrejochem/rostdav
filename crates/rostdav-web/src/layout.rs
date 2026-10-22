@@ -6,6 +6,9 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
 const APP_CSS: &str = include_str!("../static/app.css");
 const UPLOAD_JS: &str = include_str!("../static/upload.js");
+const PASSWORD_JS: &str = include_str!("../static/password.js");
+
+const PASSWORD_SCRIPT: &str = "<script src=\"/static/password.js\"></script>";
 
 const LOGO: &str = "<svg viewBox=\"0 0 140 128\" aria-hidden=\"true\"><defs>\
 <linearGradient id=\"lgBack\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#A63B16\"/><stop offset=\"1\" stop-color=\"#5A1D0B\"/></linearGradient>\
@@ -16,6 +19,20 @@ const LOGO: &str = "<svg viewBox=\"0 0 140 128\" aria-hidden=\"true\"><defs>\
 <path d=\"M33 50h75a4 4 0 0 1 3.9 4.8l-2.6 12.2H26.4l2.7-12.2A4 4 0 0 1 33 50Z\" fill=\"url(#lgShine)\"/>\
 <rect x=\"110\" y=\"84\" width=\"10\" height=\"10\" rx=\"2\" fill=\"#F2A65A\" transform=\"rotate(12 115 89)\"/>\
 <rect x=\"123\" y=\"69\" width=\"7\" height=\"7\" rx=\"1.5\" fill=\"#F7C589\" transform=\"rotate(24 126.5 72.5)\"/></svg>";
+
+/// Markup fixes applied to every page body: scrollable tables are focusable regions
+/// (keyboard users can scroll them) and empty header cells get a hidden name.
+fn tidy(body: &str) -> String {
+    body.replace(
+        "<table",
+        "<div class=\"tbl\" role=\"region\" aria-label=\"Table, scrolls sideways on small screens\" tabindex=\"0\"><table",
+    )
+    .replace("</table>", "</table></div>")
+    .replace("<th></th>", "<th><span class=\"sr\">Actions</span></th>")
+    .replace("<th class=\"num\"></th>", "<th class=\"num\"><span class=\"sr\">Actions</span></th>")
+}
+
+const FAVICON: &str = "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">";
 
 fn icon(name: &str) -> &'static str {
     match name {
@@ -100,9 +117,10 @@ pub fn bare(status: StatusCode, title: &str, body: &str) -> Response {
         format!(
             "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
              <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
-             <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\"></head>\
-             <body class=\"bare\"><div class=\"hero\">{LOGO}</div>{body}</body></html>",
-            esc(title)
+             <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\">{FAVICON}</head>\
+             <body class=\"bare\"><main class=\"bare-main\"><div class=\"hero\">{LOGO}</div>{}</main>{PASSWORD_SCRIPT}</body></html>",
+            esc(title),
+            tidy(body)
         ),
     )
 }
@@ -184,7 +202,7 @@ pub fn app_with_script(
         format!(
             "<!doctype html><html lang=\"en\"{theme_attr}><head><meta charset=\"utf-8\">\
              <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
-             <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\"></head><body>\
+             <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\">{FAVICON}</head><body>\
              <div class=\"app\"><nav class=\"side\" aria-label=\"Main navigation\">\
              <a class=\"logo\" href=\"/files\">{LOGO}<span class=\"wordmark\">rost<b>dav</b></span></a>\
              <div class=\"navgroup\">{main_nav}</div>\
@@ -192,22 +210,26 @@ pub fn app_with_script(
              <div class=\"wrap\"><header class=\"top\"><span class=\"who\">{}</span><span class=\"avatar\" aria-hidden=\"true\">{}</span>\
              <form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
              <button type=\"submit\">Sign out</button></form></header>\
-             <main class=\"panel\">{body}</main></div></div>{script}</body></html>",
+             <main class=\"panel\">{}</main></div></div>{PASSWORD_SCRIPT}{script}</body></html>",
             esc(title),
             esc(chrome.name),
             esc(&initial),
-            esc(csrf)
+            esc(csrf),
+            tidy(body)
         ),
     )
 }
 
 pub async fn static_file(axum::extract::Path(name): axum::extract::Path<String>) -> Response {
+    let favicon = LOGO.replacen("<svg ", "<svg xmlns=\"http://www.w3.org/2000/svg\" ", 1);
     let (body, mime) = match name.as_str() {
         "app.css" => (APP_CSS, "text/css; charset=utf-8"),
         "upload.js" => (UPLOAD_JS, "text/javascript; charset=utf-8"),
+        "favicon.svg" => (favicon.as_str(), "image/svg+xml"),
+        "password.js" => (PASSWORD_JS, "text/javascript; charset=utf-8"),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
-    let mut r = body.into_response();
+    let mut r = body.to_owned().into_response();
     let h = r.headers_mut();
     h.insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
     h.insert(
@@ -229,11 +251,12 @@ pub fn public(status: StatusCode, title: &str, body: &str) -> Response {
             "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
              <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
              <meta name=\"robots\" content=\"noindex\">\
-             <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\"></head><body>\
+             <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\">{FAVICON}</head><body>\
              <div class=\"public-main\"><header class=\"top public\"><a class=\"logo\" href=\"/\">{LOGO}\
              <span class=\"wordmark\">rost<b>dav</b></span></a></header><br>\
-             <main class=\"panel\">{body}</main></div></body></html>",
-            esc(title)
+             <main class=\"panel\">{}</main></div>{PASSWORD_SCRIPT}</body></html>",
+            esc(title),
+            tidy(body)
         ),
     )
 }

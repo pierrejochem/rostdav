@@ -2,7 +2,7 @@
 
 - Status: **Accepted** by the project owner on 2026-10-22 as proposed (approval point 3 granted; fonts follow later).
 - Date: 2026-10-22
-- Inputs: [docs/ui.md](../ui.md), requirements 2.6–2.8 in [instructions.md](../instructions.md), the mockups in `design/mockups/web-ui/`.
+- Inputs: [docs/ui.md](../ui.md), requirements 2.6–2.8 in [instructions.md](../instructions.md), the mockups in `design/mockups/web-ui-glass/`.
 
 ## Context
 
