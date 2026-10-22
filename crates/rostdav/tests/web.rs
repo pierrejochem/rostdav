@@ -271,6 +271,7 @@ async fn pages_carry_security_headers_and_no_inline_style() {
         let csp = r.h("content-security-policy");
         assert!(csp.contains("default-src 'none'"), "{csp}");
         assert!(csp.contains("style-src 'self'"));
+        assert!(csp.contains("script-src 'self'"));
         assert!(!csp.contains("unsafe-inline"));
         assert_eq!(r.h("x-frame-options"), "DENY");
         assert_eq!(r.h("x-content-type-options"), "nosniff");
@@ -280,7 +281,7 @@ async fn pages_carry_security_headers_and_no_inline_style() {
         let html = r.text();
         assert!(!html.contains("<style"), "inline style block");
         assert!(!html.contains(" style="), "inline style attribute");
-        assert!(!html.contains("<script"));
+        assert!(!html.contains("<script>"), "inline script");
     }
     let css = send(&e, "GET", "/static/app.css", &[], Body::empty()).await;
     assert_eq!(css.status, StatusCode::OK);
@@ -1462,4 +1463,231 @@ async fn files_filter_and_details() {
     assert!(html.contains("Report.txt") && !html.contains("photo.jpg"));
     let html = get(&e, "/files?q=%3Cscript%3E", &c).await.text();
     assert!(!html.contains("<script>") && html.contains("&lt;script&gt;"));
+}
+
+async fn api(
+    e: &Env,
+    method: &str,
+    uri: &str,
+    cookie: &str,
+    csrf: Option<&str>,
+    body: Vec<u8>,
+) -> Res {
+    let o = origin();
+    let mut h = vec![
+        ("cookie", cookie),
+        ("origin", o.as_str()),
+        ("content-type", "application/octet-stream"),
+    ];
+    if let Some(c) = csrf {
+        h.push(("x-csrf-token", c));
+    }
+    send(e, method, uri, &h, Body::from(body)).await
+}
+
+#[tokio::test]
+async fn large_plain_upload_is_not_cut_at_the_framework_default() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    let big = "x".repeat(3 * 1024 * 1024);
+    let r = upload(
+        &e,
+        &c,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, ""),
+            ("file", Some("big.bin"), &big),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert_eq!(get(&e, "/download/big.bin", &c).await.body.len(), big.len());
+}
+
+#[tokio::test]
+async fn chunked_browser_upload_resume_and_rules() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let cb = login(&e, "bob").await;
+    let csrf = page_csrf(&e, &c).await;
+    let csrf_b = page_csrf(&e, &cb).await;
+    let up = "/web/upload/w-abc-11";
+
+    // script is served with the right type, and the page loads it
+    let js = send(&e, "GET", "/static/upload.js", &[], Body::empty()).await;
+    assert!(js.h("content-type").starts_with("text/javascript"));
+    assert!(!js.text().contains("innerHTML"));
+    assert!(
+        get(&e, "/files", &c)
+            .await
+            .text()
+            .contains("src=\"/static/upload.js\"")
+    );
+
+    // unknown transfer
+    assert_eq!(get(&e, up, &c).await.status, StatusCode::NOT_FOUND);
+    // every write needs the header token and the same origin
+    assert_eq!(
+        api(&e, "POST", up, &c, None, vec![]).await.status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        api(&e, "POST", up, &c, Some("forged"), vec![]).await.status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        api(&e, "POST", up, &c, Some(&csrf_b), vec![]).await.status,
+        StatusCode::FORBIDDEN
+    );
+    let r = send(
+        &e,
+        "POST",
+        up,
+        &[
+            ("cookie", &c),
+            ("origin", "http://evil.test"),
+            ("x-csrf-token", &csrf),
+        ],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert_eq!(get(&e, up, &c).await.status, StatusCode::NOT_FOUND);
+
+    assert_eq!(
+        api(&e, "POST", up, &c, Some(&csrf), vec![]).await.status,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        api(
+            &e,
+            "PUT",
+            &format!("{up}/000000"),
+            &c,
+            Some(&csrf),
+            b"hello ".to_vec()
+        )
+        .await
+        .status,
+        StatusCode::OK
+    );
+
+    // resume: the server reports what it has
+    let l = get(&e, up, &c).await;
+    assert_eq!(l.status, StatusCode::OK);
+    let j: serde_json::Value = serde_json::from_slice(&l.body).expect("json");
+    assert_eq!(j["chunks"][0]["name"], "000000");
+    assert_eq!(j["chunks"][0]["size"], 6);
+    // another user neither sees nor changes the transfer
+    assert_eq!(get(&e, up, &cb).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(
+        api(
+            &e,
+            "PUT",
+            &format!("{up}/000001"),
+            &cb,
+            Some(&csrf_b),
+            b"x".to_vec()
+        )
+        .await
+        .status,
+        StatusCode::NOT_FOUND
+    );
+
+    assert_eq!(
+        api(
+            &e,
+            "PUT",
+            &format!("{up}/000001"),
+            &c,
+            Some(&csrf),
+            b"world".to_vec()
+        )
+        .await
+        .status,
+        StatusCode::OK
+    );
+    assert_eq!(
+        api(
+            &e,
+            "PUT",
+            &format!("{up}/bad%2Fname"),
+            &c,
+            Some(&csrf),
+            b"x".to_vec()
+        )
+        .await
+        .status,
+        StatusCode::BAD_REQUEST
+    );
+
+    // finish: wrong total keeps the session, right total assembles
+    let fin = |total: u64, name: &str| {
+        serde_json::to_vec(&serde_json::json!({"dir": "", "name": name, "total": total}))
+            .expect("json")
+    };
+    let finish = format!("{up}/finish");
+    let jh = |body: Vec<u8>, tok: String| {
+        let (e, c, f) = (&e, c.clone(), finish.clone());
+        async move {
+            send(
+                e,
+                "POST",
+                &f,
+                &[
+                    ("cookie", &c),
+                    ("origin", &origin()),
+                    ("x-csrf-token", &tok),
+                    ("content-type", "application/json"),
+                ],
+                Body::from(body),
+            )
+            .await
+        }
+    };
+    assert_eq!(
+        jh(fin(99, "r.txt"), csrf.clone()).await.status,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        jh(fin(11, "../r.txt"), csrf.clone()).await.status,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        jh(fin(11, "r.txt"), "forged".into()).await.status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        jh(fin(11, "r.txt"), csrf.clone()).await.status,
+        StatusCode::OK
+    );
+    assert_eq!(get(&e, "/download/r.txt", &c).await.body, b"hello world");
+    assert_eq!(
+        get(&e, up, &c).await.status,
+        StatusCode::NOT_FOUND,
+        "session removed after assembly"
+    );
+
+    // abort
+    assert_eq!(
+        api(&e, "POST", "/web/upload/w-x-1", &c, Some(&csrf), vec![])
+            .await
+            .status,
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        api(&e, "DELETE", "/web/upload/w-x-1", &c, Some(&csrf), vec![])
+            .await
+            .status,
+        StatusCode::OK
+    );
+    assert_eq!(
+        get(&e, "/web/upload/w-x-1", &c).await.status,
+        StatusCode::NOT_FOUND
+    );
+
+    // no session, no API
+    let r = send(&e, "GET", up, &[], Body::empty()).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
 }

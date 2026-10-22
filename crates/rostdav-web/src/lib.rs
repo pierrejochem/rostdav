@@ -9,9 +9,11 @@ mod pages;
 mod pages_more;
 mod session;
 mod sharing;
+mod webupload;
 
 use axum::Router;
-use axum::routing::{get, post};
+use axum::extract::DefaultBodyLimit;
+use axum::routing::{get, post, put};
 use rostdav_app::AppState;
 
 /// Routes of this layer.
@@ -25,7 +27,11 @@ pub fn router() -> Router<AppState> {
         .route("/files/{*path}", get(pages::files_path))
         .route("/download/{*path}", get(pages::download))
         .route("/action/mkdir", post(pages::mkdir))
-        .route("/action/upload", post(pages::upload))
+        .route(
+            "/action/upload",
+            // the size limit is enforced by the file service (max_upload_bytes)
+            post(pages::upload).layer(DefaultBodyLimit::disable()),
+        )
         .route(
             "/action/delete",
             get(pages::delete_confirm).post(pages::delete),
@@ -43,7 +49,18 @@ pub fn router() -> Router<AppState> {
         .route("/s/{token}", get(links::view))
         .route("/s/{token}/unlock", post(links::unlock))
         .route("/s/{token}/dl", get(links::download))
-        .route("/s/{token}/upload", post(links::upload))
+        .route(
+            "/s/{token}/upload",
+            post(links::upload).layer(DefaultBodyLimit::disable()),
+        )
+        .route(
+            "/web/upload/{id}",
+            get(webupload::list)
+                .post(webupload::create)
+                .delete(webupload::abort),
+        )
+        .route("/web/upload/{id}/finish", post(webupload::finish))
+        .route("/web/upload/{id}/{chunk}", put(webupload::chunk))
         .route("/share", get(sharing::share_page))
         .route("/share/user", post(sharing::share_user))
         .route("/share/link", post(sharing::share_link))

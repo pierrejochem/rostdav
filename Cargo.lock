@@ -1548,6 +1548,7 @@ dependencies = [
  "rostdav-core",
  "rostdav-meta",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-util",
  "tracing",

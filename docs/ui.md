@@ -40,6 +40,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/share?path=`, `/share/{user,link,delete}` | Sharing dialog: share with a user, create/stop public links (password, expiry, view/edit/upload-only) |
 | `/versions?path=`, `/versions/{restore,delete}` | Versions panel of a file |
 | `/files?q=` | Name filter of the current folder; the list also shows file ID and ETag |
+| `/web/upload/<id>[/<chunk>\|/finish]` | Chunked, resumable browser upload (used by `/static/upload.js`; session + `X-CSRF-Token` header) |
 | `/login/v2/flow/<token>` | Connect device (Login Flow v2) |
 | `/static/{app,login}.css` | Embedded stylesheets |
 
@@ -49,11 +50,11 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 
 - Session cookie `rostdav_session`: random 256-bit value, stored only as a hash, `HttpOnly`, `SameSite=Lax`, `Secure` behind HTTPS (`X-Forwarded-Proto`). Accepted on web routes only, never on WebDAV or OCS.
 - Every state-changing request needs a same-origin `Origin`/`Referer` and a CSRF token bound to the session. Anonymous forms (sign-in, link password, link upload) use a double-submit cookie.
-- Content-Security-Policy `default-src 'none'; style-src 'self'; …`: no inline styles or scripts. All user-controlled text is HTML-escaped.
+- Content-Security-Policy `default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; …`: no inline styles or scripts. The only script is `/static/upload.js` (chunked upload; the plain form works without it). All user-controlled text is HTML-escaped.
 - Downloads are always `attachment` with `nosniff` and `sandbox`.
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
-Not yet: language/profile settings, recursive search, chunked browser upload (needs a script; the CSP will get `script-src 'self'` then), administration pages, second factor (slices 11b–11d, M12).
+Not yet: language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
 
 Development with live reload: `docker compose -f compose.dev.yaml up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
 

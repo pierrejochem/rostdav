@@ -12,6 +12,7 @@ rostdav-core.workspace = true
 rostdav-app.workspace = true
 axum.workspace = true
 serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
 rostdav-meta.workspace = true

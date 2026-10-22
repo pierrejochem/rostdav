@@ -6,9 +6,10 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
 const APP_CSS: &str = include_str!("../static/app.css");
 const LOGIN_CSS: &str = include_str!("../static/login.css");
+const UPLOAD_JS: &str = include_str!("../static/upload.js");
 
-const CSP: &str = "default-src 'none'; style-src 'self'; img-src 'self'; form-action 'self'; \
-                   frame-ancestors 'none'; base-uri 'none'";
+const CSP: &str = "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; \
+                   img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
 
 pub fn esc(s: &str) -> String {
     let mut o = String::with_capacity(s.len());
@@ -88,6 +89,22 @@ pub fn app(
     csrf: &str,
     body: &str,
 ) -> Response {
+    app_with_script(status, title, theme, current, csrf, body, None)
+}
+
+/// Like [`app`], with one script from `/static/` loaded at the end of the page.
+pub fn app_with_script(
+    status: StatusCode,
+    title: &str,
+    theme: &str,
+    current: &str,
+    csrf: &str,
+    body: &str,
+    script: Option<&str>,
+) -> Response {
+    let script = script
+        .map(|s| format!("<script src=\"/static/{s}\"></script>"))
+        .unwrap_or_default();
     let nav: String = [
         ("files", "Files", "/files"),
         ("trash", "Trash", "/trash"),
@@ -116,7 +133,7 @@ pub fn app(
              <header class=\"top\"><span class=\"brand\">rost<b>dav</b></span><nav>{nav}</nav>\
              <form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
              <button type=\"submit\">Sign out</button></form></header>\
-             <main>{body}</main></body></html>",
+             <main>{body}</main>{script}</body></html>",
             esc(title),
             esc(csrf)
         ),
@@ -124,17 +141,15 @@ pub fn app(
 }
 
 pub async fn static_file(axum::extract::Path(name): axum::extract::Path<String>) -> Response {
-    let body = match name.as_str() {
-        "app.css" => APP_CSS,
-        "login.css" => LOGIN_CSS,
+    let (body, mime) = match name.as_str() {
+        "app.css" => (APP_CSS, "text/css; charset=utf-8"),
+        "login.css" => (LOGIN_CSS, "text/css; charset=utf-8"),
+        "upload.js" => (UPLOAD_JS, "text/javascript; charset=utf-8"),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
     let mut r = body.into_response();
     let h = r.headers_mut();
-    h.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("text/css; charset=utf-8"),
-    );
+    h.insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
     h.insert(
         header::CACHE_CONTROL,
         HeaderValue::from_static("public, max-age=3600"),

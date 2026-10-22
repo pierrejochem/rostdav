@@ -404,12 +404,20 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, filter: S
          <form class=\"inline\" method=\"post\" action=\"/action/mkdir\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
          <input type=\"hidden\" name=\"dir\" value=\"{dir}\"><input type=\"text\" name=\"name\" placeholder=\"New folder\" aria-label=\"Folder name\" required>\
          <button type=\"submit\">Create folder</button></form>\
-         <form class=\"inline\" method=\"post\" action=\"/action/upload\" enctype=\"multipart/form-data\">\
+         <form id=\"upload-form\" class=\"inline\" method=\"post\" action=\"/action/upload\" enctype=\"multipart/form-data\">\
          <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><input type=\"hidden\" name=\"dir\" value=\"{dir}\">\
          <input type=\"file\" name=\"file\" aria-label=\"File\" required><button class=\"primary\" type=\"submit\">Upload</button></form>\
-         </div>{listing}"
+         </div><p id=\"upload-status\" class=\"muted\" role=\"status\"></p><progress id=\"upload-progress\" value=\"0\" max=\"1\" hidden></progress>{listing}"
     );
-    layout::app(StatusCode::OK, "Files", &a.theme, "files", &a.csrf, &body)
+    layout::app_with_script(
+        StatusCode::OK,
+        "Files",
+        &a.theme,
+        "files",
+        &a.csrf,
+        &body,
+        Some("upload.js"),
+    )
 }
 
 pub async fn download(
