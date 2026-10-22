@@ -1446,10 +1446,13 @@ name = "rostdav-compat"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "mime_guess",
  "rostdav-app",
  "rostdav-core",
+ "rostdav-meta",
  "serde",
  "serde_json",
+ "serde_urlencoded",
  "tracing",
 ]
 

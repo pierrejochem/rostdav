@@ -6,6 +6,8 @@ use rostdav_core::{Error, LogicalPath, Name, Result};
 pub const FILES_PREFIX: &str = "/remote.php/dav/files/";
 /// Legacy root: always the authenticated user's home (advertised as `core.webdav-root`).
 pub const LEGACY_PREFIX: &str = "/remote.php/webdav";
+/// Public links: the shared node is the root (`Basic <token>:<password>`).
+pub const PUBLIC_PREFIX: &str = "/public.php/webdav";
 
 /// Encode everything except unreserved characters.
 pub(crate) const SEGMENT: &AsciiSet = &NON_ALPHANUMERIC
@@ -21,18 +23,31 @@ pub struct Target {
     pub path: LogicalPath,
     /// Hrefs are built under the same prefix the request used.
     pub legacy: bool,
+    /// `public.php/webdav`: only valid for link principals.
+    pub public: bool,
 }
 
 impl Target {
     /// Parses either URL space. `principal` supplies the user for the legacy
     /// root, where the URL carries none.
     pub fn parse_any(raw_path: &str, principal: &Name) -> Result<Self> {
+        if let Some(rest) = raw_path.strip_prefix(PUBLIC_PREFIX) {
+            if rest.is_empty() || rest.starts_with('/') {
+                return Ok(Self {
+                    user: principal.clone(),
+                    path: LogicalPath::from_url_path(rest)?,
+                    legacy: false,
+                    public: true,
+                });
+            }
+        }
         if let Some(rest) = raw_path.strip_prefix(LEGACY_PREFIX) {
             if rest.is_empty() || rest.starts_with('/') {
                 return Ok(Self {
                     user: principal.clone(),
                     path: LogicalPath::from_url_path(rest)?,
                     legacy: true,
+                    public: false,
                 });
             }
         }
@@ -52,13 +67,16 @@ impl Target {
             user: Name::parse(&user)?,
             path: LogicalPath::from_url_path(path_raw)?,
             legacy: false,
+            public: false,
         })
     }
 
     /// Href for a path below this target's user; directories end with `/`.
     pub fn href_for(&self, path: &LogicalPath, is_dir: bool) -> String {
         let mut out = String::new();
-        if self.legacy {
+        if self.public {
+            out.push_str(PUBLIC_PREFIX);
+        } else if self.legacy {
             out.push_str(LEGACY_PREFIX);
         } else {
             out.push_str(FILES_PREFIX);
@@ -146,6 +164,25 @@ mod tests {
 
     fn anna() -> Name {
         Name::parse("anna").expect("name")
+    }
+
+    #[test]
+    fn public_root_maps_to_the_link() {
+        let t = Target::parse_any("/public.php/webdav/a%20b/c", &anna()).expect("t");
+        assert!(t.public && !t.legacy);
+        assert_eq!(t.href_for(&t.path, false), "/public.php/webdav/a%20b/c");
+        assert_eq!(
+            t.href_for(&LogicalPath::root(), true),
+            "/public.php/webdav/"
+        );
+        assert!(
+            Target::parse_any("/public.php/webdav", &anna())
+                .expect("t")
+                .path
+                .is_root()
+        );
+        assert!(Target::parse_any("/public.php/webdav/../x", &anna()).is_err());
+        assert!(Target::parse_any("/public.php/webdavx/a", &anna()).is_err());
     }
 
     #[test]

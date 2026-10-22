@@ -51,6 +51,9 @@ pub fn router() -> Router<AppState> {
         .route("/remote.php/webdav/{*rest}", any(entry))
         .route("/remote.php/dav/uploads/{*rest}", any(entry))
         .route("/remote.php/dav/versions/{*rest}", any(entry))
+        .route("/public.php/webdav", any(entry))
+        .route("/public.php/webdav/", any(entry))
+        .route("/public.php/webdav/{*rest}", any(entry))
 }
 
 async fn entry(State(state): State<AppState>, req: Request) -> Response {
@@ -67,13 +70,18 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
         .extensions()
         .get::<ClientIp>()
         .map_or(IpAddr::V4(Ipv4Addr::UNSPECIFIED), |c| c.0);
-    let principal = authenticate(&state, req.headers(), ip).await?;
+    let public = is_public_path(req.uri().path());
+    let principal = if public {
+        authenticate_link(&state, req.headers(), ip).await?
+    } else {
+        authenticate(&state, req.headers(), ip).await?
+    };
     let principal_name = Name::parse(&principal.name)?;
     let (parts, body) = req.into_parts();
     let headers = &parts.headers;
     let method = parts.method.as_str();
 
-    if parts.uri.path().starts_with(VERSIONS_PREFIX) {
+    if !public && parts.uri.path().starts_with(VERSIONS_PREFIX) {
         let t = VersionsTarget::parse(parts.uri.path())?;
         if t.user.key() != principal_name.key() {
             return Err(Error::NotFound.into());
@@ -81,7 +89,7 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
         return versions::handle(&state, &principal, method, &t, headers, body).await;
     }
 
-    if parts.uri.path().starts_with(UPLOADS_PREFIX) {
+    if !public && parts.uri.path().starts_with(UPLOADS_PREFIX) {
         let t = UploadTarget::parse(parts.uri.path())?;
         if t.user.key() != principal_name.key() {
             // Reference: "Principal with name … not found" (404).
@@ -93,7 +101,8 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
     let target = Target::parse_any(parts.uri.path(), &principal_name)?;
     // The user in the URL must be the authenticated user; checked on the
     // NFC key so equivalent spellings match. The reference answers 404 here.
-    if target.user.key() != principal_name.key() {
+    // Link principals only use the public namespace, users never.
+    if target.user.key() != principal_name.key() || target.public != public {
         return Err(Error::NotFound.into());
     }
     match method {
@@ -122,6 +131,20 @@ pub(crate) fn method_not_allowed() -> Response {
     r.headers_mut()
         .insert(header::ALLOW, HeaderValue::from_static(ALLOWED_METHODS));
     r
+}
+
+fn is_public_path(path: &str) -> bool {
+    path.strip_prefix(target::PUBLIC_PREFIX)
+        .is_some_and(|rest| rest.is_empty() || rest.starts_with('/'))
+}
+
+/// `public.php/webdav`: Basic with the link token as user name.
+async fn authenticate_link(state: &AppState, headers: &HeaderMap, ip: IpAddr) -> Result<Principal> {
+    let value = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .ok_or(Error::Unauthenticated)?;
+    state.authenticate_link_basic(value, ip).await
 }
 
 /// HTTP Basic with an app password or the account password.
@@ -412,7 +435,7 @@ async fn transfer(
     // Like the reference, only the path of the Destination is used; its host
     // is ignored (it may differ behind a reverse proxy).
     let dest = parse_destination(dest_raw, &t.user)?;
-    if dest.user.key() != t.user.key() {
+    if dest.user.key() != t.user.key() || dest.public != t.public {
         return Err(Error::NotFound.into());
     }
     let overwrite = match header_str(headers, "overwrite").map(str::trim) {
@@ -478,20 +501,41 @@ async fn propfind(
         .map_err(|_| Error::TooLarge)?;
     let request = parse_propfind(&bytes)?;
 
-    let node = state.stat(p, &t.path).await?;
-    let mut nodes = vec![(t.path.clone(), node.clone())];
-    if depth == 1 && node.kind == NodeKind::Dir {
-        for child in state.list(p, &t.path).await?.children {
-            nodes.push((t.path.join(&name_of(&child)?), child));
+    let access = state.stat_access(p, &t.path).await?;
+    // (path, grant, ETag override)
+    let mut entries: Vec<(
+        rostdav_core::LogicalPath,
+        rostdav_app::Access,
+        Option<String>,
+    )> = Vec::new();
+    let root_etag = state.derived_root_etag(p, &access).await?;
+    let owners;
+    if depth == 1 && access.is_dir() {
+        let listing = state.list(p, &t.path).await?;
+        owners = listing.owners.clone();
+        entries.push((t.path.clone(), access.clone(), root_etag));
+        for child in listing.children.iter().cloned() {
+            let path = t.path.join(&name_of(&child)?);
+            entries.push((path, listing.child_access(child), None));
         }
+        for m in &listing.mounts {
+            entries.push((
+                t.path.join(&Name::parse(&m.name)?),
+                listing.mount_access(m),
+                None,
+            ));
+        }
+    } else {
+        owners = state.owner_names(&[access.node.owner_id]).await?;
+        entries.push((t.path.clone(), access, root_etag));
     }
 
-    let ctx = props::PropCtx::new(state, p).await?;
-    let mut responses = Vec::with_capacity(nodes.len());
-    for (path, node) in &nodes {
-        let is_dir = node.kind == NodeKind::Dir;
-        let mut rb = ResponseBuilder::new(t.href_for(path, is_dir));
-        props::fill(&ctx, &request, node, &mut rb).await?;
+    let ids: Vec<i64> = entries.iter().map(|(_, a, _)| a.node.id).collect();
+    let ctx = props::PropCtx::new(state, p, owners, &ids).await?;
+    let mut responses = Vec::with_capacity(entries.len());
+    for (path, access, etag) in &entries {
+        let mut rb = ResponseBuilder::new(t.href_for(path, access.is_dir()));
+        props::fill(&ctx, &request, access, etag.as_deref(), &mut rb).await?;
         responses.push(rb);
     }
 

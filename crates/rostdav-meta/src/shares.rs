@@ -311,6 +311,25 @@ impl Db {
         Ok(out)
     }
 
+    /// Which of these node IDs belong to `owner_id`.
+    pub async fn nodes_owned_by(
+        &self,
+        owner_id: i64,
+        ids: &[i64],
+    ) -> Result<std::collections::HashSet<i64>> {
+        let mut out = std::collections::HashSet::new();
+        for chunk in ids.chunks(400) {
+            let marks = vec!["?"; chunk.len()].join(",");
+            let sql = format!("SELECT id FROM nodes WHERE owner_id = ? AND id IN ({marks})");
+            let mut q = sqlx::query_scalar::<_, i64>(&sql).bind(owner_id);
+            for id in chunk {
+                q = q.bind(id);
+            }
+            out.extend(q.fetch_all(self.pool()).await.map_err(db_err)?);
+        }
+        Ok(out)
+    }
+
     pub async fn update_share(&self, id: i64, upd: &ShareUpdate) -> Result<Share> {
         let mut tx = self.write_tx().await?;
         let row: Option<ShareRow> =

@@ -278,7 +278,7 @@ async fn capabilities_advertise_only_what_exists() {
     keys.sort_unstable();
     assert_eq!(
         keys,
-        ["core", "dav", "files"],
+        ["core", "dav", "files", "files_sharing"],
         "nothing else is implemented"
     );
     assert_eq!(caps["core"]["webdav-root"], "remote.php/webdav");

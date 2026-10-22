@@ -23,7 +23,7 @@ pub struct FormatQuery {
     format: Option<String>,
 }
 
-struct Ocs {
+pub(crate) struct Ocs {
     v2: bool,
     format: Format,
 }
@@ -51,7 +51,7 @@ impl Ocs {
         })
     }
 
-    fn ok(&self, data: &Value) -> Response {
+    pub(crate) fn ok(&self, data: &Value) -> Response {
         let meta = if self.v2 {
             json!({"status": "ok", "statuscode": 200, "message": "OK"})
         } else {
@@ -60,7 +60,7 @@ impl Ocs {
         self.respond(StatusCode::OK, meta, data)
     }
 
-    fn fail(&self, http: StatusCode, code: u16, message: &str) -> Response {
+    pub(crate) fn fail(&self, http: StatusCode, code: u16, message: &str) -> Response {
         let meta = json!({"status": "failure", "statuscode": code, "message": message});
         self.respond(http, meta, &json!([]))
     }
@@ -152,7 +152,7 @@ fn client_ip(parts: &Parts) -> IpAddr {
 }
 
 /// Common preamble: version, header check, authentication.
-async fn guard(
+pub(crate) async fn guard(
     state: &AppState,
     version: &str,
     q: &FormatQuery,
@@ -246,6 +246,28 @@ pub async fn capabilities(
             },
             "dav": { "chunking": "1.0" },
             "files": files,
+            // Users and links only: no groups, resharing, federation or mail (ADR 0004).
+            "files_sharing": {
+                "api_enabled": true,
+                "public": {
+                    "enabled": true,
+                    "password": { "enforced": false, "askForOptionalPassword": false },
+                    "expire_date": { "enabled": false },
+                    "multiple_links": true,
+                    "expire_date_internal": { "enabled": false },
+                    "expire_date_remote": { "enabled": false },
+                    "send_mail": false,
+                    "upload": true,
+                    "upload_files_drop": true,
+                    "custom_tokens": false,
+                },
+                "resharing": false,
+                "user": { "send_mail": false, "expire_date": { "enabled": true } },
+                "group_sharing": false,
+                "group": { "enabled": false, "expire_date": { "enabled": true } },
+                "default_permissions": 15,
+                "sharee": { "minSearchStringLength": 0, "query_lookup_default": false, "always_show_unique": true },
+            },
         },
     }))
 }

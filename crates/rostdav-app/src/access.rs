@@ -206,6 +206,33 @@ impl AppState {
         Ok(out)
     }
 
+    /// ETag of a user's own root as clients should see it: it also changes when
+    /// anything inside a mounted share changes. `None` where the stored one is right.
+    pub async fn derived_root_etag(&self, p: &Principal, a: &Access) -> Result<Option<String>> {
+        if a.origin != Origin::Own || a.node.parent_id.is_some() {
+            return Ok(None);
+        }
+        let mounts = self.mounts_of(p).await?;
+        if mounts.is_empty() {
+            return Ok(None);
+        }
+        let mut h = blake3::Hasher::new();
+        h.update(a.node.etag.as_bytes());
+        for m in &mounts {
+            h.update(&[0]);
+            h.update(m.name.as_bytes());
+            h.update(&[0]);
+            h.update(m.node.etag.as_bytes());
+            h.update(&[m.share.permissions]);
+        }
+        Ok(Some(h.finalize().to_hex()[..32].to_owned()))
+    }
+
+    /// Owner names for display.
+    pub async fn owner_names(&self, ids: &[i64]) -> Result<std::collections::HashMap<i64, String>> {
+        self.inner.db.user_names(ids).await
+    }
+
     /// Only a full principal (signed in with a password) may use this; links never.
     pub(crate) fn require_full(p: &Principal) -> Result<()> {
         if p.scope == Scope::Full {

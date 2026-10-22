@@ -411,6 +411,26 @@ impl AppState {
             .await?)
     }
 
+    /// Kinds of shares on these nodes, only for nodes the caller owns (`oc:share-types`).
+    pub async fn share_kinds_of(
+        &self,
+        p: &Principal,
+        node_ids: &[i64],
+    ) -> Result<std::collections::HashMap<i64, Vec<i64>>> {
+        if p.scope != Scope::Full || node_ids.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+        let mut kinds = self.inner.db.share_kinds_of_nodes(node_ids).await?;
+        // only the owner learns who a node is shared with
+        let mine = self
+            .inner
+            .db
+            .nodes_owned_by(p.user_id, &kinds.keys().copied().collect::<Vec<_>>())
+            .await?;
+        kinds.retain(|id, _| mine.contains(id));
+        Ok(kinds)
+    }
+
     // ---- public links ----------------------------------------------------------
 
     /// Signs in with `Authorization: Basic <token>:<password>` for `public.php/webdav`.

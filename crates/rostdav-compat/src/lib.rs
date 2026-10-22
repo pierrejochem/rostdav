@@ -6,6 +6,7 @@
 
 mod login;
 mod ocs;
+mod sharing;
 
 use axum::Router;
 use axum::extract::State;
@@ -66,6 +67,24 @@ pub fn router(cfg: CompatConfig) -> Router<AppState> {
         .route(
             "/ocs/{version}/core/apppassword",
             delete(ocs::revoke_app_password),
+        )
+        .route(
+            "/ocs/{version}/apps/files_sharing/api/v1/shares",
+            get(sharing::list).post(sharing::create),
+        )
+        .route(
+            "/ocs/{version}/apps/files_sharing/api/v1/shares/pending",
+            get(sharing::pending),
+        )
+        .route(
+            "/ocs/{version}/apps/files_sharing/api/v1/shares/{id}",
+            get(sharing::get)
+                .put(sharing::update)
+                .delete(sharing::delete),
+        )
+        .route(
+            "/ocs/{version}/apps/files_sharing/api/v1/sharees",
+            get(sharing::sharees),
         )
         // Previews and avatars are not provided; answer cleanly instead of failing.
         .route("/index.php/core/preview", get(not_found))

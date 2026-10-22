@@ -12,7 +12,7 @@ use serde_json::json;
 use crate::{CompatConfig, json_response};
 
 /// Base URL for links handed to the app.
-fn base_url(cfg: &CompatConfig, headers: &HeaderMap) -> Option<String> {
+pub(crate) fn base_url(cfg: &CompatConfig, headers: &HeaderMap) -> Option<String> {
     if let Some(u) = &cfg.public_url {
         return Some(u.trim_end_matches('/').to_owned());
     }

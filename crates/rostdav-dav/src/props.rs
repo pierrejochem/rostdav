@@ -5,9 +5,11 @@
 //! `docs/compatibility.md`. Anything Rostdav cannot provide answers 404 in the
 //! `propstat`, never a made-up value.
 
-use rostdav_app::{AppState, Principal};
+use std::collections::HashMap;
+
+use rostdav_app::{Access, AppState, Origin, Principal};
 use rostdav_core::Result;
-use rostdav_meta::{Node, NodeKind};
+use rostdav_meta::NodeKind;
 
 use crate::xml::{DAV_NS, NC_NS, OC_NS, PropName, PropfindRequest, ResponseBuilder, escape};
 use crate::{http_date, quoted};
@@ -20,17 +22,35 @@ pub struct PropCtx<'a> {
     pub quota_available: i64,
     /// Everything the user stores, versions included (shown for the root folder).
     pub used: i64,
+    /// Names of the owners of the listed nodes.
+    pub owners: HashMap<i64, String>,
+    /// Kinds of shares on the listed nodes the caller owns (`oc:share-types`).
+    pub share_kinds: HashMap<i64, Vec<i64>>,
 }
 
 impl<'a> PropCtx<'a> {
-    pub async fn new(state: &'a AppState, principal: &'a Principal) -> Result<Self> {
-        let info = state.user_info(principal).await?;
-        let quota_available = info.quota_total.map_or(-3, |t| (t - info.used).max(0));
+    pub async fn new(
+        state: &'a AppState,
+        principal: &'a Principal,
+        owners: HashMap<i64, String>,
+        node_ids: &[i64],
+    ) -> Result<Self> {
+        // Links have no account: no quota figures, nothing owned.
+        let (quota_available, used) = match state.user_info(principal).await {
+            Ok(info) => (
+                info.quota_total.map_or(-3, |t| (t - info.used).max(0)),
+                info.used,
+            ),
+            Err(_) => (-3, 0),
+        };
+        let share_kinds = state.share_kinds_of(principal, node_ids).await?;
         Ok(Self {
             state,
             principal,
             quota_available,
-            used: info.used,
+            used,
+            owners,
+            share_kinds,
         })
     }
 }
@@ -71,9 +91,11 @@ enum Value {
 pub async fn fill(
     ctx: &PropCtx<'_>,
     request: &PropfindRequest,
-    node: &Node,
+    access: &Access,
+    etag_override: Option<&str>,
     rb: &mut ResponseBuilder,
 ) -> Result<()> {
+    let node = &access.node;
     let is_dir = node.kind == NodeKind::Dir;
     let wanted = match request {
         PropfindRequest::Props(list) => list.clone(),
@@ -89,9 +111,9 @@ pub async fn fill(
             (OC_NS, "size") | (DAV_NS, "quota-used-bytes")
         );
         if needs_size && size.is_none() {
-            size = Some(ctx.state.size_of(ctx.principal, node).await?);
+            size = Some(ctx.state.size_of(ctx.principal, access).await?);
         }
-        let value = value_of(ctx, node, is_dir, size, &ns, &local);
+        let value = value_of(ctx, access, etag_override, is_dir, size, &ns, &local);
         let prefix = match ns.as_str() {
             DAV_NS => "d",
             OC_NS => "oc",
@@ -112,13 +134,15 @@ pub async fn fill(
 
 fn value_of(
     ctx: &PropCtx<'_>,
-    node: &Node,
+    access: &Access,
+    etag_override: Option<&str>,
     is_dir: bool,
     size: Option<i64>,
     ns: &str,
     local: &str,
 ) -> Value {
     let text = |s: String| Value::Text(escape(&s));
+    let node = &access.node;
     match (ns, local) {
         (DAV_NS, "resourcetype") => Value::Xml(if is_dir {
             "<d:collection/>".into()
@@ -127,7 +151,7 @@ fn value_of(
         }),
         (DAV_NS, "displayname") => text(node.name.clone()),
         (DAV_NS, "getlastmodified") => text(http_date(node.mtime)),
-        (DAV_NS, "getetag") => text(quoted(&node.etag)),
+        (DAV_NS, "getetag") => text(quoted(etag_override.unwrap_or(&node.etag))),
         (DAV_NS, "getcontentlength") if !is_dir => text(node.size.to_string()),
         (DAV_NS, "getcontenttype") if !is_dir => text(
             mime_guess::from_path(&node.name)
@@ -150,10 +174,31 @@ fn value_of(
         (OC_NS, "fileid") => text(node.id.to_string()),
         (OC_NS, "size") => text(if is_dir { size.unwrap_or(0) } else { node.size }.to_string()),
         // Owner of a non-shared item: read, share, delete, rename, move, create, write.
-        (OC_NS, "permissions") => text(if is_dir { "RGDNVCK" } else { "RGDNVW" }.into()),
+        (OC_NS, "permissions") => text(match access.origin {
+            // owner of a non-shared item: read, share, delete, rename, move, create, write
+            Origin::Own => if is_dir { "RGDNVCK" } else { "RGDNVW" }.to_owned(),
+            _ => access.dav_permissions(),
+        }),
         (OC_NS, "favorite") => text("0".into()),
-        (OC_NS, "owner-id") | (OC_NS, "owner-display-name") => text(ctx.principal.name.clone()),
-        (OC_NS, "share-types") => Value::Xml(String::new()),
+        (OC_NS, "owner-id") | (OC_NS, "owner-display-name") => text(
+            ctx.owners
+                .get(&node.owner_id)
+                .cloned()
+                .unwrap_or_else(|| ctx.principal.name.clone()),
+        ),
+        (OC_NS, "share-types") => {
+            let kinds: Vec<i64> = match access.origin {
+                Origin::Own => ctx.share_kinds.get(&node.id).cloned().unwrap_or_default(),
+                Origin::Share(_) if access.mount_root => vec![0],
+                _ => Vec::new(),
+            };
+            Value::Xml(
+                kinds
+                    .iter()
+                    .map(|k| format!("<oc:share-type>{k}</oc:share-type>"))
+                    .collect(),
+            )
+        }
         (OC_NS, "checksums") if !is_dir => match &node.client_checksum {
             Some(c) => Value::Xml(format!("<oc:checksum>{}</oc:checksum>", escape(c))),
             None => Value::Missing,
@@ -162,7 +207,15 @@ fn value_of(
 
         // No previews yet, so nothing may claim to have one.
         (NC_NS, "has-preview") => text("false".into()),
-        (NC_NS, "mount-type") => Value::Text(String::new()),
+        (NC_NS, "mount-type") => Value::Text(if matches!(access.origin, Origin::Share(_)) {
+            "shared".into()
+        } else {
+            String::new()
+        }),
+        (NC_NS, "is-mount-root") => {
+            text((access.mount_root && matches!(access.origin, Origin::Share(_))).to_string())
+        }
+        (NC_NS, "share-attributes") => text("[]".into()),
         (NC_NS, "creation_time") => text("0".into()),
         (NC_NS, "upload_time") if !is_dir => text(node.upload_time.to_string()),
         _ => Value::Missing,

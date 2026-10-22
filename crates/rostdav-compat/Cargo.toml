@@ -13,6 +13,9 @@ rostdav-app.workspace = true
 axum.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_urlencoded = "0.7"
+mime_guess.workspace = true
+rostdav-meta.workspace = true
 tracing.workspace = true
 
 [lints]
