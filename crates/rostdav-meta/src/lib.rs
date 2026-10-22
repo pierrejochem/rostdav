@@ -5,6 +5,7 @@
 
 mod admin;
 mod auth;
+mod favorites;
 mod nodes;
 mod shares;
 mod trash;

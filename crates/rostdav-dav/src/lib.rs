@@ -36,10 +36,13 @@ use versions::{VERSIONS_PREFIX, VersionsTarget};
 use error::DavError;
 use range::{RangeOutcome, parse_range};
 use target::{SEGMENT, Target, parse_destination};
-use xml::{ResponseBuilder, multistatus, parse_propfind};
+use xml::{
+    OC_NS, PropfindRequest, ResponseBuilder, multistatus, parse_filter_files, parse_propertyupdate,
+    parse_propfind,
+};
 
 pub(crate) const ALLOWED_METHODS: &str =
-    "OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, COPY, MOVE, PROPFIND";
+    "OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, COPY, MOVE, PROPFIND, PROPPATCH, REPORT";
 
 /// Maximum size of an XML request body.
 pub(crate) const MAX_XML_BODY: usize = 64 * 1024;
@@ -128,6 +131,8 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
         "DELETE" => delete(&state, &principal, &target, headers).await,
         "MKCOL" => mkcol(&state, &principal, &target, headers, body).await,
         "PROPFIND" => propfind(&state, &principal, &target, headers, body).await,
+        "PROPPATCH" => proppatch(&state, &principal, &target, body).await,
+        "REPORT" => report(&state, &principal, &target, body).await,
         "MOVE" | "COPY" => transfer(&state, &principal, &target, headers, method == "MOVE").await,
         _ => Ok(method_not_allowed()),
     }
@@ -521,6 +526,95 @@ async fn transfer(
         &mut r,
         header::HeaderName::from_static("oc-fileid"),
         &state.file_id(written.node.id),
+    );
+    Ok(r)
+}
+
+// ---- PROPPATCH / REPORT (favorites) ----------------------------------------
+
+/// Only `oc:favorite` can be changed. Reference (Nextcloud 35.0.2, `08-m5-probes`): 207 with the
+/// property in a 200 `propstat`. The reference also stores arbitrary dead properties; Rostdav does
+/// not, and answers 403 for those instead of pretending (documented deviation).
+async fn proppatch(
+    state: &AppState,
+    p: &Principal,
+    t: &Target,
+    body: Body,
+) -> Result<Response, DavError> {
+    let bytes = axum::body::to_bytes(body, MAX_XML_BODY)
+        .await
+        .map_err(|_| Error::TooLarge)?;
+    let updates = parse_propertyupdate(&bytes)?;
+    let access = state.stat_access(p, &t.path).await?;
+    let mut rb = ResponseBuilder::new(t.href_for(&t.path, access.is_dir()));
+    for u in updates {
+        if u.name == (OC_NS.to_owned(), "favorite".to_owned()) {
+            let on = matches!(u.value.as_deref(), Some("1"));
+            state.set_favorite(p, &t.path, on).await?;
+            rb.ok("oc", "favorite", "");
+        } else {
+            rb.forbidden(u.name);
+        }
+    }
+    let mut r = (StatusCode::MULTI_STATUS, multistatus(&[rb])).into_response();
+    set(
+        &mut r,
+        header::CONTENT_TYPE,
+        "application/xml; charset=utf-8",
+    );
+    Ok(r)
+}
+
+/// `REPORT oc:filter-files` with the rule `oc:favorite` = 1: the caller's favorites below the target.
+/// Other rules are not supported and answer 400 (the apps only use the favorite rule).
+async fn report(
+    state: &AppState,
+    p: &Principal,
+    t: &Target,
+    body: Body,
+) -> Result<Response, DavError> {
+    let bytes = axum::body::to_bytes(body, MAX_XML_BODY)
+        .await
+        .map_err(|_| Error::TooLarge)?;
+    let f = parse_filter_files(&bytes)?;
+    let only_favorites = matches!(
+        f.rules.as_slice(),
+        [((ns, local), v)] if ns == OC_NS && local == "favorite" && v == "1"
+    );
+    if !only_favorites {
+        return Err(Error::BadRequest("unsupported filter rule").into());
+    }
+    // The target must exist and be readable.
+    state.stat_access(p, &t.path).await?;
+    let below = t.path.segments();
+    let entries: Vec<_> = state
+        .list_favorites(p)
+        .await?
+        .into_iter()
+        .filter(|(path, _)| path.segments().starts_with(below))
+        .collect();
+    let ids: Vec<i64> = entries.iter().map(|(_, a)| a.node.id).collect();
+    let owners = state
+        .owner_names(
+            &entries
+                .iter()
+                .map(|(_, a)| a.node.owner_id)
+                .collect::<Vec<_>>(),
+        )
+        .await?;
+    let ctx = props::PropCtx::new(state, p, owners, &ids).await?;
+    let request = PropfindRequest::Props(f.props);
+    let mut responses = Vec::with_capacity(entries.len());
+    for (path, access) in &entries {
+        let mut rb = ResponseBuilder::new(t.href_for(path, access.is_dir()));
+        props::fill(&ctx, &request, access, None, &mut rb).await?;
+        responses.push(rb);
+    }
+    let mut r = (StatusCode::MULTI_STATUS, multistatus(&responses)).into_response();
+    set(
+        &mut r,
+        header::CONTENT_TYPE,
+        "application/xml; charset=utf-8",
     );
     Ok(r)
 }

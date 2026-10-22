@@ -26,6 +26,8 @@ pub struct PropCtx<'a> {
     pub owners: HashMap<i64, String>,
     /// Kinds of shares on the listed nodes the caller owns (`oc:share-types`).
     pub share_kinds: HashMap<i64, Vec<i64>>,
+    /// Listed nodes the caller marked as favorite.
+    pub favorites: std::collections::HashSet<i64>,
 }
 
 impl<'a> PropCtx<'a> {
@@ -44,6 +46,7 @@ impl<'a> PropCtx<'a> {
             Err(_) => (-3, 0),
         };
         let share_kinds = state.share_kinds_of(principal, node_ids).await?;
+        let favorites = state.favorites_among(principal, node_ids).await?;
         Ok(Self {
             state,
             principal,
@@ -51,6 +54,7 @@ impl<'a> PropCtx<'a> {
             used,
             owners,
             share_kinds,
+            favorites,
         })
     }
 }
@@ -179,7 +183,14 @@ fn value_of(
             Origin::Own => if is_dir { "RGDNVCK" } else { "RGDNVW" }.to_owned(),
             _ => access.dav_permissions(),
         }),
-        (OC_NS, "favorite") => text("0".into()),
+        (OC_NS, "favorite") => text(
+            if ctx.favorites.contains(&node.id) {
+                "1"
+            } else {
+                "0"
+            }
+            .into(),
+        ),
         (OC_NS, "owner-id") | (OC_NS, "owner-display-name") => text(
             ctx.owners
                 .get(&node.owner_id)

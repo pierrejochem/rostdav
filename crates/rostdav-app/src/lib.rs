@@ -12,6 +12,7 @@ mod admin_tests;
 mod audit;
 mod auth;
 mod export;
+mod favorites;
 mod files;
 mod login_flow;
 mod password;

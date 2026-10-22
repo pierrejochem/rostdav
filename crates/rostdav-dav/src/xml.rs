@@ -161,6 +161,8 @@ pub struct ResponseBuilder {
     href: String,
     ok: String,
     missing: Vec<PropName>,
+    /// Properties that may not be changed (`PROPPATCH`): 403 in their own `propstat`.
+    forbidden: Vec<PropName>,
 }
 
 impl ResponseBuilder {
@@ -169,6 +171,7 @@ impl ResponseBuilder {
             href,
             ok: String::new(),
             missing: Vec::new(),
+            forbidden: Vec::new(),
         }
     }
 
@@ -186,6 +189,10 @@ impl ResponseBuilder {
         self.missing.push(name);
     }
 
+    pub fn forbidden(&mut self, name: PropName) {
+        self.forbidden.push(name);
+    }
+
     fn write(&self, out: &mut String) {
         out.push_str("<d:response><d:href>");
         out.push_str(&escape(&self.href));
@@ -195,29 +202,37 @@ impl ResponseBuilder {
             out.push_str(&self.ok);
             out.push_str("</d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat>");
         }
-        if !self.missing.is_empty() {
-            out.push_str("<d:propstat><d:prop>");
-            for (i, (ns, local)) in self.missing.iter().enumerate() {
-                if ns == DAV_NS {
-                    out.push_str(&format!("<d:{}/>", escape(local)));
-                } else if ns == OC_NS {
-                    out.push_str(&format!("<oc:{}/>", escape(local)));
-                } else if ns == NC_NS {
-                    out.push_str(&format!("<nc:{}/>", escape(local)));
-                } else if ns.is_empty() {
-                    out.push_str(&format!("<{}/>", escape(local)));
-                } else {
-                    out.push_str(&format!(
-                        "<x{i}:{} xmlns:x{i}=\"{}\"/>",
-                        escape(local),
-                        escape(ns)
-                    ));
-                }
-            }
-            out.push_str("</d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat>");
-        }
+        write_names(out, &self.missing, "404 Not Found");
+        write_names(out, &self.forbidden, "403 Forbidden");
         out.push_str("</d:response>");
     }
+}
+
+fn write_names(out: &mut String, names: &[PropName], status: &str) {
+    if names.is_empty() {
+        return;
+    }
+    out.push_str("<d:propstat><d:prop>");
+    for (i, (ns, local)) in names.iter().enumerate() {
+        if ns == DAV_NS {
+            out.push_str(&format!("<d:{}/>", escape(local)));
+        } else if ns == OC_NS {
+            out.push_str(&format!("<oc:{}/>", escape(local)));
+        } else if ns == NC_NS {
+            out.push_str(&format!("<nc:{}/>", escape(local)));
+        } else if ns.is_empty() {
+            out.push_str(&format!("<{}/>", escape(local)));
+        } else {
+            out.push_str(&format!(
+                "<x{i}:{} xmlns:x{i}=\"{}\"/>",
+                escape(local),
+                escape(ns)
+            ));
+        }
+    }
+    out.push_str(&format!(
+        "</d:prop><d:status>HTTP/1.1 {status}</d:status></d:propstat>"
+    ));
 }
 
 pub fn multistatus(responses: &[ResponseBuilder]) -> String {
@@ -231,12 +246,154 @@ pub fn multistatus(responses: &[ResponseBuilder]) -> String {
     out
 }
 
+/// One element of a request body: nesting depth (root = 1), name and its direct text.
+struct Elem {
+    depth: usize,
+    name: PropName,
+    text: String,
+}
+
+/// Reads the whole body into a flat list of elements, with the same safety checks as
+/// [`parse_propfind`] (no DOCTYPE, bounded depth and element count).
+fn read_elements(body: &[u8]) -> Result<Vec<Elem>> {
+    let mut reader = NsReader::from_reader(body);
+    let mut out: Vec<Elem> = Vec::new();
+    let mut open: Vec<usize> = Vec::new();
+    loop {
+        let (ns, event) = reader
+            .read_resolved_event()
+            .map_err(|_| Error::BadRequest("malformed XML"))?;
+        match event {
+            Event::DocType(_) => return Err(Error::BadRequest("DOCTYPE not allowed")),
+            Event::Start(ref e) | Event::Empty(ref e) => {
+                check_element(&ns, e)?;
+                if open.len() + 1 > MAX_DEPTH || out.len() >= MAX_PROPS * 2 {
+                    return Err(Error::BadRequest("XML too deep or too large"));
+                }
+                out.push(Elem {
+                    depth: open.len() + 1,
+                    name: name_of(&ns, e.local_name().as_ref()),
+                    text: String::new(),
+                });
+                if matches!(event, Event::Start(_)) {
+                    open.push(out.len() - 1);
+                }
+            }
+            Event::End(_) => {
+                open.pop();
+            }
+            Event::Text(t) => {
+                if let (Some(&i), Ok(t)) = (open.last(), t.unescape()) {
+                    out[i].text.push_str(&t);
+                }
+            }
+            Event::Eof => break,
+            _ => {}
+        }
+    }
+    if !open.is_empty() || out.is_empty() {
+        return Err(Error::BadRequest("malformed XML"));
+    }
+    Ok(out)
+}
+
+/// One change of a `DAV:propertyupdate`.
+#[derive(Debug, PartialEq, Eq)]
+pub struct PropUpdate {
+    pub name: PropName,
+    /// `None` for `DAV:remove`.
+    pub value: Option<String>,
+}
+
+/// `DAV:propertyupdate` (RFC 4918 §14.19): `set` and `remove` groups, in document order.
+pub fn parse_propertyupdate(body: &[u8]) -> Result<Vec<PropUpdate>> {
+    let elems = read_elements(body)?;
+    if elems[0].depth != 1 || elems[0].name != (DAV_NS.to_owned(), "propertyupdate".to_owned()) {
+        return Err(Error::BadRequest("expected DAV:propertyupdate"));
+    }
+    let mut out = Vec::new();
+    let mut group: Option<bool> = None; // Some(true) = set
+    for e in &elems[1..] {
+        match (e.depth, e.name.0.as_str(), e.name.1.as_str()) {
+            (2, DAV_NS, "set") => group = Some(true),
+            (2, DAV_NS, "remove") => group = Some(false),
+            (2, _, _) => group = None,
+            (4, _, _) => {
+                if let Some(set) = group {
+                    out.push(PropUpdate {
+                        name: e.name.clone(),
+                        value: set.then(|| e.text.trim().to_owned()),
+                    });
+                }
+            }
+            _ => {}
+        }
+    }
+    if out.is_empty() {
+        return Err(Error::BadRequest("propertyupdate without properties"));
+    }
+    Ok(out)
+}
+
+/// `oc:filter-files` (Nextcloud REPORT): the wanted properties and the filter rules
+/// (name and text, e.g. `oc:favorite` = `1`).
+pub struct FilterFiles {
+    pub props: Vec<PropName>,
+    pub rules: Vec<(PropName, String)>,
+}
+
+pub fn parse_filter_files(body: &[u8]) -> Result<FilterFiles> {
+    let elems = read_elements(body)?;
+    if elems[0].depth != 1 || elems[0].name != (OC_NS.to_owned(), "filter-files".to_owned()) {
+        return Err(Error::BadRequest("expected oc:filter-files"));
+    }
+    let mut props = Vec::new();
+    let mut rules = Vec::new();
+    let mut section = "";
+    for e in &elems[1..] {
+        match (e.depth, e.name.0.as_str(), e.name.1.as_str()) {
+            (2, DAV_NS, "prop") => section = "prop",
+            (2, OC_NS, "filter-rules") => section = "rules",
+            (2, _, _) => section = "",
+            (3, _, _) if section == "prop" => props.push(e.name.clone()),
+            (3, _, _) if section == "rules" => {
+                rules.push((e.name.clone(), e.text.trim().to_owned()))
+            }
+            _ => {}
+        }
+    }
+    Ok(FilterFiles { props, rules })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn dav(l: &str) -> PropName {
         (DAV_NS.to_owned(), l.to_owned())
+    }
+
+    #[test]
+    fn propertyupdate_set_and_remove() {
+        let body = br#"<?xml version="1.0"?><d:propertyupdate xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:set><d:prop><oc:favorite>1</oc:favorite></d:prop></d:set><d:remove><d:prop><oc:foo/></d:prop></d:remove></d:propertyupdate>"#;
+        let u = parse_propertyupdate(body).expect("parse");
+        assert_eq!(u.len(), 2);
+        assert_eq!(u[0].name, (OC_NS.to_owned(), "favorite".to_owned()));
+        assert_eq!(u[0].value.as_deref(), Some("1"));
+        assert_eq!(u[1].value, None);
+        assert!(parse_propertyupdate(b"<d:propfind xmlns:d=\"DAV:\"/>").is_err());
+        assert!(parse_propertyupdate(b"<!DOCTYPE x><d:propertyupdate xmlns:d=\"DAV:\"/>").is_err());
+    }
+
+    #[test]
+    fn filter_files_props_and_rules() {
+        let body = br#"<oc:filter-files xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:prop><d:displayname/><oc:fileid/></d:prop><oc:filter-rules><oc:favorite>1</oc:favorite></oc:filter-rules></oc:filter-files>"#;
+        let f = parse_filter_files(body).expect("parse");
+        assert_eq!(f.props.len(), 2);
+        assert_eq!(
+            f.rules,
+            vec![((OC_NS.to_owned(), "favorite".to_owned()), "1".to_owned())]
+        );
     }
 
     #[test]

@@ -111,7 +111,7 @@ Initial list from section 3.2 of the instructions. None of this is confirmed unt
 
 Values and sets come from the fixtures; `crates/rostdav/tests/nextcloud_dav.rs` compares them.
 
-- **Properties:** `oc:id` (8-digit file ID + instance ID, e.g. `00000042ocabc123def4`), `oc:fileid`, `oc:size` (folders: sum below), `oc:permissions` (`RGDNVCK` folders, `RGDNVW` files, owner only), `oc:favorite` (`0`), `oc:owner-id`, `oc:owner-display-name`, `oc:share-types` (empty), `oc:checksums` (files with a client checksum), `oc:downloadURL` (files, empty), `nc:has-preview` (`false`: no previews exist), `nc:mount-type` (empty), `nc:creation_time` (`0`), `nc:upload_time` (files), `d:quota-used-bytes` / `d:quota-available-bytes` (folders only, `-3` = unlimited). Unknown properties, `nc:is-encrypted` and folder-only/file-only mismatches answer 404 in their own `propstat`. `allprop` returns the reference's sets (`04-webdav/03`: folders get quota properties, no content length).
+- **Properties:** `oc:id` (8-digit file ID + instance ID, e.g. `00000042ocabc123def4`), `oc:fileid`, `oc:size` (folders: sum below), `oc:permissions` (`RGDNVCK` folders, `RGDNVW` files, owner only), `oc:favorite` (`0`/`1`, per user, see Favorites), `oc:owner-id`, `oc:owner-display-name`, `oc:share-types` (empty), `oc:checksums` (files with a client checksum), `oc:downloadURL` (files, empty), `nc:has-preview` (`false`: no previews exist), `nc:mount-type` (empty), `nc:creation_time` (`0`), `nc:upload_time` (files), `d:quota-used-bytes` / `d:quota-available-bytes` (folders only, `-3` = unlimited). Unknown properties, `nc:is-encrypted` and folder-only/file-only mismatches answer 404 in their own `propstat`. `allprop` returns the reference's sets (`04-webdav/03`: folders get quota properties, no content length).
 - **Headers:** `PUT` returns `OC-FileId`, `ETag`, `OC-ETag` (and `X-OC-MTime: accepted` when sent); `MKCOL` and `COPY` return `OC-FileId`; `MOVE` returns `OC-ETag`, `ETag`, `OC-FileId`; `GET`/`HEAD` add `OC-ETag`.
 - **`X-OC-MTime`** sets the modification time. **`OC-Checksum`** is stored verbatim and reported; like the reference (`08-m5-probes/03`–`09`) it is **not verified**, any algorithm and even wrong digests are accepted. Values that are not `ALGO:hex` are ignored.
 - **Errors:** Sabre XML bodies (`<d:error><s:exception>Sabre\DAV\Exception\…</s:exception><s:message>…</s:message></d:error>`). Exception classes seen in the fixtures: `NotFound`, `Conflict`, `MethodNotAllowed`, `PreconditionFailed`, `BadRequest`, `NotAuthenticated`. Not recorded and taken from Sabre's class names: `Forbidden`, `InsufficientStorage` (507), `PayloadTooLarge`, `Locked`, `TooManyRequests`, `ServiceUnavailable`.
@@ -229,9 +229,18 @@ Server address entered as `http://10.0.2.2:8081`. The app was driven through `ad
 | Download 30 MB | `GET` 200, hash identical on the device | none |
 | Rename | `MOVE` 201 | none |
 | Delete | `DELETE` 204, file appears in `trashbin/<user>/trash` | none |
-| Favorite | `PROPPATCH` on the file answers 405: **not implemented** (`oc:favorite` is always 0, the Favorites tab needs `REPORT` `oc:filter-files`) | open: needs a new table (approval point 2) |
+| Favorite | `PROPPATCH` on the file answered 405 (`oc:favorite` was always 0, the Favorites tab needs `REPORT` `oc:filter-files`) | implemented, see Favorites below |
 
 Both bugs were invisible to the contract tests because the fixtures contained neither request.
+
+## Favorites
+
+Source: Nextcloud 35.0.2 reference, 2026-10-23, and the Android app (M6).
+
+- `PROPPATCH` with `oc:favorite` `1`/`0`: 207, the property in a 200 `propstat` (as the reference). The mark is per user (table `favorites`, migration 0010) and works on every node the user can read.
+- `PROPFIND` `oc:favorite`: `1` or `0` for the caller.
+- `REPORT` on a folder of the user with `oc:filter-files` and the rule `oc:favorite` = `1`: the caller's favorites below that folder, with the requested properties. Other filter rules answer 400.
+- **Deviations:** the reference also stores arbitrary dead properties in `PROPPATCH`; Rostdav answers 403 for every property except `oc:favorite` rather than pretend. The `REPORT` lists favorites in the user's own tree only (not nodes received through shares).
 
 ## Not supported
 
