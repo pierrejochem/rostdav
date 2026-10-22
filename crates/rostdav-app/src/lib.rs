@@ -506,6 +506,48 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn password_lockout_does_not_lock_out_the_users_devices() {
+        let (_d, st) = state().await;
+        st.add_user("anna", "korrekt-pferd-batterie", false)
+            .await
+            .expect("anna");
+        let anna = st
+            .authenticate("anna", "korrekt-pferd-batterie", IP)
+            .await
+            .expect("auth");
+        let app = st.device_create(&anna, "phone").await.expect("device");
+        // an attacker from many addresses guesses anna's password
+        for i in 0..10 {
+            let attacker: std::net::IpAddr = format!("198.51.100.{i}").parse().expect("ip");
+            assert!(
+                st.authenticate("anna", "wrong-guess-123", attacker)
+                    .await
+                    .is_err()
+            );
+        }
+        let calm: std::net::IpAddr = "203.0.113.5".parse().expect("ip");
+        // the account password is locked for everybody ...
+        assert!(matches!(
+            st.authenticate("anna", "korrekt-pferd-batterie", calm)
+                .await,
+            Err(Error::RateLimited { .. })
+        ));
+        // ... but her app password (not guessable) keeps working and does not lift the lock
+        assert!(st.authenticate("anna", &app, calm).await.is_ok());
+        assert!(matches!(
+            st.authenticate("anna", "korrekt-pferd-batterie", calm)
+                .await,
+            Err(Error::RateLimited { .. })
+        ));
+        // a wrong app-password-looking secret still counts as a failure on the password path
+        assert!(
+            st.authenticate("anna", &"x".repeat(72), calm)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
     async fn new_users_get_the_default_quota() {
         let (_d, st) = state().await;
         st.add_user("anna", "korrekt-pferd-batterie", false)

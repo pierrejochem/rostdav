@@ -28,6 +28,7 @@ Nextcloud apps sign in through Login Flow v2 and afterwards send `username` + *a
 ### Brute-force protection
 
 - In-memory sliding window per client IP and per user name: 10 failed credential checks in 15 minutes block further attempts for that key until the window ends (HTTP 429 with `Retry-After`). Successful logins clear the user key, not the IP key.
+- **Amendment (Phase 5, found by the authorization matrix test):** the per-user block applies to the guessable secret only, the account password. An app password (428 bits, not guessable) is accepted even while the user key is blocked, and its success no longer clears the user key. Before, anyone could lock a victim's phone and sync clients out by guessing the account password ten times from different addresses, and a device syncing during an attack lifted the lock for the attacker. The per-address block still applies to every credential.
 - Applies to Basic auth on WebDAV/OCS and the login form. The poll endpoint is not limited: its 128-character token cannot be guessed.
 - The client IP is the socket peer unless that peer is listed in `server.trusted_proxies`; then the right-most `X-Forwarded-For` entry that is not a trusted proxy is used.
 - State is lost on restart and not shared between instances; acceptable for a single-process server, revisit for PostgreSQL deployments.

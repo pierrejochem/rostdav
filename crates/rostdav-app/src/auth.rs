@@ -121,7 +121,6 @@ impl AppState {
             Name::parse(name).map_or_else(|_| name.to_owned(), |n| n.key().to_owned())
         );
         self.inner.limiter.check(&ip_key).map_err(retry)?;
-        self.inner.limiter.check(&user_key).map_err(retry)?;
 
         let user = self.inner.db.find_user(name).await?;
         if let Some(u) = user.as_ref().filter(|_| allow_app_password) {
@@ -136,7 +135,9 @@ impl AppState {
                     return Err(Error::Unauthenticated);
                 }
                 self.inner.db.touch_app_password(id).await?;
-                self.inner.limiter.clear(&user_key);
+                // The user's lockout is not touched: an app password cannot be guessed, so
+                // it still works while someone hammers the account password (no lockout
+                // attack on the user's devices), and it must not lift the lockout either.
                 return Ok(Principal {
                     user_id: u.id,
                     name: u.name.clone(),
@@ -147,6 +148,8 @@ impl AppState {
             }
         }
 
+        // Only guessable secrets are limited per user: the password attempts below.
+        self.inner.limiter.check(&user_key).map_err(retry)?;
         let hash = user
             .as_ref()
             .map_or_else(|| dummy_hash().to_owned(), |u| u.password_hash.clone());

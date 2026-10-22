@@ -40,6 +40,10 @@ Binding requirements: section 5 of the [instructions](instructions.md). Short ve
 | Recovery codes | Argon2id |
 | Content checksums | BLAKE3 (not a security function, integrity only) |
 
+## Verification
+
+- `crates/rostdav/tests/authz_matrix.rs`: anonymous, wrong password, another user, a disabled user and a read-only public link try 26 doors (WebDAV new and legacy paths, traversal variants, chunked upload, versions, trashbin, OCS sharing, public.php) against one user's data; afterwards that data must be byte-identical. It found the lockout weakness described in ADR 0003 (amendment).
+
 ## Dependencies
 
 - `cargo deny` in CI: security advisories, licenses, provenance.
