@@ -243,3 +243,4 @@ ul.legend li{display:flex;align-items:center;gap:10px}
 ul.legend li span:last-child{margin-left:auto;color:var(--text-2)}
 ul.legend .dot{width:10px;height:10px}
 @media (max-width:760px){.pagehead h1{font-size:30px}.card2{padding:18px 16px}}
+form.stack-form{display:flex;flex-direction:column;gap:14px;max-width:420px}

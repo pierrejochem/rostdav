@@ -38,6 +38,13 @@ pub struct WebSession {
     pub principal: Principal,
 }
 
+/// Optional personal details.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Profile {
+    pub display_name: String,
+    pub email: String,
+}
+
 /// Where a user's storage goes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UsageOverview {
@@ -325,6 +332,82 @@ impl AppState {
         Self::require_full(p)?;
         let (quota, used) = self.inner.db.quota_info(p.user_id).await?;
         Ok((used, quota))
+    }
+
+    // ---- profile and password ---------------------------------------------------------------
+
+    /// Display name and e-mail address of the user (empty if not set).
+    pub async fn profile(&self, p: &Principal) -> Result<Profile> {
+        Self::require_full(p)?;
+        Ok(Profile {
+            display_name: self
+                .inner
+                .db
+                .get_pref(p.user_id, "display_name")
+                .await?
+                .unwrap_or_default(),
+            email: self
+                .inner
+                .db
+                .get_pref(p.user_id, "email")
+                .await?
+                .unwrap_or_default(),
+        })
+    }
+
+    pub async fn set_profile(&self, p: &Principal, display_name: &str, email: &str) -> Result<()> {
+        Self::require_full(p)?;
+        let display_name = display_name.trim();
+        let email = email.trim();
+        if display_name.chars().count() > 80 || display_name.chars().any(char::is_control) {
+            return Err(Error::BadRequest(
+                "the display name is too long or has invalid characters",
+            ));
+        }
+        if !email.is_empty() {
+            let ok = email.len() <= 254
+                && !email.chars().any(|c| c.is_control() || c.is_whitespace())
+                && email.split_once('@').is_some_and(|(l, d)| {
+                    !l.is_empty() && d.contains('.') && !d.starts_with('.') && !d.ends_with('.')
+                });
+            if !ok {
+                return Err(Error::BadRequest(
+                    "that does not look like an e-mail address",
+                ));
+            }
+        }
+        self.inner
+            .db
+            .set_pref(p.user_id, "display_name", display_name)
+            .await?;
+        self.inner.db.set_pref(p.user_id, "email", email).await?;
+        Ok(())
+    }
+
+    /// Changes the account password after checking the current one (rate limited
+    /// like a sign-in). All other browser sessions end; app passwords stay.
+    pub async fn web_change_password(
+        &self,
+        s: &WebSession,
+        current: &str,
+        new: &str,
+        ip: IpAddr,
+    ) -> Result<()> {
+        let p = &s.principal;
+        // verifies the account password only (app passwords do not count here)
+        self.authenticate_with(&p.name, current, ip, false).await?;
+        let hash = crate::hash_password(new)?;
+        self.inner.db.set_password_hash(p.user_id, &hash).await?;
+        let ended = self.inner.db.delete_other_sessions(p.user_id, s.id).await?;
+        self.audit(
+            &p.name,
+            "auth.password_changed",
+            "web",
+            Some(ip),
+            json!({"sessions_ended": ended}),
+        )
+        .await;
+        Ok(())
     }
 
     pub async fn usage_overview(&self, p: &Principal) -> Result<UsageOverview> {

@@ -86,6 +86,8 @@ pub struct Authed {
     /// Used bytes and quota (`None` = unlimited), for the sidebar meter.
     pub storage: (i64, Option<i64>),
     pub admin: bool,
+    /// Name shown in the page header: the display name, else the user name.
+    pub display: String,
     pub theme: String,
     pub csrf: String,
 }
@@ -111,12 +113,17 @@ impl FromRequestParts<AppState> for Authed {
             .ok()
             .flatten()
             .unwrap_or_default();
+        let display = match state.profile(&session.principal).await {
+            Ok(p) if !p.display_name.is_empty() => p.display_name,
+            _ => session.principal.name.clone(),
+        };
         let csrf = state.web_csrf(session.id);
         let storage = state
             .storage_summary(&session.principal)
             .await
             .unwrap_or((0, None));
         Ok(Self {
+            display,
             storage,
             admin: session.principal.is_admin,
             session,
@@ -131,7 +138,7 @@ impl Authed {
         crate::layout::Chrome {
             theme: &self.theme,
             admin: self.admin,
-            name: &self.session.principal.name,
+            name: &self.display,
             storage: self.storage,
         }
     }

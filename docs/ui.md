@@ -35,7 +35,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/files[/<path>]`, `/download/<path>`, `/action/{mkdir,upload,delete}` | Files: browse, download, new folder, upload, delete (confirm page) |
 | `/trash`, `/trash/{restore,delete,empty}` | Trash: restore, permanent delete, empty (confirm pages) |
 | `/devices`, `/devices/{create,revoke,sign-out-others}` | App passwords (shown once), browser sessions |
-| `/settings`, `POST /settings/theme` | Theme (system/light/dark), WebDAV address, storage overview |
+| `/settings`, `POST /settings/{theme,profile,export}`, `/settings/password` | Profile (display name, e-mail), change password (ends other browser sessions), theme, WebDAV address, storage overview, data export (tar of own files; no shares received, versions or trash) |
 | `/s/<token>`, `/s/<token>/{unlock,dl,upload}` | Public link page: list, download, password form, upload |
 | `/share?path=`, `/share/{user,link,delete}` | Sharing dialog: share with a user, create/stop public links (password, expiry, view/edit/upload-only) |
 | `/versions?path=`, `/versions/{restore,delete}` | Versions panel of a file |
@@ -58,7 +58,7 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 - Downloads are always `attachment` with `nosniff` and `sandbox`.
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
-Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Pages follow the design: Files, Devices & security (without 2FA, change password), Settings (appearance, WebDAV address, storage; no profile/language/file options/export yet), Administration (users, event log, status, server; no security/compatibility tabs). Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
+Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Pages follow the design: Files, Devices & security (without 2FA), Settings (appearance, WebDAV address, storage; no language or file options yet), Administration (users, event log, status, server; no security/compatibility tabs). Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
 
 Checks done on every page (14 pages × 360/768/1440 px × light/dark, Playwright + axe-core 4.10, tags wcag2a/aa, wcag21a/aa, wcag22aa, best-practice): no horizontal page overflow, no axe violations. Tables scroll inside a focusable region on small screens; password fields get a show/hide button (`/static/password.js`, `aria-pressed`, field name kept stable); sign-in pages have a `main` landmark. Not covered by automated checks: screen-reader announcements and keyboard order were not tried by hand.
 

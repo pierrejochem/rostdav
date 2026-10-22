@@ -92,6 +92,12 @@ pub fn router() -> Router<AppState> {
         .route("/admin/server", get(admin::server))
         .route("/settings", get(pages_more::settings))
         .route("/settings/theme", post(pages_more::set_theme))
+        .route("/settings/profile", post(pages_more::set_profile))
+        .route(
+            "/settings/password",
+            get(pages_more::password_page).post(pages_more::password_submit),
+        )
+        .route("/settings/export", post(pages_more::export))
         .route("/devices", get(pages_more::devices))
         .route("/devices/create", post(pages_more::device_create))
         .route("/devices/revoke", post(pages_more::device_revoke))

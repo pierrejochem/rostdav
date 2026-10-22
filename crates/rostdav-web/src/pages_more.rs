@@ -249,6 +249,7 @@ async fn devices_page(state: &AppState, a: &Authed, status: StatusCode, notice: 
     );
     let account = format!(
         "<dl class=\"facts\"><dt>Username</dt><dd class=\"mono\">{}</dd><dt>Password hash</dt><dd>Argon2id</dd></dl>\
+         <p><a class=\"button wide\" href=\"/settings/password\">Change password</a></p>\
          <form method=\"post\" action=\"/devices/sign-out-others\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
          <button class=\"danger wide\" type=\"submit\">Sign out all other browsers</button></form>",
         esc(&p.name)
@@ -449,8 +450,32 @@ async fn settings_page(
             esc(&quota)
         ),
     );
+    let prof = state.profile(p).await.unwrap_or_default();
+    let profile = ui::card(
+        "Profile",
+        "",
+        &format!(
+            "<form class=\"createrow\" method=\"post\" action=\"/settings/profile\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+             <label>Display name<input type=\"text\" name=\"display_name\" value=\"{}\" maxlength=\"80\" autocomplete=\"name\"></label>\
+             <label>E-mail for notifications<input type=\"text\" name=\"email\" value=\"{}\" maxlength=\"254\" inputmode=\"email\" autocomplete=\"email\" placeholder=\"name@example.com\"></label>\
+             <button class=\"primary\" type=\"submit\">Save</button></form>\
+             <dl class=\"facts\"><dt>Username</dt><dd class=\"mono\">{}</dd></dl>\
+             <p><a href=\"/settings/password\">Change password</a></p>",
+            esc(&prof.display_name),
+            esc(&prof.email),
+            esc(&p.name)
+        ),
+    );
+    let export = ui::card(
+        "Export your data",
+        "",
+        &format!(
+            "<p class=\"muted\">Downloads all your own files with their folder structure as a tar archive. Files shared with you, older versions and the trash are not included.</p>\
+             <form method=\"post\" action=\"/settings/export\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><button type=\"submit\">Start export</button></form>"
+        ),
+    );
     let body = format!(
-        "{}{notice}{appearance}<div class=\"cols\">{webdav}{storage}</div>",
+        "{}{notice}{profile}{appearance}<div class=\"cols\">{webdav}{storage}</div>{export}",
         ui::page_head(
             "Settings",
             "Personal settings for your account. Changes are saved immediately.",
@@ -494,4 +519,182 @@ pub async fn set_theme(
         Ok(()) => Redirect::to("/settings").into_response(),
         Err(e) => error_response_to(&a, &e, "/settings", "settings"),
     }
+}
+
+// ---- profile, password, export -----------------------------------------------------------
+
+#[derive(Deserialize)]
+pub struct ProfileForm {
+    csrf: String,
+    #[serde(default)]
+    display_name: String,
+    #[serde(default)]
+    email: String,
+}
+
+pub async fn set_profile(
+    State(state): State<AppState>,
+    a: Authed,
+    Form(f): Form<ProfileForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state
+        .set_profile(&a.session.principal, &f.display_name, &f.email)
+        .await
+    {
+        Ok(()) => Redirect::to("/settings").into_response(),
+        Err(e) => error_response_to(&a, &e, "/settings", "settings"),
+    }
+}
+
+#[derive(Deserialize, Default)]
+pub struct PasswordQuery {
+    #[serde(default)]
+    done: String,
+}
+
+pub async fn password_page(a: Authed, Query(q): Query<PasswordQuery>) -> Response {
+    password_form(&a, StatusCode::OK, q.done == "1", "")
+}
+
+fn password_form(a: &Authed, status: StatusCode, done: bool, error: &str) -> Response {
+    let note = if done {
+        "<div class=\"notice\" role=\"status\">Password changed. All other browsers were signed out; your connected devices keep working.</div>".to_owned()
+    } else if !error.is_empty() {
+        format!("<div class=\"err\" role=\"alert\">{}</div>", esc(error))
+    } else {
+        String::new()
+    };
+    let form = format!(
+        "{note}<form class=\"stack-form\" method=\"post\" action=\"/settings/password\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
+         <label>Current password<input type=\"password\" name=\"current\" autocomplete=\"current-password\" required></label>\
+         <label>New password (at least 10 characters)<input type=\"password\" name=\"new\" autocomplete=\"new-password\" required minlength=\"10\"></label>\
+         <label>New password again<input type=\"password\" name=\"again\" autocomplete=\"new-password\" required minlength=\"10\"></label>\
+         <div class=\"actions\"><button class=\"primary\" type=\"submit\">Change password</button><a class=\"button\" href=\"/settings\">Cancel</a></div></form>",
+        esc(&a.csrf)
+    );
+    let body = format!(
+        "{}{}",
+        ui::page_head(
+            "Change password",
+            "Other browsers are signed out when the password changes. Connected devices keep their app passwords.",
+            ""
+        ),
+        ui::card("Password", "", &form)
+    );
+    ui::page(a, status, "Change password", "settings", &body)
+}
+
+#[derive(Deserialize)]
+pub struct PasswordForm {
+    csrf: String,
+    current: String,
+    new: String,
+    again: String,
+}
+
+pub async fn password_submit(
+    State(state): State<AppState>,
+    a: Authed,
+    parts: axum::http::request::Parts,
+    Form(f): Form<PasswordForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    if f.new != f.again {
+        return password_form(
+            &a,
+            StatusCode::BAD_REQUEST,
+            false,
+            "The two new passwords are not the same.",
+        );
+    }
+    match state
+        .web_change_password(
+            &a.session,
+            &f.current,
+            &f.new,
+            crate::session::client_ip(&parts),
+        )
+        .await
+    {
+        Ok(()) => Redirect::to("/settings/password?done=1").into_response(),
+        Err(Error::Unauthenticated) => password_form(
+            &a,
+            StatusCode::UNAUTHORIZED,
+            false,
+            "The current password is wrong.",
+        ),
+        Err(Error::RateLimited { retry_after_secs }) => password_form(
+            &a,
+            StatusCode::TOO_MANY_REQUESTS,
+            false,
+            &format!(
+                "Too many attempts. Try again in {} minutes.",
+                retry_after_secs.div_ceil(60)
+            ),
+        ),
+        Err(Error::BadRequest(_)) => password_form(
+            &a,
+            StatusCode::BAD_REQUEST,
+            false,
+            "The new password must have at least 10 characters.",
+        ),
+        Err(e) => error_response_to(&a, &e, "/settings/password", "settings"),
+    }
+}
+
+pub async fn export(State(state): State<AppState>, a: Authed, Form(f): Form<CsrfForm>) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    let p = a.session.principal.clone();
+    let (mut tx, rx) = tokio::io::duplex(256 * 1024);
+    let st = state.clone();
+    tokio::spawn(async move {
+        // a failure mid-way closes the pipe early: the download ends truncated, not silently complete
+        if let Err(e) = st.export_tar(&p, &mut tx).await {
+            tracing::error!(error = %e, "data export failed");
+        }
+    });
+    let day = rostdav_core::time::rfc3339(rostdav_app::now_secs());
+    let fname: String = a
+        .session
+        .principal
+        .name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+    let mut r = axum::response::Response::new(axum::body::Body::from_stream(
+        tokio_util::io::ReaderStream::new(rx),
+    ));
+    let h = r.headers_mut();
+    h.insert(
+        axum::http::header::CONTENT_TYPE,
+        axum::http::HeaderValue::from_static("application/x-tar"),
+    );
+    h.insert(
+        axum::http::header::X_CONTENT_TYPE_OPTIONS,
+        axum::http::HeaderValue::from_static("nosniff"),
+    );
+    h.insert(
+        axum::http::header::CACHE_CONTROL,
+        axum::http::HeaderValue::from_static("no-store"),
+    );
+    if let Ok(v) = axum::http::HeaderValue::from_str(&format!(
+        "attachment; filename=\"rostdav-{fname}-{}.tar\"",
+        &day[..10]
+    )) {
+        h.insert(axum::http::header::CONTENT_DISPOSITION, v);
+    }
+    r
 }

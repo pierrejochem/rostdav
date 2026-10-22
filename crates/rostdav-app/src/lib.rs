@@ -11,6 +11,7 @@ mod admin;
 mod admin_tests;
 mod audit;
 mod auth;
+mod export;
 mod files;
 mod login_flow;
 mod password;
@@ -38,7 +39,7 @@ pub use shares::{
 pub use trash::{TrashEntry, TrashOptions};
 pub use uploads::UploadListing;
 pub use versions::{VersionEntry, VersionListing, VersioningOptions};
-pub use web::{UsageOverview, WebOptions, WebSession};
+pub use web::{Profile, UsageOverview, WebOptions, WebSession};
 
 use rostdav_core::Result;
 use rostdav_meta::Db;

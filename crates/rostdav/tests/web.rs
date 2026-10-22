@@ -2214,3 +2214,284 @@ async fn files_page_matches_the_design_parts() {
 async fn root_set_quota(e: &Env, user: &str, bytes: i64) {
     e.state.set_quota(user, Some(bytes)).await.expect("quota");
 }
+
+#[tokio::test]
+async fn profile_display_name_and_email() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    let s = get(&e, "/settings", &c).await.text();
+    assert!(
+        s.contains("name=\"display_name\"")
+            && s.contains("Username")
+            && s.contains("/settings/password")
+    );
+
+    assert_eq!(
+        post_form(
+            &e,
+            "/settings/profile",
+            &c,
+            &[("csrf", "forged"), ("display_name", "X"), ("email", "")]
+        )
+        .await
+        .status,
+        StatusCode::FORBIDDEN
+    );
+    for bad in ["no-at-sign", "a@b", "a b@c.de", "@c.de"] {
+        let r = post_form(
+            &e,
+            "/settings/profile",
+            &c,
+            &[("csrf", &csrf), ("display_name", "Anna"), ("email", bad)],
+        )
+        .await;
+        assert!(r.status.is_client_error(), "{bad}");
+    }
+    let long = "x".repeat(81);
+    assert!(
+        post_form(
+            &e,
+            "/settings/profile",
+            &c,
+            &[("csrf", &csrf), ("display_name", &long), ("email", "")]
+        )
+        .await
+        .status
+        .is_client_error()
+    );
+
+    let r = post_form(
+        &e,
+        "/settings/profile",
+        &c,
+        &[
+            ("csrf", &csrf),
+            ("display_name", "Anna <b>Admin</b>"),
+            ("email", "anna@example.com"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let html = get(&e, "/settings", &c).await.text();
+    assert!(html.contains("value=\"anna@example.com\""));
+    assert!(html.contains("Anna &lt;b&gt;Admin&lt;/b&gt;") && !html.contains("Anna <b>Admin</b>"));
+    // header shows the display name, the user name stays the login
+    assert!(
+        get(&e, "/files", &c)
+            .await
+            .text()
+            .contains("class=\"who\">Anna &lt;b&gt;")
+    );
+    // per user
+    let cb = login(&e, "bob").await;
+    assert!(
+        !get(&e, "/settings", &cb)
+            .await
+            .text()
+            .contains("anna@example.com")
+    );
+}
+
+#[tokio::test]
+async fn change_password_rules() {
+    let e = env().await;
+    let c1 = login(&e, "anna").await;
+    let c2 = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c1).await;
+    let new = "brand-new-password-42";
+    let go = |cur: &str, n: &str, again: &str, tok: &str| {
+        let (cur, n, again, tok) = (
+            cur.to_owned(),
+            n.to_owned(),
+            again.to_owned(),
+            tok.to_owned(),
+        );
+        let (e, c1) = (&e, c1.clone());
+        async move {
+            post_form(
+                e,
+                "/settings/password",
+                &c1,
+                &[
+                    ("csrf", &tok),
+                    ("current", &cur),
+                    ("new", &n),
+                    ("again", &again),
+                ],
+            )
+            .await
+        }
+    };
+    assert!(
+        get(&e, "/settings/password", &c1)
+            .await
+            .text()
+            .contains("Current password")
+    );
+    assert_eq!(
+        go(PW, new, new, "forged").await.status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        go("wrong-current-pw", new, new, &csrf).await.status,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        go(PW, new, "different-password", &csrf).await.status,
+        StatusCode::BAD_REQUEST
+    );
+    assert_eq!(
+        go(PW, "short", "short", &csrf).await.status,
+        StatusCode::BAD_REQUEST
+    );
+    // nothing changed so far
+    assert_eq!(get(&e, "/files", &c2).await.status, StatusCode::OK);
+
+    // an app password does not count as the current password
+    let anna = e
+        .state
+        .authenticate("anna", PW, "192.0.2.9".parse().expect("ip"))
+        .await
+        .expect("auth");
+    let token = e.state.device_create(&anna, "phone").await.expect("device");
+    assert_eq!(
+        go(&token, new, new, &csrf).await.status,
+        StatusCode::UNAUTHORIZED
+    );
+
+    let r = go(PW, new, new, &csrf).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert!(
+        get(&e, "/settings/password?done=1", &c1)
+            .await
+            .text()
+            .contains("Password changed")
+    );
+    // this session stays, the other one ends
+    assert_eq!(get(&e, "/files", &c1).await.status, StatusCode::OK);
+    assert_eq!(get(&e, "/files", &c2).await.status, StatusCode::SEE_OTHER);
+    // the new password signs in, the old one does not, the app password still works
+    let page = send(&e, "GET", "/login", &[], Body::empty()).await;
+    let (lc, tok) = (
+        page.cookie("rostdav_login").expect("c"),
+        extract_csrf(&page.text()),
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/login",
+            &lc,
+            &[("csrf", &tok), ("user", "anna"), ("password", new)]
+        )
+        .await
+        .status,
+        StatusCode::SEE_OTHER
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/login",
+            &lc,
+            &[("csrf", &tok), ("user", "anna"), ("password", PW)]
+        )
+        .await
+        .status,
+        StatusCode::UNAUTHORIZED
+    );
+    assert!(
+        e.state
+            .authenticate("anna", &token, "192.0.2.9".parse().expect("ip"))
+            .await
+            .is_ok()
+    );
+}
+
+#[tokio::test]
+async fn data_export_is_a_tar_of_own_files() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let cb = login(&e, "bob").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let csrf_b = page_csrf(&e, &cb).await;
+    post_form(
+        &e,
+        "/action/mkdir",
+        &ca,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Docs")],
+    )
+    .await;
+    upload(
+        &e,
+        &ca,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Docs"),
+            ("file", Some("a.txt"), "hello export"),
+        ],
+    )
+    .await;
+    upload(
+        &e,
+        &cb,
+        &[
+            ("csrf", None, &csrf_b),
+            ("dir", None, ""),
+            ("file", Some("bob.txt"), "bobs data"),
+        ],
+    )
+    .await;
+
+    assert_eq!(
+        post_form(&e, "/settings/export", &ca, &[("csrf", "forged")])
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        post_form(&e, "/settings/export", &ca, &[("csrf", &csrf_b)])
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        send(
+            &e,
+            "GET",
+            "/settings/export",
+            &[("cookie", &ca)],
+            Body::empty()
+        )
+        .await
+        .status,
+        StatusCode::METHOD_NOT_ALLOWED
+    );
+
+    let r = post_form(&e, "/settings/export", &ca, &[("csrf", &csrf)]).await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert_eq!(r.h("content-type"), "application/x-tar");
+    assert!(
+        r.h("content-disposition")
+            .starts_with("attachment; filename=\"rostdav-anna-")
+    );
+    let body = r.body;
+    assert_eq!(body.len() % 512, 0);
+    let text = String::from_utf8_lossy(&body);
+    assert!(text.contains("Docs/a.txt") && text.contains("hello export"));
+    assert!(!text.contains("bob.txt") && !text.contains("bobs data"));
+    assert_eq!(&body[257..262], b"ustar");
+
+    // anonymous: back to sign-in
+    let r = send(
+        &e,
+        "POST",
+        "/settings/export",
+        &[
+            ("origin", &origin()),
+            ("content-type", "application/x-www-form-urlencoded"),
+        ],
+        Body::from(form(&[("csrf", &csrf)])),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+}
