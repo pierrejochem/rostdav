@@ -28,6 +28,7 @@ The CLI works on the data directory directly, next to a running server. It is tr
 | `rostdav admin user delete <login> [--transfer-to <login>] --yes` | Delete the account; the files are deleted, or moved to the folder `<login> (transferred)` of the other user |
 | `rostdav admin fsck [--verify] [--repair] [--min-orphan-age <s>]` | Consistency check, see below; exit code 1 if damage remains |
 | `rostdav admin import <path> --user <login> [--dest <folder>] [--overwrite]` | Copy a host directory into a user's files |
+| `rostdav admin backup <new-dir> [--include-key]` | Consistent copy of database and blobs while the server runs (hard links on the same file system), see [deployment.md](deployment.md) |
 | `rostdav admin audit export [--since <date>]` | Event log as JSON Lines |
 | `rostdav admin user reset-2fa <login>` | Remove the two-factor secret and recovery codes of a locked-out user and end their browser sessions (app passwords stay) |
 

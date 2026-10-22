@@ -79,6 +79,15 @@ pub fn parse_quota(s: &str) -> Result<Option<i64>> {
     Ok(Some(bytes as i64))
 }
 
+/// What a backup contains.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct BackupReport {
+    pub blobs: u64,
+    pub bytes: u64,
+    /// Blobs that had to be copied because a hard link was not possible (other file system).
+    pub copied: u64,
+}
+
 /// What happens to a deleted user's files.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DeleteMode {
@@ -404,6 +413,60 @@ impl AppState {
         ])
     }
 
+    // ---- backup ----------------------------------------------------------------------
+
+    /// Copies the database and the blobs into the new directory `dest` while the server
+    /// runs (ADR 0002: blobs are immutable and the database never points at an incomplete
+    /// blob, so "database first, then blobs" is consistent). Blobs are hard-linked when
+    /// `dest` is on the same file system (no extra space), otherwise copied. The two-factor
+    /// key file is only included on request, because a backup next to the database would
+    /// undo what keeping the key outside of it is for.
+    pub async fn backup(
+        &self,
+        actor: &Actor<'_>,
+        dest: &std::path::Path,
+        include_key: bool,
+    ) -> Result<BackupReport> {
+        actor.require_admin()?;
+        if dest.exists() {
+            return Err(Error::Conflict("the backup target already exists"));
+        }
+        let root = self.inner.store.root().to_path_buf();
+        let io = |e: std::io::Error| Error::internal(e);
+        tokio::fs::create_dir_all(dest.join("db"))
+            .await
+            .map_err(io)?;
+        // 1. database (a snapshot that is consistent in itself)
+        self.inner
+            .db
+            .backup_to(&dest.join("db").join("rostdav.sqlite"))
+            .await?;
+        // 2. blobs, afterwards: every blob the snapshot refers to exists by now
+        let src = root.join("blobs");
+        let dst = dest.join("blobs");
+        let report = tokio::task::spawn_blocking(move || copy_blobs(&src, &dst))
+            .await
+            .map_err(Error::internal)?
+            .map_err(io)?;
+        if include_key {
+            let key = root.join("totp.key");
+            if key.exists() {
+                tokio::fs::copy(&key, dest.join("totp.key"))
+                    .await
+                    .map_err(io)?;
+            }
+        }
+        self.audit(
+            &actor.name(),
+            "admin.backup",
+            "",
+            None,
+            json!({"blobs": report.blobs, "bytes": report.bytes, "copied": report.copied, "key": include_key}),
+        )
+        .await;
+        Ok(report)
+    }
+
     // ---- event log ------------------------------------------------------------
 
     pub async fn audit_events(&self, actor: &Actor<'_>, since: i64) -> Result<Vec<Event>> {
@@ -664,4 +727,40 @@ impl ImportReport {
                 .push((host.display().to_string(), reason.to_owned()));
         }
     }
+}
+
+/// Hard-links (or copies) every file below `src` to the same relative path below `dst`.
+fn copy_blobs(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<BackupReport> {
+    let mut report = BackupReport::default();
+    let mut stack = vec![src.to_path_buf()];
+    std::fs::create_dir_all(dst)?;
+    while let Some(dir) = stack.pop() {
+        for entry in std::fs::read_dir(&dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let rel = path.strip_prefix(src).unwrap_or(&path);
+            let target = dst.join(rel);
+            let ty = entry.file_type()?;
+            if ty.is_dir() {
+                std::fs::create_dir_all(&target)?;
+                stack.push(path);
+            } else if ty.is_file() {
+                // a blob deleted by the cleanup while we walk is not part of the snapshot
+                let size = match entry.metadata() {
+                    Ok(m) => m.len(),
+                    Err(_) => continue,
+                };
+                if std::fs::hard_link(&path, &target).is_err() {
+                    match std::fs::copy(&path, &target) {
+                        Ok(_) => report.copied += 1,
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                        Err(e) => return Err(e),
+                    }
+                }
+                report.blobs += 1;
+                report.bytes += size;
+            }
+        }
+    }
+    Ok(report)
 }

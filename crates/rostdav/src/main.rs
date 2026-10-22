@@ -28,6 +28,8 @@ enum Command {
     Admin(rostdav::cli::AdminCommand),
     /// Prints the effective configuration (without secrets).
     CheckConfig,
+    /// Asks a running server whether it is ready (for container health checks). Exit code 0 = ready.
+    Healthcheck,
 }
 
 #[tokio::main]
@@ -37,9 +39,14 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Command::CheckConfig => {
-            println!("{}", serde_json::to_string_pretty(&cfg)?);
+            let mut shown = cfg.clone();
+            if shown.security.totp_key.is_some() {
+                shown.security.totp_key = Some("<set>".to_owned());
+            }
+            println!("{}", serde_json::to_string_pretty(&shown)?);
             Ok(())
         }
+        Command::Healthcheck => healthcheck(&cfg).await,
         Command::Serve => serve(cfg).await,
         Command::Admin(cmd) => admin(cfg, cmd).await,
     }
@@ -138,4 +145,32 @@ async fn shutdown_signal() {
         () = terminate => {},
     }
     tracing::info!("shutdown requested");
+}
+
+/// `GET /readyz` on the configured listen address (0.0.0.0 and :: mean "this machine").
+async fn healthcheck(cfg: &Config) -> anyhow::Result<()> {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let mut addr = cfg.server.listen;
+    if addr.ip().is_unspecified() {
+        addr.set_ip(std::net::Ipv4Addr::LOCALHOST.into());
+    }
+    let work = async {
+        let mut s = tokio::net::TcpStream::connect(addr).await?;
+        s.write_all(b"GET /readyz HTTP/1.0\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+            .await?;
+        let mut buf = Vec::new();
+        s.take(4096).read_to_end(&mut buf).await?;
+        Ok::<_, std::io::Error>(buf)
+    };
+    let buf = tokio::time::timeout(std::time::Duration::from_secs(5), work)
+        .await
+        .context("timeout")?
+        .context("no connection")?;
+    let head = String::from_utf8_lossy(&buf);
+    anyhow::ensure!(
+        head.starts_with("HTTP/1.1 200") || head.starts_with("HTTP/1.0 200"),
+        "not ready: {}",
+        head.lines().next().unwrap_or("")
+    );
+    Ok(())
 }

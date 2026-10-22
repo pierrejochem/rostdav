@@ -739,3 +739,94 @@ async fn import_copies_a_tree_safely() {
         .await;
     assert!(matches!(r, Err(Error::QuotaExceeded)), "{r:?}");
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn backup_taken_while_files_are_written_restores_cleanly() {
+    let (dir, st) = state().await;
+    st.add_user("anna", PW, false).await.expect("user");
+    let anna = login(&st, "anna").await;
+    for i in 0..30 {
+        st.put(
+            &anna,
+            &lp(&format!("before{i}.txt")),
+            format!("content {i}").as_bytes(),
+            None,
+            &WriteCondition::None,
+        )
+        .await
+        .expect("put");
+    }
+    // a writer keeps going while the backup runs
+    let writer = {
+        let (st, anna) = (st.clone(), anna.clone());
+        tokio::spawn(async move {
+            for i in 0..200 {
+                let _ = st
+                    .put(
+                        &anna,
+                        &lp(&format!("during{i}.txt")),
+                        format!("late {i}").as_bytes(),
+                        None,
+                        &WriteCondition::None,
+                    )
+                    .await;
+            }
+        })
+    };
+    let dest = dir.path().join("backup");
+    let report = st.backup(&Actor::Cli, &dest, false).await.expect("backup");
+    writer.await.expect("writer");
+    assert!(report.blobs >= 30, "{report:?}");
+    // it refuses to overwrite and to be run by a normal user
+    assert!(st.backup(&Actor::Cli, &dest, false).await.is_err());
+    assert!(
+        st.backup(&Actor::User(&anna), &dir.path().join("b2"), false)
+            .await
+            .is_err()
+    );
+
+    // restore = use the backup as a data directory; it must pass a full check
+    let restored = dir.path().join("restored");
+    std::fs::create_dir_all(&restored).expect("dir");
+    for entry in ["db", "blobs"] {
+        copy_dir(&dest.join(entry), &restored.join(entry));
+    }
+    let store = LocalStore::open(&restored).await.expect("store");
+    let db = Db::open(&Db::default_url(store.root())).await.expect("db");
+    db.migrate().await.expect("migrate");
+    let st2 = AppState::new(db, store).await.expect("state");
+    let report = st2
+        .fsck(
+            &Actor::Cli,
+            FsckOptions {
+                repair: false,
+                verify_checksums: true,
+                min_orphan_age_secs: 3600,
+            },
+        )
+        .await
+        .expect("fsck");
+    assert!(report.is_clean(), "{report:?}");
+    let anna2 = login(&st2, "anna").await;
+    let (_, mut f) = st2.read(&anna2, &lp("before7.txt")).await.expect("read");
+    let mut s = String::new();
+    f.read_to_string(&mut s).await.expect("read");
+    assert_eq!(s, "content 7");
+    // the original is untouched by the backup
+    assert!(st.stat(&anna, &lp("before7.txt")).await.is_ok());
+    // the key file is only included on request
+    assert!(!dest.join("totp.key").exists());
+}
+
+fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).expect("dir");
+    for e in std::fs::read_dir(from).expect("read_dir") {
+        let e = e.expect("entry");
+        let target = to.join(e.file_name());
+        if e.file_type().expect("type").is_dir() {
+            copy_dir(&e.path(), &target);
+        } else {
+            std::fs::copy(e.path(), target).expect("copy");
+        }
+    }
+}

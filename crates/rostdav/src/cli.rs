@@ -20,6 +20,9 @@ pub enum AdminCommand {
     Fsck(FsckArgs),
     /// Copies a directory from this host into a user's files.
     Import(ImportArgs),
+    /// Writes a consistent copy of the database and the blobs into a new directory
+    /// (the server may keep running). Restore: see docs/deployment.md.
+    Backup(BackupArgs),
     /// Event log.
     #[command(subcommand)]
     Audit(AuditCommand),
@@ -82,6 +85,15 @@ pub enum Role {
 }
 
 #[derive(Args)]
+pub struct BackupArgs {
+    /// New directory for the backup (it must not exist yet).
+    pub dest: PathBuf,
+    /// Also copy the two-factor key file (keep such a backup away from the database copy).
+    #[arg(long)]
+    pub include_key: bool,
+}
+
+#[derive(Args)]
 pub struct FsckArgs {
     /// Delete orphan files and fix usage counters. Without it nothing is changed.
     #[arg(long)]
@@ -129,6 +141,21 @@ pub async fn run(
         AdminCommand::User(u) => user(state, &actor, u, stdin, out).await?,
         AdminCommand::Fsck(a) => return fsck(state, &actor, &a, out).await,
         AdminCommand::Import(a) => import(state, &actor, a, out).await?,
+        AdminCommand::Backup(a) => {
+            let r = state
+                .backup(&actor, &a.dest, a.include_key)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            writeln!(
+                out,
+                "backup written to {}: {} blobs, {} bytes ({} hard-linked, {} copied)",
+                a.dest.display(),
+                r.blobs,
+                r.bytes,
+                r.blobs - r.copied,
+                r.copied
+            )?;
+        }
         AdminCommand::Audit(AuditCommand::Export { since }) => {
             let since = since
                 .as_deref()

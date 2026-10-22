@@ -113,6 +113,20 @@ impl Db {
         }
     }
 
+    /// Writes a consistent copy of the database to a new file (`VACUUM INTO`), while the
+    /// server keeps running. The target must not exist.
+    pub async fn backup_to(&self, dest: &std::path::Path) -> Result<()> {
+        if dest.exists() {
+            return Err(Error::Conflict("the backup target already exists"));
+        }
+        sqlx::query("VACUUM INTO ?")
+            .bind(dest.to_string_lossy().into_owned())
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(())
+    }
+
     pub async fn set_password_hash(&self, id: i64, hash: &str) -> Result<()> {
         let r = sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
             .bind(hash)

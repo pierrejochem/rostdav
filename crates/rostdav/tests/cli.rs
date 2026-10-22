@@ -345,3 +345,79 @@ fn default_quota_and_upload_retention_come_from_the_configuration() {
         "{out}"
     );
 }
+
+#[test]
+fn backup_and_restore_through_the_command_line() {
+    let c = Cli::new();
+    c.ok(&["user", "add", "anna"], &format!("{PW}\n"));
+    let src = c.dir.path().join("to-import");
+    std::fs::create_dir_all(src.join("sub")).expect("dir");
+    std::fs::write(src.join("a.txt"), "alpha").expect("file");
+    std::fs::write(src.join("sub/b.bin"), vec![7u8; 100_000]).expect("file");
+    c.ok(
+        &["import", src.to_str().expect("utf8"), "--user", "anna"],
+        "",
+    );
+
+    let dest = c.dir.path().join("backup");
+    let out = c.ok(&["backup", dest.to_str().expect("utf8")], "");
+    assert!(
+        out.contains("backup written") && out.contains("2 blobs"),
+        "{out}"
+    );
+    assert!(dest.join("db/rostdav.sqlite").exists() && dest.join("blobs").is_dir());
+    assert!(!dest.join("totp.key").exists());
+    // a second run into the same place is refused
+    assert!(
+        c.fail(&["backup", dest.to_str().expect("utf8")], "")
+            .contains("already exists")
+    );
+
+    // restore: the backup directory becomes a data directory of a fresh installation
+    let restored = Cli::new();
+    let data = restored.dir.path().join("data");
+    std::fs::create_dir_all(&data).expect("dir");
+    for part in ["db", "blobs"] {
+        copy_all(&dest.join(part), &data.join(part));
+    }
+    let out = restored.ok(&["fsck", "--verify"], "");
+    assert!(
+        out.to_lowercase().contains("no problems") || out.contains("clean") || out.contains("ok"),
+        "{out}"
+    );
+    let list = restored.ok(&["user", "list"], "");
+    assert!(list.contains("anna"), "{list}");
+    let events = restored.ok(&["audit", "export"], "");
+    assert!(
+        events.contains("admin.backup") || events.contains("admin.import"),
+        "{events}"
+    );
+}
+
+fn copy_all(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).expect("dir");
+    for e in std::fs::read_dir(from).expect("read_dir") {
+        let e = e.expect("entry");
+        let t = to.join(e.file_name());
+        if e.file_type().expect("type").is_dir() {
+            copy_all(&e.path(), &t);
+        } else {
+            std::fs::copy(e.path(), t).expect("copy");
+        }
+    }
+}
+
+#[test]
+fn check_config_never_prints_the_two_factor_key() {
+    let c = Cli::new();
+    let key = "QUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVowMTIzNDU="; // 32 bytes, base64
+    let o = std::process::Command::new(env!("CARGO_BIN_EXE_rostdav"))
+        .arg("check-config")
+        .env("ROSTDAV_STORAGE__DATA_DIR", c.dir.path().join("data"))
+        .env("ROSTDAV_SECURITY__TOTP_KEY", key)
+        .output()
+        .expect("run");
+    assert!(o.status.success());
+    let out = String::from_utf8_lossy(&o.stdout);
+    assert!(!out.contains(key) && out.contains("<set>"), "{out}");
+}

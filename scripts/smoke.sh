@@ -21,11 +21,13 @@ fail() { echo "ERROR: $*"; cat "$WORK/log.txt"; kill "$PID" 2>/dev/null || true;
 
 [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/healthz")" = 200 ] || fail "healthz"
 [ "$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$PORT/readyz")" = 200 ] || fail "readyz"
+ROSTDAV_SERVER__LISTEN="127.0.0.1:$PORT" "$BIN" healthcheck || fail "healthcheck subcommand"
 curl -s -o /dev/null -H "Authorization: Basic c21va2U6c2VjcmV0" "http://127.0.0.1:$PORT/healthz?token=smoketoken"
 
 kill -TERM "$PID"
 wait "$PID" || fail "exit code after SIGTERM is not 0"
 
+if ROSTDAV_SERVER__LISTEN="127.0.0.1:$PORT" "$BIN" healthcheck 2>/dev/null; then fail "healthcheck succeeds without a server"; fi
 grep -q '"message":"stopped"' "$WORK/log.txt" || fail "no orderly shutdown in log"
 grep -q '"path":"/healthz"' "$WORK/log.txt" || fail "requests are not logged"
 if grep -q -e 'c21va2U6c2VjcmV0' -e 'smoketoken' "$WORK/log.txt"; then fail "secret in log"; fi

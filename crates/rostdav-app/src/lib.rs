@@ -28,7 +28,9 @@ mod web;
 
 pub use access::{Access, MountView, Need, Origin, authorize_access};
 pub use admin::parse_quota;
-pub use admin::{Actor, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport};
+pub use admin::{
+    Actor, BackupReport, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport,
+};
 pub use audit::AuditOptions;
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, Scope, UserInfo, Via, authorize};
 pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, normalize_checksum};
