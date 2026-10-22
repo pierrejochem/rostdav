@@ -235,6 +235,7 @@ Server address entered as `http://10.0.2.2:8081`. The app was driven through `ad
 | Trash in the app | After the capabilities fix the left sidebar still has no "Deleted files" entry (the app version may hide it or it lives elsewhere); trash restore through the app is **not verified**; the trashbin is covered by `tests/trash.rs` against reference fixtures | open |
 | Login Flow with 2FA | Account with two-factor on: the flow page asks user and password, then "Confirm your sign-in" with the six-digit code; after the code "Device connected"; closing the tab, the app lists the account's files. The account password alone on WebDAV answers 401 (ADR 0007) | none |
 | Public link | "Create link" on a folder: `POST shares` 200, `GET shares/2` 200; the returned URL `http://10.0.2.2:8081/s/<token>` opens the public page (200) and `public.php/webdav` answers 207 with the token as user; permissions 1 (read) | none |
+| Offline, then reconnect | Server stopped, 2 KB file queued for upload in the app, server started again: the app retried by itself (`HEAD` 404, `PUT` 201, `PROPFIND` 207) within 90 s, hash identical | none |
 
 Both bugs were invisible to the contract tests because the fixtures contained neither request.
 
