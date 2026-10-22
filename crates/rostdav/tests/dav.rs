@@ -343,13 +343,13 @@ async fn get_ranges_and_conditionals() {
         StatusCode::NOT_FOUND
     );
     call("MKCOL", &format!("{A}/dir"), "anna").send(&e).await;
-    assert_eq!(
-        call("GET", &format!("{A}/dir"), "anna")
-            .send(&e)
-            .await
-            .status,
-        StatusCode::METHOD_NOT_ALLOWED
-    );
+    // reference: GET and HEAD on a collection answer 200 with a one-line text (the Android
+    // app sends HEAD on its files URL after signing in and restarts the login on a 405)
+    for m in ["GET", "HEAD"] {
+        let r = call(m, &format!("{A}/dir"), "anna").send(&e).await;
+        assert_eq!(r.status, StatusCode::OK, "{m}");
+        assert!(r.header("content-type").starts_with("text/html"), "{m}");
+    }
 }
 
 // ---- MKCOL / DELETE --------------------------------------------------------

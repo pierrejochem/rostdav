@@ -47,6 +47,8 @@ pub(crate) const MAX_XML_BODY: usize = 64 * 1024;
 /// Routes of this layer.
 pub fn router() -> Router<AppState> {
     Router::new()
+        .route("/remote.php/dav", any(entry))
+        .route("/remote.php/dav/", any(entry))
         .route("/remote.php/dav/files/{*rest}", any(entry))
         .route("/remote.php/webdav", any(entry))
         .route("/remote.php/webdav/", any(entry))
@@ -79,6 +81,9 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
     } else {
         authenticate(&state, req.headers(), ip).await?
     };
+    if !public && matches!(req.uri().path(), "/remote.php/dav" | "/remote.php/dav/") {
+        return Ok(dav_root(req.method().as_str()));
+    }
     let principal_name = Name::parse(&principal.name)?;
     let (parts, body) = req.into_parts();
     let headers = &parts.headers;
@@ -126,6 +131,43 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
         "MOVE" | "COPY" => transfer(&state, &principal, &target, headers, method == "MOVE").await,
         _ => Ok(method_not_allowed()),
     }
+}
+
+/// `/remote.php/dav/`: the app probes it before sign-in (answered 401 above for anybody who is
+/// not signed in, as the reference does) and the clients PROPFIND it to find the collections.
+/// Reference (Nextcloud 35.0.2): GET/HEAD 200 with a one-line HTML text, OPTIONS 200, PROPFIND 207.
+fn dav_root(method: &str) -> Response {
+    match method {
+        "OPTIONS" => options(),
+        "GET" | "HEAD" => webdav_notice(method == "HEAD"),
+        "PROPFIND" => {
+            let mut responses = Vec::new();
+            for href in ["/remote.php/dav/", "/remote.php/dav/files/"] {
+                let mut b = ResponseBuilder::new(href.to_owned());
+                b.ok("d", "resourcetype", "<d:collection/>");
+                responses.push(b);
+            }
+            let mut r = (StatusCode::MULTI_STATUS, multistatus(&responses)).into_response();
+            set(
+                &mut r,
+                header::CONTENT_TYPE,
+                "application/xml; charset=utf-8",
+            );
+            r
+        }
+        _ => method_not_allowed(),
+    }
+}
+
+fn webdav_notice(head_only: bool) -> Response {
+    let mut r = if head_only {
+        StatusCode::OK.into_response()
+    } else {
+        "This is the WebDAV interface. It can only be accessed by WebDAV clients such as the Nextcloud desktop sync client."
+            .into_response()
+    };
+    set(&mut r, header::CONTENT_TYPE, "text/html; charset=UTF-8");
+    r
 }
 
 fn options() -> Response {
@@ -238,7 +280,10 @@ async fn get(
 ) -> Result<Response, DavError> {
     let node = state.stat(p, &t.path).await?;
     if node.kind == NodeKind::Dir {
-        return Ok(method_not_allowed());
+        // Reference (Nextcloud 35.0.2): GET/HEAD on a collection is 200 with a one-line text.
+        // The Android app sends `HEAD <files url>/` right after the sign-in and starts the
+        // whole login again on a 405 (found in M6).
+        return Ok(webdav_notice(head_only));
     }
     let etag = quoted(&node.etag);
 

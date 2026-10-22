@@ -212,6 +212,19 @@ Source: requirements (Nextcloud behaviour as described in `docs/instructions.md`
 
 To check in M6 (emulator): connect the Nextcloud app to an account with 2FA on (through the Login Flow page) and use it afterwards.
 
+## M6: the real Android app (Nextcloud Android 35.0.1, Android 15 emulator, 2026-10-22)
+
+Server address entered as `http://10.0.2.2:8081`. The app was driven through `adb`; every row below was seen, not assumed.
+
+| Step | Finding | Fix |
+|---|---|---|
+| Server check | The app sends `HEAD /remote.php/dav` and says "Server not found" unless it gets 401 (not signed in). Rostdav answered 404 | `/remote.php/dav[/]`: 401 for strangers; GET/HEAD 200 text, OPTIONS 200, PROPFIND 207 for signed-in users (as the reference) |
+| Right after the sign-in | `HEAD /remote.php/dav/files/<user>/` got 405; the app then **restarted the whole login** (endless loop) | GET/HEAD on a collection answer 200 with the one-line text, as the reference |
+| Login Flow in the app's browser tab | The page renders and works; the app polls after the tab is closed | none; the client name shown is the whole user agent (`Mozilla/5.0 (Android) Nextcloud-android/35.0.1`) |
+| After the sign-in | File list (PROPFIND), capabilities, user info work; avatar, notifications and recommendations answer 404 and the app shrugs them off | none |
+
+Both bugs were invisible to the contract tests because the fixtures contained neither request.
+
 ## Not supported
 
 | Feature | App behavior without support | Source |
