@@ -3,6 +3,7 @@
 //! Login Flow v2 page (M4) and the browser interface with sessions (M11, ADR 0006).
 
 mod admin;
+mod filespage;
 mod layout;
 mod links;
 mod login_page;
@@ -24,8 +25,8 @@ pub fn router() -> Router<AppState> {
         .route("/static/{name}", get(layout::static_file))
         .route("/login", get(pages::login_show).post(pages::login_submit))
         .route("/logout", post(pages::logout))
-        .route("/files", get(pages::files_root))
-        .route("/files/{*path}", get(pages::files_path))
+        .route("/files", get(filespage::files_root))
+        .route("/files/{*path}", get(filespage::files_path))
         .route("/download/{*path}", get(pages::download))
         .route("/action/mkdir", post(pages::mkdir))
         .route(

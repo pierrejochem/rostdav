@@ -83,6 +83,8 @@ pub fn client_ip(parts: &Parts) -> IpAddr {
 /// A signed-in browser session. Unsafe methods must also pass the origin check.
 pub struct Authed {
     pub session: WebSession,
+    /// Used bytes and quota (`None` = unlimited), for the sidebar meter.
+    pub storage: (i64, Option<i64>),
     pub admin: bool,
     pub theme: String,
     pub csrf: String,
@@ -110,7 +112,12 @@ impl FromRequestParts<AppState> for Authed {
             .flatten()
             .unwrap_or_default();
         let csrf = state.web_csrf(session.id);
+        let storage = state
+            .storage_summary(&session.principal)
+            .await
+            .unwrap_or((0, None));
         Ok(Self {
+            storage,
             admin: session.principal.is_admin,
             session,
             theme,
@@ -125,6 +132,7 @@ impl Authed {
             theme: &self.theme,
             admin: self.admin,
             name: &self.session.principal.name,
+            storage: self.storage,
         }
     }
 }

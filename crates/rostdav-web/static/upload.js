@@ -7,6 +7,9 @@
   if (!form || !window.fetch || !window.File) return;
   var status = document.getElementById("upload-status");
   var progress = document.getElementById("upload-progress");
+  var card = document.getElementById("upload-card");
+  var cancelBtn = document.getElementById("upload-cancel");
+  var ctl = null, current = null;
   var csrf = form.elements.csrf.value;
   var dir = form.elements.dir.value;
 
@@ -14,7 +17,7 @@
 
   function api(method, url, body, headers) {
     var h = Object.assign({ "X-CSRF-Token": csrf }, headers || {});
-    return fetch(url, { method: method, body: body, headers: h, credentials: "same-origin", redirect: "manual" })
+    return fetch(url, { method: method, body: body, headers: h, credentials: "same-origin", redirect: "manual", signal: ctl ? ctl.signal : undefined })
       .then(function (r) {
         if (r.type === "opaqueredirect") throw new Error("Your session has ended. Sign in again.");
         return r;
@@ -32,6 +35,7 @@
 
   function uploadFile(file, n, of) {
     var id = transferId(file), base = "/web/upload/" + id;
+    current = base;
     var count = Math.max(1, Math.ceil(file.size / CHUNK));
     var label = file.name + " (" + n + "/" + of + ")";
     var have = {};
@@ -73,12 +77,23 @@
     if (!files.length) return;
     ev.preventDefault();
     form.elements.file.disabled = true;
-    progress.hidden = false;
+    ctl = new AbortController();
+    card.hidden = false;
     var chain = Promise.resolve();
     files.forEach(function (f, k) { chain = chain.then(function () { return uploadFile(f, k + 1, files.length); }); });
     chain.then(function () { window.location.reload(); }, function (e) {
-      say(e.message);
+      say(e.name === "AbortError" ? "Upload cancelled." : e.message);
       form.elements.file.disabled = false;
     });
+  });
+
+  cancelBtn.addEventListener("click", function () {
+    if (ctl) ctl.abort();
+    var base = current;
+    if (base) {
+      // best effort: drop the partial upload on the server
+      fetch(base, { method: "DELETE", headers: { "X-CSRF-Token": csrf }, credentials: "same-origin" });
+    }
+    card.hidden = false;
   });
 })();

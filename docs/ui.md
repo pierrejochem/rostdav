@@ -39,7 +39,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/s/<token>`, `/s/<token>/{unlock,dl,upload}` | Public link page: list, download, password form, upload |
 | `/share?path=`, `/share/{user,link,delete}` | Sharing dialog: share with a user, create/stop public links (password, expiry, view/edit/upload-only) |
 | `/versions?path=`, `/versions/{restore,delete}` | Versions panel of a file |
-| `/files?q=` | Name filter of the current folder; the list also shows file ID and ETag |
+| `/files[/<path>]?q=&sel=` | Files page as designed: search/filter box, tiles per type, "Shared" chip, details panel (selected file via `sel`, else the open folder: download, share, delete, versions with restore, shares, file ID and ETag), upload progress card, storage meter in the sidebar |
 | `/web/upload/<id>[/<chunk>\|/finish]` | Chunked, resumable browser upload (used by `/static/upload.js`; session + `X-CSRF-Token` header) |
 | `/admin/users`, `/admin/users/{create,manage,disabled,role,quota,password,delete}` | Administration: users (add, block, role, quota, password reset, delete with transfer) |
 | `/admin/events` | Administration: event log (period filter, newest 500) |
@@ -58,7 +58,7 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 - Downloads are always `attachment` with `nosniff` and `sandbox`.
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
-Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Not yet: security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
+Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
 
 Checks done on every page (14 pages × 360/768/1440 px × light/dark, Playwright + axe-core 4.10, tags wcag2a/aa, wcag21a/aa, wcag22aa, best-practice): no horizontal page overflow, no axe violations. Tables scroll inside a focusable region on small screens; password fields get a show/hide button (`/static/password.js`, `aria-pressed`, field name kept stable); sign-in pages have a `main` landmark. Not covered by automated checks: screen-reader announcements and keyboard order were not tried by hand.
 

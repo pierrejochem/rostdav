@@ -130,6 +130,19 @@ pub struct Chrome<'a> {
     pub theme: &'a str,
     pub admin: bool,
     pub name: &'a str,
+    /// Used bytes and quota (`None` = unlimited).
+    pub storage: (i64, Option<i64>),
+}
+
+/// Optional parts of a signed-in page.
+#[derive(Default)]
+pub struct Opts<'a> {
+    /// One script from `/static/`, loaded at the end of the page.
+    pub script: Option<&'a str>,
+    /// Markup for the left side of the top bar (search, actions).
+    pub toolbar: Option<&'a str>,
+    /// The body brings its own glass panels instead of one shared panel.
+    pub bare_main: bool,
 }
 
 /// A signed-in page with the navigation bar. `current` marks the active entry.
@@ -142,6 +155,27 @@ pub fn app(
     body: &str,
 ) -> Response {
     app_with_script(status, title, chrome, current, csrf, body, None)
+}
+
+fn human(n: i64) -> String {
+    crate::pages::human(n)
+}
+
+/// Sidebar storage meter: a `<progress>` (no inline styles allowed by the CSP).
+fn storage_widget((used, quota): (i64, Option<i64>)) -> String {
+    match quota {
+        Some(q) if q > 0 => format!(
+            "<div class=\"storage\"><div class=\"storage-head\"><span>Storage</span><span class=\"muted\">{} of {}</span></div>\
+             <progress class=\"meter\" max=\"{q}\" value=\"{}\" aria-label=\"Storage used\"></progress></div>",
+            human(used),
+            human(q),
+            used.clamp(0, q)
+        ),
+        _ => format!(
+            "<div class=\"storage\"><div class=\"storage-head\"><span>Storage</span><span class=\"muted\">{} used</span></div></div>",
+            human(used)
+        ),
+    }
 }
 
 fn nav_entry(key: &str, label: &str, href: &str, current: &str) -> String {
@@ -166,9 +200,30 @@ pub fn app_with_script(
     body: &str,
     script: Option<&str>,
 ) -> Response {
-    let script = script
+    let opts = Opts {
+        script,
+        ..Opts::default()
+    };
+    app_opts(status, title, chrome, current, csrf, body, &opts)
+}
+
+/// The general form of [`app`].
+pub fn app_opts(
+    status: StatusCode,
+    title: &str,
+    chrome: &Chrome<'_>,
+    current: &str,
+    csrf: &str,
+    body: &str,
+    opts: &Opts<'_>,
+) -> Response {
+    let script = opts
+        .script
         .map(|s| format!("<script src=\"/static/{s}\"></script>"))
         .unwrap_or_default();
+    let toolbar = opts.toolbar.unwrap_or_default();
+    let main_class = if opts.bare_main { "bare" } else { "panel" };
+    let storage = storage_widget(chrome.storage);
     let main_nav = format!(
         "{}{}",
         nav_entry("files", "Files", "/files", current),
@@ -206,11 +261,11 @@ pub fn app_with_script(
              <div class=\"app\"><nav class=\"side\" aria-label=\"Main navigation\">\
              <a class=\"logo\" href=\"/files\">{LOGO}<span class=\"wordmark\">rost<b>dav</b></span></a>\
              <div class=\"navgroup\">{main_nav}</div>\
-             <div class=\"navgroup\"><div class=\"eyebrow\">Account</div>{account_nav}</div>{server_nav}</nav>\
-             <div class=\"wrap\"><header class=\"top\"><span class=\"who\">{}</span><span class=\"avatar\" aria-hidden=\"true\">{}</span>\
+             <div class=\"navgroup\"><div class=\"eyebrow\">Account</div>{account_nav}</div>{server_nav}{storage}</nav>\
+             <div class=\"wrap\"><header class=\"top\"><div class=\"toolbar\">{toolbar}</div><span class=\"who\">{}</span><span class=\"avatar\" aria-hidden=\"true\">{}</span>\
              <form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
              <button type=\"submit\">Sign out</button></form></header>\
-             <main class=\"panel\">{}</main></div></div>{PASSWORD_SCRIPT}{script}</body></html>",
+             <main class=\"{main_class}\">{}</main></div></div>{PASSWORD_SCRIPT}{script}</body></html>",
             esc(title),
             esc(chrome.name),
             esc(&initial),

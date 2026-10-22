@@ -371,7 +371,12 @@ async fn browse_upload_download_delete() {
     assert_eq!(list.status, StatusCode::OK);
     assert!(list.text().contains("hello.txt"));
     assert!(list.text().contains("11 B"));
-    assert!(get(&e, "/files", &c).await.text().contains("Docs/"));
+    assert!(
+        get(&e, "/files", &c)
+            .await
+            .text()
+            .contains("<span>Docs</span>")
+    );
 
     let d = get(&e, "/download/Docs/hello.txt", &c).await;
     assert_eq!(d.status, StatusCode::OK);
@@ -465,7 +470,12 @@ async fn csrf_and_origin_are_required_for_every_post() {
         assert_eq!(r.status, StatusCode::SEE_OTHER, "{uri}");
     }
     // nothing was created
-    assert!(!get(&e, "/files", &ca).await.text().contains(">X/<"));
+    assert!(
+        !get(&e, "/files", &ca)
+            .await
+            .text()
+            .contains("<span>X</span>")
+    );
 
     // upload: missing and foreign token
     let r = upload(
@@ -1191,7 +1201,7 @@ async fn share_dialog_user_and_link() {
             .contains("Not shared yet.")
     );
     assert!(
-        get(&e, "/files", &ca)
+        get(&e, "/files/Team", &ca)
             .await
             .text()
             .contains("/share?path=Team")
@@ -1242,7 +1252,7 @@ async fn share_dialog_user_and_link() {
     assert!(page.contains("bob") && page.contains("View only"));
     // bob sees a read-only mount and has no Share button for it
     let fb = get(&e, "/files", &cb).await.text();
-    assert!(fb.contains("Team/"));
+    assert!(fb.contains("<span>Team</span>"));
     assert!(!fb.contains("/share?path=Team"));
     assert_eq!(
         get(&e, "/download/Team/n.txt", &cb).await.status,
@@ -1459,7 +1469,12 @@ async fn files_filter_and_details() {
     }
     let html = get(&e, "/files", &c).await.text();
     assert!(html.contains("Report.txt") && html.contains("photo.jpg"));
-    assert!(html.contains("ID · ETag"));
+    assert!(!html.contains("File ID"), "details only for a selection");
+    let html = get(&e, "/files?sel=Report.txt", &c).await.text();
+    assert!(html.contains("File ID") && html.contains("ETag") && html.contains("Not shared yet."));
+    assert!(html.contains("aria-current=\"true\""));
+    assert!(html.contains("/download/Report.txt") && html.contains("/versions?path=Report.txt"));
+    let html = get(&e, "/files", &c).await.text();
     let html = get(&e, "/files?q=REPORT", &c).await.text();
     assert!(html.contains("Report.txt") && !html.contains("photo.jpg"));
     let html = get(&e, "/files?q=%3Cscript%3E", &c).await.text();
@@ -2081,4 +2096,122 @@ async fn admin_event_log_status_and_server() {
     .await;
     let ev = get(&e, "/admin/events", &root).await.text();
     assert!(!ev.contains("<b>x</b>"));
+}
+
+#[tokio::test]
+async fn files_page_matches_the_design_parts() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    post_form(
+        &e,
+        "/action/mkdir",
+        &c,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Docs")],
+    )
+    .await;
+    upload(
+        &e,
+        &c,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Docs"),
+            ("file", Some("pic.png"), "img"),
+        ],
+    )
+    .await;
+    upload(
+        &e,
+        &c,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Docs"),
+            ("file", Some("a.md"), "one"),
+        ],
+    )
+    .await;
+    upload(
+        &e,
+        &c,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Docs"),
+            ("file", Some("a.md"), "second"),
+        ],
+    )
+    .await;
+
+    let html = get(&e, "/files/Docs", &c).await.text();
+    assert!(
+        html.contains("3 items") || html.contains("2 items"),
+        "{html}"
+    );
+    assert!(html.contains("tile image") && html.contains("tile doc"));
+    assert!(html.contains("Today, "), "friendly dates");
+    assert!(
+        html.contains("role=\"search\"")
+            && html.contains("New folder")
+            && html.contains("id=\"upload-form\"")
+    );
+    assert!(html.contains("id=\"upload-card\"") && html.contains(" hidden"));
+    // storage meter in the sidebar: unlimited quota shows usage only
+    assert!(html.contains("class=\"storage\"") && html.contains("used"));
+    // no selection: the open folder is described
+    assert!(html.contains("File ID") && html.contains("Folder"));
+
+    // a selected file: versions with restore, shares, actions
+    let html = get(&e, "/files/Docs?sel=a.md", &c).await.text();
+    assert!(html.contains("Current version") && html.contains("action=\"/versions/restore\""));
+    assert!(html.contains("Download") && html.contains("/share?path=Docs%2Fa.md"));
+    // unknown selection falls back to the folder
+    assert!(
+        get(&e, "/files/Docs?sel=nope", &c)
+            .await
+            .text()
+            .contains("Folder")
+    );
+    // names in selection and filter are escaped
+    let html = get(
+        &e,
+        "/files/Docs?sel=%3Cimg%20src%3Dx%3E&q=%3Cimg%20src%3Dx%3E",
+        &c,
+    )
+    .await
+    .text();
+    assert!(!html.contains("<img src=x>"));
+
+    // shared items carry a chip
+    let anna = e
+        .state
+        .authenticate("anna", PW, "192.0.2.9".parse().expect("ip"))
+        .await
+        .expect("auth");
+    e.state
+        .share_create(
+            &anna,
+            rostdav_app::ShareCreate {
+                path: Some(rostdav_core::LogicalPath::from_url_path("Docs").expect("p")),
+                share_type: 3,
+                permissions: Some(1),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("share");
+    assert!(get(&e, "/files", &c).await.text().contains("Shared"));
+    assert!(
+        get(&e, "/files/Docs", &c)
+            .await
+            .text()
+            .contains("Public link")
+    );
+
+    // limited quota: a real meter
+    root_set_quota(&e, "anna", 1_000_000).await;
+    let html = get(&e, "/files", &c).await.text();
+    assert!(html.contains("<progress class=\"meter\""), "{html}");
+}
+
+async fn root_set_quota(e: &Env, user: &str, bytes: i64) {
+    e.state.set_quota(user, Some(bytes)).await.expect("quota");
 }

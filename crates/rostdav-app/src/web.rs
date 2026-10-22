@@ -320,6 +320,13 @@ impl AppState {
         self.inner.db.set_pref(p.user_id, key, value).await
     }
 
+    /// Used bytes and quota (`None` = unlimited) for the storage meter on every page.
+    pub async fn storage_summary(&self, p: &Principal) -> Result<(i64, Option<i64>)> {
+        Self::require_full(p)?;
+        let (quota, used) = self.inner.db.quota_info(p.user_id).await?;
+        Ok((used, quota))
+    }
+
     pub async fn usage_overview(&self, p: &Principal) -> Result<UsageOverview> {
         Self::require_full(p)?;
         let (files, versions, trash) = self.inner.db.usage_breakdown(p.user_id).await?;
