@@ -189,7 +189,7 @@ impl Db {
         .map_err(err)?;
 
         // top-level children of the old root move below the new folder ...
-        sqlx::query("UPDATE nodes SET parent_id = ?, updated_at = ? WHERE parent_id = ?")
+        sqlx::query("UPDATE nodes SET parent_id = ?, updated_at = ? WHERE parent_id = ? AND trash_id IS NULL")
             .bind(folder)
             .bind(now)
             .bind(from_root)
@@ -199,8 +199,8 @@ impl Db {
         // ... and the whole subtree changes owner
         sqlx::query(
             "WITH RECURSIVE sub(id) AS (
-                 SELECT id FROM nodes WHERE parent_id = ?1
-                 UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
+                 SELECT id FROM nodes WHERE parent_id = ?1 AND trash_id IS NULL
+                 UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id WHERE n.trash_id IS NULL
              )
              UPDATE nodes SET owner_id = ?2 WHERE id IN (SELECT id FROM sub) OR id = ?1",
         )
@@ -213,8 +213,8 @@ impl Db {
         // shares on the moved nodes now belong to the new owner; a share to the new owner makes no sense any more
         sqlx::query(
             "WITH RECURSIVE sub(id) AS (
-                 SELECT id FROM nodes WHERE parent_id = ?1
-                 UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
+                 SELECT id FROM nodes WHERE parent_id = ?1 AND trash_id IS NULL
+                 UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id WHERE n.trash_id IS NULL
              )
              UPDATE shares SET owner_id = ?2 WHERE node_id IN (SELECT id FROM sub)",
         )
@@ -231,8 +231,8 @@ impl Db {
 
         let moved: i64 = sqlx::query_scalar(
             "WITH RECURSIVE sub(id) AS (
-                 SELECT id FROM nodes WHERE parent_id = ?1
-                 UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
+                 SELECT id FROM nodes WHERE parent_id = ?1 AND trash_id IS NULL
+                 UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id WHERE n.trash_id IS NULL
              )
              SELECT COALESCE((SELECT SUM(size) FROM nodes WHERE id IN (SELECT id FROM sub)), 0)
                   + COALESCE((SELECT SUM(size) FROM versions WHERE node_id IN (SELECT id FROM sub)), 0)",
@@ -420,7 +420,7 @@ async fn root_id(conn: &mut SqliteConnection, user: i64) -> Result<i64> {
 
 async fn exists_child(conn: &mut SqliteConnection, parent: i64, name: &str) -> Result<bool> {
     let key = Name::parse(name)?.key().to_owned();
-    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM nodes WHERE parent_id = ? AND name_key = ?)")
+    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id IS NULL)")
         .bind(parent)
         .bind(key)
         .fetch_one(conn)

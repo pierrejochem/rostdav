@@ -312,7 +312,7 @@ impl Db {
     /// The live node for a file ID of a given owner (versions are addressed by file ID).
     pub async fn file_of_owner(&self, owner_id: i64, node_id: i64) -> Result<Option<Node>> {
         let row: Option<Row> = sqlx::query_as(&format!(
-            "SELECT {COLS} FROM nodes WHERE id = ? AND owner_id = ? AND kind = 'file'"
+            "SELECT {COLS} FROM nodes WHERE id = ? AND owner_id = ? AND kind = 'file' AND trash_id IS NULL"
         ))
         .bind(node_id)
         .bind(owner_id)

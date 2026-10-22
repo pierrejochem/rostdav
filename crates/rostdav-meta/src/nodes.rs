@@ -148,7 +148,7 @@ async fn find_child(
     name_key: &str,
 ) -> Result<Option<Node>> {
     let row: Option<Row> = sqlx::query_as(&format!(
-        "SELECT {COLS} FROM nodes WHERE parent_id = ? AND name_key = ?"
+        "SELECT {COLS} FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id IS NULL"
     ))
     .bind(parent)
     .bind(name_key)
@@ -183,7 +183,7 @@ async fn subtree_size(conn: &mut SqliteConnection, id: i64) -> Result<i64> {
         "WITH RECURSIVE sub(id) AS (
              SELECT id FROM nodes WHERE id = ?1
              UNION ALL
-             SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
+             SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id WHERE n.trash_id IS NULL
          )
          SELECT COALESCE(SUM(size), 0) FROM nodes WHERE id IN (SELECT id FROM sub)",
     )
@@ -319,7 +319,7 @@ impl Db {
     /// Children ordered by name.
     pub async fn children(&self, parent_id: i64) -> Result<Vec<Node>> {
         let rows: Vec<Row> = sqlx::query_as(&format!(
-            "SELECT {COLS} FROM nodes WHERE parent_id = ? ORDER BY name_key"
+            "SELECT {COLS} FROM nodes WHERE parent_id = ? AND trash_id IS NULL ORDER BY name_key"
         ))
         .bind(parent_id)
         .fetch_all(self.pool())
@@ -606,12 +606,13 @@ impl Db {
         .await?;
         let mut stack = vec![(src.id, new_id)];
         while let Some((old_dir, new_dir)) = stack.pop() {
-            let rows: Vec<Row> =
-                sqlx::query_as(&format!("SELECT {COLS} FROM nodes WHERE parent_id = ?"))
-                    .bind(old_dir)
-                    .fetch_all(&mut *tx)
-                    .await
-                    .map_err(db_err)?;
+            let rows: Vec<Row> = sqlx::query_as(&format!(
+                "SELECT {COLS} FROM nodes WHERE parent_id = ? AND trash_id IS NULL"
+            ))
+            .bind(old_dir)
+            .fetch_all(&mut *tx)
+            .await
+            .map_err(db_err)?;
             for row in rows {
                 let child = to_node(row)?;
                 // Stored names were validated on the way in.

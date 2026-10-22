@@ -7,6 +7,7 @@ mod admin;
 mod auth;
 mod nodes;
 mod shares;
+mod trash;
 mod users;
 mod versions;
 
@@ -17,6 +18,7 @@ pub use shares::{
     NewShare, PERM_ALL, PERM_CREATE, PERM_DELETE, PERM_READ, PERM_UPDATE, Share, ShareKind,
     ShareUpdate,
 };
+pub use trash::TrashItem;
 pub use users::{NewUser, User};
 pub use versions::Version;
 

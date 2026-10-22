@@ -122,12 +122,14 @@ fn to_share(r: ShareRow) -> Share {
 }
 
 /// A share is live while it has not expired.
-const LIVE: &str = "(expires_at IS NULL OR expires_at > strftime('%s','now'))";
+/// ... and its node is not in the trash (the share is inactive until it is restored).
+const LIVE: &str = "(expires_at IS NULL OR expires_at > strftime('%s','now'))
+    AND NOT EXISTS (SELECT 1 FROM nodes tn WHERE tn.id = shares.node_id AND tn.trash_id IS NOT NULL)";
 
 async fn mount_clash(conn: &mut SqliteConnection, user: i64, key: &str) -> Result<bool> {
     sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM nodes n JOIN nodes r ON r.id = n.parent_id
-                       WHERE r.owner_id = ?1 AND r.parent_id IS NULL AND n.name_key = ?2)
+                       WHERE r.owner_id = ?1 AND r.parent_id IS NULL AND n.name_key = ?2 AND n.trash_id IS NULL)
              OR EXISTS(SELECT 1 FROM shares WHERE recipient_id = ?1 AND mount_key = ?2)",
     )
     .bind(user)
@@ -436,7 +438,7 @@ impl Db {
                 return Ok(None);
             }
             let row: Option<Row> = sqlx::query_as(&format!(
-                "SELECT {COLS} FROM nodes WHERE parent_id = ? AND name_key = ?"
+                "SELECT {COLS} FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id IS NULL"
             ))
             .bind(cur.id)
             .bind(seg.key())
