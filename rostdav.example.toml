@@ -38,6 +38,12 @@ data_dir = "./data"
 # max_age_days = 365
 # max_quota_share_percent = 50
 
+[trash]
+# Deleted files go to the trash first; their space counts until it is emptied.
+# enabled = true
+# Items older than this many days are deleted for good (0 = keep until emptied).
+# retention_days = 30
+
 [limits]
 # Maximum size of a single upload in bytes (default: 16 GiB).
 # max_upload_bytes = 17179869184

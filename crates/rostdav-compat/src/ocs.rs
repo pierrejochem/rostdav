@@ -230,6 +230,10 @@ pub async fn capabilities(
         },
         "forbidden_filename_extensions": rostdav_app::FORBIDDEN_EXTENSIONS,
     });
+    if cfg.trash {
+        files["undelete"] = json!(true);
+        files["delete_from_trash"] = json!(true);
+    }
     if cfg.versioning {
         files["versioning"] = json!(true);
         files["version_deletion"] = json!(true);

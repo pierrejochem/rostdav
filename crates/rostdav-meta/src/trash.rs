@@ -654,9 +654,28 @@ mod tests {
         let r2 = db.restore_trash(t2.id).await.expect("restore");
         assert_eq!(r2.name, "report (restored) (restored).txt");
         let t4 = db.trash_node(r2.id, u, None).await.expect("trash");
-        file(&db, dir, "report (restored) (restored).txt", "7", "y", false).await;
-        file(&db, dir, "report (restored) (restored) (restored).txt", "8", "z", false).await;
-        assert_eq!(db.restore_trash(t4.id).await.expect("restore").name, "report (restored) (restored) (restored 2).txt");
+        file(
+            &db,
+            dir,
+            "report (restored) (restored).txt",
+            "7",
+            "y",
+            false,
+        )
+        .await;
+        file(
+            &db,
+            dir,
+            "report (restored) (restored) (restored).txt",
+            "8",
+            "z",
+            false,
+        )
+        .await;
+        assert_eq!(
+            db.restore_trash(t4.id).await.expect("restore").name,
+            "report (restored) (restored) (restored 2).txt"
+        );
         // a folder keeps its dots
         let d = db.create_dir(dir, &name("v1.2")).await.expect("d").id;
         let t3 = db.trash_node(d, u, None).await.expect("trash");

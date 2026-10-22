@@ -36,6 +36,10 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
             max_age_days: cfg.versioning.max_age_days,
             max_quota_share_percent: cfg.versioning.max_quota_share_percent,
         })
+        .with_trash(rostdav_app::TrashOptions {
+            enabled: cfg.trash.enabled,
+            retention_days: cfg.trash.retention_days,
+        })
         .with_audit(rostdav_app::AuditOptions {
             anonymize_ip: cfg.audit.anonymize_ip,
             retention_days: cfg.audit.retention_days,

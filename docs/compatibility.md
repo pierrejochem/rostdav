@@ -179,6 +179,26 @@ Source: `tests/fixtures/nextcloud/10-shares/` (`scripts/record_nextcloud_extra.p
 | Duplicate user share: returns the existing share | same | |
 | Create-only link reveals nothing about existing names in the reference | a PUT onto an existing name is 403 instead of 201 (reveals existence) | accepted, documented |
 
+## Implemented in M10: trash
+
+Source: `tests/fixtures/nextcloud/11-trash/` (`scripts/record_nextcloud_extra.py trash`), compared by `crates/rostdav/tests/trash.rs`; design in [ADR 0005](adr/0005-trash.md).
+
+- **Behavior:** `DELETE` of a file or folder moves it to the owner's trash (when `[trash] enabled`, default). Its space (and that of its versions) keeps counting toward the quota until the item is purged. Items are purged by `DELETE`, by emptying, or by `[trash] retention_days` (30). Restoring brings back the item under its old parent (else the root), with the same file ID, its versions and its shares; a taken name becomes `name (restored).ext`.
+- **Capabilities:** `files.undelete` and `files.delete_from_trash` while the trash is enabled.
+- **Endpoint** `/remote.php/dav/trashbin/<user>/`: members `restore/` and `trash/`; each item is `trash/<name>.d<deletion time>` (folders end in `/`) with `nc:trashbin-filename`, `-original-location` (no leading slash), `-deletion-time`, `-title`, `-deleted-by-id`, `-deleted-by-display-name`, `getlastmodified` (the deletion time), `getcontentlength`/`getcontenttype` (files), `getetag` (empty for files, the deletion time for folders), `oc:fileid` and `oc:id` (the plain number), `oc:size`, `oc:permissions` = `GD`, `nc:has-preview` = `false`. `GET`/`HEAD` with ranges read files; folders can be browsed (`PROPFIND`, `GET` below them). `MOVE trash/<item>` to `restore/<anything>` restores (201), `DELETE trash/<item>` purges (204), `DELETE trash/` empties (204). `PUT`/`MKCOL`/`COPY` → 403, other users' trash → 404.
+- **Shares:** deletions by recipients or through editable links go to the **owner's** trash (recorded as `deleted-by`); the recipient's trash is not filled. A share on a trashed folder (or of something inside it) is inactive while it is in the trash and active again after the restore.
+
+| Reference | Rostdav | Why |
+|---|---|---|
+| Deleted by a recipient: item appears in the recipient's trash and in the owner's | only the owner's | recipients cannot restore things they do not own |
+| `MOVE` of an item to any destination → the item is moved there | 400 unless `…/restore/*` | avoids surprising data movement |
+| `MOVE` without `Destination` → 500 (`TypeError`) | 400 | |
+| `Depth: infinity` → 207 | 403 | as elsewhere |
+| `nc:has-preview` true for text files | `false` | no previews |
+| `ETag` header of a trashed file empty | not sent | |
+| Name conflict on restore: not recorded | `name (restored).ext` | chosen |
+| `MOVE`/`COPY` with `Overwrite: T` over an existing file | the replaced file is deleted for good | not recorded for the reference |
+
 ## Not supported
 
 | Feature | App behavior without support | Source |

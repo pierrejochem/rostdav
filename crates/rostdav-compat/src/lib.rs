@@ -28,6 +28,8 @@ pub struct CompatConfig {
     pub max_chunk_bytes: u64,
     /// Advertise file versioning (`files.versioning`, `files.version_deletion`).
     pub versioning: bool,
+    /// Advertise the trash (`files.undelete`, `files.delete_from_trash`).
+    pub trash: bool,
 }
 
 impl Default for CompatConfig {
@@ -38,6 +40,7 @@ impl Default for CompatConfig {
             product_name: "Rostdav".into(),
             max_chunk_bytes: 100 * 1024 * 1024,
             versioning: false,
+            trash: false,
         }
     }
 }

@@ -19,6 +19,7 @@ mod secrets;
 #[cfg(test)]
 mod share_tests;
 mod shares;
+mod trash;
 mod uploads;
 mod versions;
 
@@ -32,6 +33,7 @@ pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use shares::{
     LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,
 };
+pub use trash::{TrashEntry, TrashOptions};
 pub use uploads::UploadListing;
 pub use versions::{VersionEntry, VersionListing, VersioningOptions};
 
@@ -68,6 +70,7 @@ struct AppConfig {
     limits: Limits,
     audit: AuditOptions,
     versioning: VersioningOptions,
+    trash: TrashOptions,
 }
 
 /// Operating limits.
@@ -144,6 +147,15 @@ impl AppState {
     pub fn with_versioning(self, versioning: VersioningOptions) -> Self {
         let config = AppConfig {
             versioning,
+            ..self.inner.config.clone()
+        };
+        self.reconfigured(config)
+    }
+
+    #[must_use]
+    pub fn with_trash(self, trash: TrashOptions) -> Self {
+        let config = AppConfig {
+            trash,
             ..self.inner.config.clone()
         };
         self.reconfigured(config)
@@ -494,6 +506,10 @@ mod tests {
     #[tokio::test]
     async fn garbage_collection_removes_only_unreferenced_blobs() {
         let (_d, st) = state().await;
+        let st = st.with_trash(TrashOptions {
+            enabled: false,
+            retention_days: 0,
+        });
         let anna = login(&st, "anna").await;
         st.put(&anna, &lp("/f"), &b"1"[..], None, &WriteCondition::None)
             .await
@@ -1096,6 +1112,10 @@ mod tests {
     #[tokio::test]
     async fn versions_are_private_and_follow_the_file() {
         let (_d, st) = state().await;
+        let st = st.with_trash(TrashOptions {
+            enabled: false,
+            retention_days: 0,
+        });
         let anna = login(&st, "anna").await;
         let bob = login(&st, "bob").await;
         versioned(&st, &anna, "/f", "one", 1000).await;

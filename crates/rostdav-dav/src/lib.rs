@@ -11,6 +11,7 @@ mod error;
 mod props;
 mod range;
 mod target;
+mod trashbin;
 mod uploads;
 mod versions;
 mod xml;
@@ -28,6 +29,7 @@ use rostdav_core::{ClientIp, Error, Name, Result};
 use rostdav_meta::{Node, NodeKind, WriteCondition};
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::{ReaderStream, StreamReader};
+use trashbin::{TRASH_PREFIX, TrashTarget};
 use uploads::{UPLOADS_PREFIX, UploadTarget};
 use versions::{VERSIONS_PREFIX, VersionsTarget};
 
@@ -51,6 +53,7 @@ pub fn router() -> Router<AppState> {
         .route("/remote.php/webdav/{*rest}", any(entry))
         .route("/remote.php/dav/uploads/{*rest}", any(entry))
         .route("/remote.php/dav/versions/{*rest}", any(entry))
+        .route("/remote.php/dav/trashbin/{*rest}", any(entry))
         .route("/public.php/webdav", any(entry))
         .route("/public.php/webdav/", any(entry))
         .route("/public.php/webdav/{*rest}", any(entry))
@@ -87,6 +90,14 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
             return Err(Error::NotFound.into());
         }
         return versions::handle(&state, &principal, method, &t, headers, body).await;
+    }
+
+    if !public && parts.uri.path().starts_with(TRASH_PREFIX) {
+        let t = TrashTarget::parse(parts.uri.path())?;
+        if t.user.key() != principal_name.key() {
+            return Err(Error::NotFound.into());
+        }
+        return trashbin::handle(&state, &principal, method, &t, headers, body).await;
     }
 
     if !public && parts.uri.path().starts_with(UPLOADS_PREFIX) {

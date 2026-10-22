@@ -747,7 +747,7 @@ async fn delete_versions() {
         "third\n"
     );
 
-    // deleting the file removes its versions and their space
+    // deleting the file hides its versions (the trash keeps them)
     anna(&e, "DELETE", &format!("{A}/ver/doc.txt"), &[], "").await;
     assert_eq!(
         anna(
@@ -762,8 +762,13 @@ async fn delete_versions() {
         .as_u16(),
         fx_status("09-versions/49-propfind-versions-after-file-delete")
     );
+    // the file and its versions sit in the trash and keep counting until it is emptied
+    assert_eq!(used().await, 23 + 6);
+    e.state
+        .trash_empty(&principal(&e).await)
+        .await
+        .expect("empty");
     assert_eq!(used().await, 0);
-    e.state.collect_garbage().await.expect("gc");
 }
 
 #[tokio::test]

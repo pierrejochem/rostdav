@@ -21,7 +21,26 @@ pub struct Config {
     pub compat: Compat,
     pub audit: Audit,
     pub versioning: Versioning,
+    pub trash: Trash,
     pub log: Log,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Trash {
+    /// Deleted files go to the trash first; off = deleting is permanent.
+    pub enabled: bool,
+    /// Items older than this many days are deleted for good; 0 = keep until emptied.
+    pub retention_days: u32,
+}
+
+impl Default for Trash {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            retention_days: 30,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

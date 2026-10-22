@@ -318,7 +318,16 @@ impl AppState {
             };
         }
         authorize_access(p, &a, Need::Delete)?;
-        self.inner.db.delete_node(a.node.id, if_match).await
+        if self.inner.config.trash.enabled {
+            // into the owner's trash; space keeps counting until it is purged
+            self.inner
+                .db
+                .trash_node(a.node.id, p.user_id, if_match)
+                .await?;
+            Ok(())
+        } else {
+            self.inner.db.delete_node(a.node.id, if_match).await
+        }
     }
 
     /// Moves or renames. Within one tree or one share only (ADR 0004); renaming
@@ -411,23 +420,17 @@ impl AppState {
     /// steps 2 and 3 of the write flow) are never touched: only registered,
     /// unreferenced blobs are deleted.
     pub async fn collect_garbage(&self) -> Result<usize> {
-        let ids = self.inner.db.delete_unreferenced_blobs().await?;
-        for id in &ids {
-            self.inner.store.delete_blob(&BlobId::parse(id)?).await?;
-        }
+        // retention first, so that what it releases is collected in the same run
         let expired = self
             .expire_uploads(crate::uploads::SESSION_MAX_AGE_SECS)
             .await?;
         self.purge_old_events().await?;
-        // retention may leave blobs without a reference: collect them in the same run
-        let versions = self.cleanup_versions().await?;
-        let mut more = 0;
-        if versions > 0 {
-            for id in self.inner.db.delete_unreferenced_blobs().await? {
-                self.inner.store.delete_blob(&BlobId::parse(&id)?).await?;
-                more += 1;
-            }
+        self.cleanup_versions().await?;
+        self.cleanup_trash().await?;
+        let ids = self.inner.db.delete_unreferenced_blobs().await?;
+        for id in &ids {
+            self.inner.store.delete_blob(&BlobId::parse(id)?).await?;
         }
-        Ok(ids.len() + more + expired)
+        Ok(ids.len() + expired)
     }
 }
