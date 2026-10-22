@@ -273,6 +273,7 @@ async fn pages_carry_security_headers_and_no_inline_style() {
         assert!(csp.contains("default-src 'none'"), "{csp}");
         assert!(csp.contains("style-src 'self'"));
         assert!(csp.contains("script-src 'self'"));
+        assert!(csp.contains("font-src 'self'"));
         assert!(!csp.contains("unsafe-inline"));
         assert_eq!(r.h("x-frame-options"), "DENY");
         assert_eq!(r.h("x-content-type-options"), "nosniff");
@@ -2749,4 +2750,23 @@ async fn static_assets_are_revalidated_not_cached_blindly() {
     )
     .await;
     assert_eq!(r.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn fonts_are_served_from_the_same_origin() {
+    let e = env().await;
+    for name in ["SpaceGrotesk-latin.woff2", "JetBrainsMono-500-latin.woff2"] {
+        let r = send(&e, "GET", &format!("/static/{name}"), &[], Body::empty()).await;
+        assert_eq!(r.status, StatusCode::OK, "{name}");
+        assert_eq!(r.h("content-type"), "font/woff2");
+        assert_eq!(&r.body[..4], b"wOF2");
+    }
+    let css = send(&e, "GET", "/static/app.css", &[], Body::empty())
+        .await
+        .text();
+    assert!(
+        css.contains("/static/SpaceGrotesk-latin.woff2")
+            && !css.contains("fonts.googleapis")
+            && !css.contains("gstatic")
+    );
 }

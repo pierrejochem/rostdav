@@ -17,5 +17,4 @@ interactive mockups (theme switch, selection); links between them do not work ou
 `src/` holds the readable page sources (`.dc.html`, the canvas's component format) and the canvas index
 `canvas.json`; they need the canvas runtime and are for reading, not for opening.
 
-The mockups load Space Grotesk and JetBrains Mono. The implementation (`crates/rostdav-web/static/app.css`) uses system
-fonts until the OFL font files are added to the repository (ADR 0006, decision 3).
+The mockups use Space Grotesk and JetBrains Mono; the implementation ships the same font files (`crates/rostdav-web/static/fonts/`, ADR 0006 decision 3).

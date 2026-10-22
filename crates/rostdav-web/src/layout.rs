@@ -10,6 +10,9 @@ const UPLOAD_JS: &str = include_str!("../static/upload.js");
 const COPY_JS: &str = include_str!("../static/copy.js");
 const PASSWORD_JS: &str = include_str!("../static/password.js");
 
+const SPACE_GROTESK: &[u8] = include_bytes!("../static/fonts/SpaceGrotesk-latin.woff2");
+const JETBRAINS_MONO: &[u8] = include_bytes!("../static/fonts/JetBrainsMono-500-latin.woff2");
+
 const PASSWORD_SCRIPT: &str = "<script src=\"/static/password.js\"></script>";
 
 const LOGO: &str = "<svg viewBox=\"0 0 140 128\" aria-hidden=\"true\"><defs>\
@@ -66,7 +69,7 @@ fn icon(name: &str) -> &'static str {
 }
 
 const CSP: &str = "default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; \
-                   img-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
+                   img-src 'self'; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'";
 
 pub fn esc(s: &str) -> String {
     let mut o = String::with_capacity(s.len());
@@ -249,12 +252,17 @@ pub fn app_opts(
     let storage = storage_widget(chrome.storage, lang);
     let main_nav = format!(
         "{}{}",
-        nav_entry("files", &t(lang, "Files"), "/files", current),
-        nav_entry("trash", &t(lang, "Trash"), "/trash", current)
+        nav_entry("files", &t(lang, "All files"), "/files", current),
+        nav_entry("trash", &t(lang, "Trash bin"), "/trash", current)
     );
     let account_nav = format!(
         "{}{}",
-        nav_entry("devices", &t(lang, "Devices"), "/devices", current),
+        nav_entry(
+            "devices",
+            &t(lang, "Devices & security"),
+            "/devices",
+            current
+        ),
         nav_entry("settings", &t(lang, "Settings"), "/settings", current)
     );
     let server_nav = if chrome.admin {
@@ -286,16 +294,18 @@ pub fn app_opts(
              <a class=\"logo\" href=\"/files\">{LOGO}<span class=\"wordmark\">rost<b>dav</b></span></a>\
              <div class=\"navgroup\">{main_nav}</div>\
              <div class=\"navgroup\"><div class=\"eyebrow\">{}</div>{account_nav}</div>{server_nav}{storage}</nav>\
-             <div class=\"wrap\"><header class=\"{head_class}\"><div class=\"toolbar\">{toolbar}</div><span class=\"who\">{}</span><span class=\"avatar\" aria-hidden=\"true\">{}</span>\
+             <div class=\"wrap\"><header class=\"{head_class}\"><div class=\"toolbar\">{toolbar}</div><details class=\"pop account\"><summary class=\"avatar\" aria-label=\"{}\">{}</summary>\
+             <div class=\"popover\"><span class=\"who\">{}</span>\
              <form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
-             <button type=\"submit\">{}</button></form></header>\
+             <button type=\"submit\">{}</button></form></div></details></header>\
              <main class=\"{main_class}\">{}</main></div></div>{PASSWORD_SCRIPT}{script}</body></html>",
             lang.code(),
             esc(&t(lang, title)),
             esc(&t(lang, "Main navigation")),
             esc(&t(lang, "Account")),
-            esc(chrome.name),
+            esc(&tf(lang, "Account of {0}", &[chrome.name])),
             esc(&initial),
+            esc(chrome.name),
             esc(csrf),
             esc(&t(lang, "Sign out")),
             tidy(body, lang)
@@ -304,10 +314,10 @@ pub fn app_opts(
 }
 
 /// Content hash used as ETag (FNV-1a, 64 bit): enough to tell versions of an asset apart.
-fn etag_of(body: &str) -> String {
+fn etag_of(body: &[u8]) -> String {
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-    for b in body.bytes() {
-        h ^= u64::from(b);
+    for b in body {
+        h ^= u64::from(*b);
         h = h.wrapping_mul(0x0100_0000_01b3);
     }
     format!("\"{h:016x}\"")
@@ -320,12 +330,14 @@ pub async fn static_file(
     headers: axum::http::HeaderMap,
 ) -> Response {
     let favicon = LOGO.replacen("<svg ", "<svg xmlns=\"http://www.w3.org/2000/svg\" ", 1);
-    let (body, mime) = match name.as_str() {
-        "app.css" => (APP_CSS, "text/css; charset=utf-8"),
-        "upload.js" => (UPLOAD_JS, "text/javascript; charset=utf-8"),
-        "favicon.svg" => (favicon.as_str(), "image/svg+xml"),
-        "copy.js" => (COPY_JS, "text/javascript; charset=utf-8"),
-        "password.js" => (PASSWORD_JS, "text/javascript; charset=utf-8"),
+    let (body, mime): (&[u8], &'static str) = match name.as_str() {
+        "app.css" => (APP_CSS.as_bytes(), "text/css; charset=utf-8"),
+        "upload.js" => (UPLOAD_JS.as_bytes(), "text/javascript; charset=utf-8"),
+        "favicon.svg" => (favicon.as_bytes(), "image/svg+xml"),
+        "copy.js" => (COPY_JS.as_bytes(), "text/javascript; charset=utf-8"),
+        "password.js" => (PASSWORD_JS.as_bytes(), "text/javascript; charset=utf-8"),
+        "SpaceGrotesk-latin.woff2" => (SPACE_GROTESK, "font/woff2"),
+        "JetBrainsMono-500-latin.woff2" => (JETBRAINS_MONO, "font/woff2"),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
     let etag = etag_of(body);
@@ -336,7 +348,7 @@ pub async fn static_file(
     let mut r = if unchanged {
         StatusCode::NOT_MODIFIED.into_response()
     } else {
-        body.to_owned().into_response()
+        body.to_vec().into_response()
     };
     let h = r.headers_mut();
     if !unchanged {
