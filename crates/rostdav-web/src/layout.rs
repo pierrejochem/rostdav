@@ -1,5 +1,6 @@
 //! Shared page frame, security headers, escaping and embedded static assets.
 
+use crate::i18n::{Lang, t, tf};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
@@ -23,14 +24,25 @@ const LOGO: &str = "<svg viewBox=\"0 0 140 128\" aria-hidden=\"true\"><defs>\
 
 /// Markup fixes applied to every page body: scrollable tables are focusable regions
 /// (keyboard users can scroll them) and empty header cells get a hidden name.
-fn tidy(body: &str) -> String {
+fn tidy(body: &str, lang: Lang) -> String {
+    let actions = format!(
+        "<th><span class=\"sr\">{}</span></th>",
+        esc(&t(lang, "Actions"))
+    );
+    let actions_num = format!(
+        "<th class=\"num\"><span class=\"sr\">{}</span></th>",
+        esc(&t(lang, "Actions"))
+    );
     body.replace(
         "<table",
-        "<div class=\"tbl\" role=\"region\" aria-label=\"Table, scrolls sideways on small screens\" tabindex=\"0\"><table",
+        &format!(
+            "<div class=\"tbl\" role=\"region\" aria-label=\"{}\" tabindex=\"0\"><table",
+            esc(&t(lang, "Table, scrolls sideways on small screens"))
+        ),
     )
     .replace("</table>", "</table></div>")
-    .replace("<th></th>", "<th><span class=\"sr\">Actions</span></th>")
-    .replace("<th class=\"num\"></th>", "<th class=\"num\"><span class=\"sr\">Actions</span></th>")
+    .replace("<th></th>", &actions)
+    .replace("<th class=\"num\"></th>", &actions_num)
 }
 
 const FAVICON: &str = "<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\">";
@@ -112,16 +124,17 @@ fn html(status: StatusCode, doc: String) -> Response {
 }
 
 /// A page without navigation (sign-in, device connection).
-pub fn bare(status: StatusCode, title: &str, body: &str) -> Response {
+pub fn bare(lang: Lang, status: StatusCode, title: &str, body: &str) -> Response {
     html(
         status,
         format!(
-            "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
+            "<!doctype html><html lang=\"{}\"><head><meta charset=\"utf-8\">\
              <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
              <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\">{FAVICON}</head>\
              <body class=\"bare\"><main class=\"bare-main\"><div class=\"hero\">{LOGO}</div>{}</main>{PASSWORD_SCRIPT}</body></html>",
-            esc(title),
-            tidy(body)
+            lang.code(),
+            esc(&t(lang, title)),
+            tidy(body, lang)
         ),
     )
 }
@@ -131,6 +144,7 @@ pub struct Chrome<'a> {
     pub theme: &'a str,
     pub admin: bool,
     pub name: &'a str,
+    pub lang: Lang,
     /// Used bytes and quota (`None` = unlimited).
     pub storage: (i64, Option<i64>),
 }
@@ -163,18 +177,20 @@ fn human(n: i64) -> String {
 }
 
 /// Sidebar storage meter: a `<progress>` (no inline styles allowed by the CSP).
-fn storage_widget((used, quota): (i64, Option<i64>)) -> String {
+fn storage_widget((used, quota): (i64, Option<i64>), lang: Lang) -> String {
     match quota {
         Some(q) if q > 0 => format!(
-            "<div class=\"storage\"><div class=\"storage-head\"><span>Storage</span><span class=\"muted\">{} of {}</span></div>\
-             <progress class=\"meter\" max=\"{q}\" value=\"{}\" aria-label=\"Storage used\"></progress></div>",
-            human(used),
-            human(q),
-            used.clamp(0, q)
+            "<div class=\"storage\"><div class=\"storage-head\"><span>{}</span><span class=\"muted\">{}</span></div>\
+             <progress class=\"meter\" max=\"{q}\" value=\"{}\" aria-label=\"{}\"></progress></div>",
+            esc(&t(lang, "Storage")),
+            esc(&tf(lang, "{0} of {1}", &[&human(used), &human(q)])),
+            used.clamp(0, q),
+            esc(&t(lang, "Storage used"))
         ),
         _ => format!(
-            "<div class=\"storage\"><div class=\"storage-head\"><span>Storage</span><span class=\"muted\">{} used</span></div></div>",
-            human(used)
+            "<div class=\"storage\"><div class=\"storage-head\"><span>{}</span><span class=\"muted\">{}</span></div></div>",
+            esc(&t(lang, "Storage")),
+            esc(&tf(lang, "{0} used", &[&human(used)]))
         ),
     }
 }
@@ -229,21 +245,23 @@ pub fn app_opts(
     } else {
         "top"
     };
-    let storage = storage_widget(chrome.storage);
+    let lang = chrome.lang;
+    let storage = storage_widget(chrome.storage, lang);
     let main_nav = format!(
         "{}{}",
-        nav_entry("files", "Files", "/files", current),
-        nav_entry("trash", "Trash", "/trash", current)
+        nav_entry("files", &t(lang, "Files"), "/files", current),
+        nav_entry("trash", &t(lang, "Trash"), "/trash", current)
     );
     let account_nav = format!(
         "{}{}",
-        nav_entry("devices", "Devices", "/devices", current),
-        nav_entry("settings", "Settings", "/settings", current)
+        nav_entry("devices", &t(lang, "Devices"), "/devices", current),
+        nav_entry("settings", &t(lang, "Settings"), "/settings", current)
     );
     let server_nav = if chrome.admin {
         format!(
-            "<div class=\"navgroup\"><div class=\"eyebrow\">Server</div>{}</div>",
-            nav_entry("admin", "Administration", "/admin/users", current)
+            "<div class=\"navgroup\"><div class=\"eyebrow\">{}</div>{}</div>",
+            esc(&t(lang, "Server")),
+            nav_entry("admin", &t(lang, "Administration"), "/admin/users", current)
         )
     } else {
         String::new()
@@ -261,22 +279,26 @@ pub fn app_opts(
     html(
         status,
         format!(
-            "<!doctype html><html lang=\"en\"{theme_attr}><head><meta charset=\"utf-8\">\
+            "<!doctype html><html lang=\"{}\"{theme_attr}><head><meta charset=\"utf-8\">\
              <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
              <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\">{FAVICON}</head><body>\
-             <div class=\"app\"><nav class=\"side\" aria-label=\"Main navigation\">\
+             <div class=\"app\"><nav class=\"side\" aria-label=\"{}\">\
              <a class=\"logo\" href=\"/files\">{LOGO}<span class=\"wordmark\">rost<b>dav</b></span></a>\
              <div class=\"navgroup\">{main_nav}</div>\
-             <div class=\"navgroup\"><div class=\"eyebrow\">Account</div>{account_nav}</div>{server_nav}{storage}</nav>\
+             <div class=\"navgroup\"><div class=\"eyebrow\">{}</div>{account_nav}</div>{server_nav}{storage}</nav>\
              <div class=\"wrap\"><header class=\"{head_class}\"><div class=\"toolbar\">{toolbar}</div><span class=\"who\">{}</span><span class=\"avatar\" aria-hidden=\"true\">{}</span>\
              <form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
-             <button type=\"submit\">Sign out</button></form></header>\
+             <button type=\"submit\">{}</button></form></header>\
              <main class=\"{main_class}\">{}</main></div></div>{PASSWORD_SCRIPT}{script}</body></html>",
-            esc(title),
+            lang.code(),
+            esc(&t(lang, title)),
+            esc(&t(lang, "Main navigation")),
+            esc(&t(lang, "Account")),
             esc(chrome.name),
             esc(&initial),
             esc(csrf),
-            tidy(body)
+            esc(&t(lang, "Sign out")),
+            tidy(body, lang)
         ),
     )
 }
@@ -306,19 +328,20 @@ pub async fn static_file(axum::extract::Path(name): axum::extract::Path<String>)
 }
 
 /// A page for visitors without an account (public links).
-pub fn public(status: StatusCode, title: &str, body: &str) -> Response {
+pub fn public(lang: Lang, status: StatusCode, title: &str, body: &str) -> Response {
     html(
         status,
         format!(
-            "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">\
+            "<!doctype html><html lang=\"{}\"><head><meta charset=\"utf-8\">\
              <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
              <meta name=\"robots\" content=\"noindex\">\
              <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\">{FAVICON}</head><body>\
              <div class=\"public-main\"><header class=\"top public\"><a class=\"logo\" href=\"/\">{LOGO}\
              <span class=\"wordmark\">rost<b>dav</b></span></a></header><br>\
              <main class=\"panel\">{}</main></div>{PASSWORD_SCRIPT}</body></html>",
-            esc(title),
-            tidy(body)
+            lang.code(),
+            esc(&t(lang, title)),
+            tidy(body, lang)
         ),
     )
 }

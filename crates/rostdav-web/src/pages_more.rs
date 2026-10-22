@@ -8,6 +8,7 @@ use rostdav_app::AppState;
 use rostdav_core::Error;
 use serde::Deserialize;
 
+use crate::i18n::{t, tf};
 use crate::layout::{self, esc};
 use crate::pages::error_response_to;
 use crate::session::Authed;
@@ -24,6 +25,7 @@ fn forbidden() -> Response {
 // ---- trash -----------------------------------------------------------------------------
 
 pub async fn trash(State(state): State<AppState>, a: Authed) -> Response {
+    let lang = a.lang;
     let items = match state.trash_list(&a.session.principal).await {
         Ok(i) => i,
         Err(Error::NotFound) => Vec::new(),
@@ -34,48 +36,67 @@ pub async fn trash(State(state): State<AppState>, a: Authed) -> Response {
     let mut rows = String::new();
     for i in &items {
         let entry = esc(&i.entry_name());
+        let when = match i.deleted_by.as_deref() {
+            Some(b) => tf(
+                lang,
+                "Deleted {0} by {1}",
+                &[&ui::friendly(lang, i.deleted_at), b],
+            ),
+            None => tf(lang, "Deleted {0}", &[&ui::friendly(lang, i.deleted_at)]),
+        };
         rows.push_str(&format!(
             "<li class=\"row\"><span class=\"tile doc\">{}</span><div class=\"row-text\"><b>{}</b>\
-             <span class=\"muted\">Deleted {}{}</span></div>\
+             <span class=\"muted\">{}</span></div>\
              <form class=\"row-actions\" method=\"post\" action=\"/trash/restore\">\
              <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><input type=\"hidden\" name=\"entry\" value=\"{entry}\">\
-             <button type=\"submit\">Restore</button>\
-             <a class=\"button danger\" href=\"/trash/delete?entry={}\">Delete permanently</a></form></li>",
+             <button type=\"submit\">{}</button>\
+             <a class=\"button danger\" href=\"/trash/delete?entry={}\">{}</a></form></li>",
             ui::svg("file"),
             esc(&i.orig_path),
-            ui::friendly(i.deleted_at),
-            i.deleted_by.as_deref().map_or_else(String::new, |b| format!(" by {}", esc(b))),
+            esc(&when),
+            esc(&t(lang, "Restore")),
             esc(&crate::layout::enc(&i.entry_name())),
+            esc(&t(lang, "Delete permanently")),
         ));
     }
     let inner = if !enabled {
-        "<div class=\"empty\">The trash is turned off on this server. Deleted files are gone for good.</div>".to_owned()
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(
+                lang,
+                "The trash is turned off on this server. Deleted files are gone for good."
+            ))
+        )
     } else if items.is_empty() {
-        "<div class=\"empty\">The trash is empty.</div>".to_owned()
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(lang, "The trash is empty."))
+        )
     } else {
         format!("<ul class=\"rows\">{rows}</ul>")
     };
     let chip = if enabled && !items.is_empty() {
-        "<a class=\"button danger\" href=\"/trash/empty\">Empty trash</a>".to_owned()
+        format!(
+            "<a class=\"button danger\" href=\"/trash/empty\">{}</a>",
+            esc(&t(lang, "Empty trash"))
+        )
     } else {
         String::new()
+    };
+    let heading = if items.len() == 1 {
+        t(lang, "1 item")
+    } else {
+        tf(lang, "{0} items", &[&items.len().to_string()])
     };
     let body = format!(
         "{}{}",
         ui::page_head(
+            lang,
             "Trash",
             "Deleted items still count toward your storage until they are removed.",
             ""
         ),
-        ui::card(
-            &format!(
-                "{} item{}",
-                items.len(),
-                if items.len() == 1 { "" } else { "s" }
-            ),
-            &chip,
-            &inner
-        )
+        ui::card_text(&heading, &chip, &inner)
     );
     ui::page(&a, StatusCode::OK, "Trash", "trash", &body)
 }
@@ -106,14 +127,22 @@ pub struct EntryQuery {
 }
 
 pub async fn trash_delete_confirm(a: Authed, Query(q): Query<EntryQuery>) -> Response {
+    let lang = a.lang;
     let body = format!(
-        "<h1>Delete permanently?</h1><p>“{}” will be removed for good. This cannot be undone.</p>\
+        "<h1>{}</h1><p>{}</p>\
          <form method=\"post\" action=\"/trash/delete\" class=\"inline\">\
          <input type=\"hidden\" name=\"csrf\" value=\"{}\"><input type=\"hidden\" name=\"entry\" value=\"{}\">\
-         <button class=\"danger\" type=\"submit\">Delete permanently</button><a class=\"button\" href=\"/trash\">Cancel</a></form>",
-        esc(&q.entry),
+         <button class=\"danger\" type=\"submit\">{}</button><a class=\"button\" href=\"/trash\">{}</a></form>",
+        esc(&t(lang, "Delete permanently?")),
+        esc(&tf(
+            lang,
+            "“{0}” will be removed for good. This cannot be undone.",
+            &[&q.entry]
+        )),
         esc(&a.csrf),
-        esc(&q.entry)
+        esc(&q.entry),
+        esc(&t(lang, "Delete permanently")),
+        esc(&t(lang, "Cancel"))
     );
     layout::app(
         StatusCode::OK,
@@ -140,11 +169,19 @@ pub async fn trash_delete(
 }
 
 pub async fn trash_empty_confirm(a: Authed) -> Response {
+    let lang = a.lang;
     let body = format!(
-        "<h1>Empty trash?</h1><p>Everything in the trash will be removed for good. This cannot be undone.</p>\
+        "<h1>{}</h1><p>{}</p>\
          <form method=\"post\" action=\"/trash/empty\" class=\"inline\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
-         <button class=\"danger\" type=\"submit\">Empty trash</button><a class=\"button\" href=\"/trash\">Cancel</a></form>",
-        esc(&a.csrf)
+         <button class=\"danger\" type=\"submit\">{}</button><a class=\"button\" href=\"/trash\">{}</a></form>",
+        esc(&t(lang, "Empty trash?")),
+        esc(&t(
+            lang,
+            "Everything in the trash will be removed for good. This cannot be undone."
+        )),
+        esc(&a.csrf),
+        esc(&t(lang, "Empty trash")),
+        esc(&t(lang, "Cancel"))
     );
     layout::app(
         StatusCode::OK,
@@ -178,6 +215,7 @@ pub async fn trash_empty(
 // ---- devices ------------------------------------------------------------------------------
 
 async fn devices_page(state: &AppState, a: &Authed, status: StatusCode, notice: &str) -> Response {
+    let lang = a.lang;
     let p = &a.session.principal;
     let (pw, sessions) = match (state.app_passwords(p).await, state.web_sessions(p).await) {
         (Ok(x), Ok(y)) => (x, y),
@@ -199,16 +237,17 @@ async fn devices_page(state: &AppState, a: &Authed, status: StatusCode, notice: 
         };
         rows.push_str(&format!(
             "<li class=\"row\"><span class=\"tile {tile}\">{}</span><div class=\"row-text\"><b>{}</b>\
-             <span class=\"muted\">App password · created {}</span></div>\
+             <span class=\"muted\">{}</span></div>\
              <span class=\"row-meta\">{}</span>\
              <form class=\"row-actions\" method=\"post\" action=\"/devices/revoke\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-             <input type=\"hidden\" name=\"id\" value=\"{}\"><button class=\"danger\" type=\"submit\" aria-label=\"Revoke {}\">Revoke</button></form></li>",
+             <input type=\"hidden\" name=\"id\" value=\"{}\"><button class=\"danger\" type=\"submit\" aria-label=\"{}\">{}</button></form></li>",
             ui::svg(icon),
             esc(&d.name),
-            ui::friendly(d.created_at),
-            d.last_used_at.map_or_else(|| "Never used".to_owned(), ui::friendly),
+            esc(&tf(lang, "App password · created {0}", &[&ui::friendly(lang, d.created_at)])),
+            esc(&d.last_used_at.map_or_else(|| t(lang, "Never used"), |u| ui::friendly(lang, u))),
             d.id,
-            esc(&d.name),
+            esc(&tf(lang, "Revoke {0}", &[&d.name])),
+            esc(&t(lang, "Revoke")),
         ));
     }
     // this session first, then the most recently active others
@@ -220,56 +259,78 @@ async fn devices_page(state: &AppState, a: &Authed, status: StatusCode, notice: 
         let this = s.id == a.session.id;
         rows.push_str(&format!(
             "<li class=\"row session\"><span class=\"tile doc\">{}</span><div class=\"row-text\"><b>{}{}</b>\
-             <span class=\"muted\">Browser session{}</span></div><span class=\"row-meta\">{}</span></li>",
+             <span class=\"muted\">{}{}</span></div><span class=\"row-meta\">{}</span></li>",
             ui::svg("laptop"),
-            esc(&ui::ua_summary(&s.user_agent)),
-            if this { " <span class=\"chip ok\">This session</span>" } else { "" },
+            esc(&ui::ua_summary(lang, &s.user_agent)),
+            if this { format!(" <span class=\"chip ok\">{}</span>", esc(&t(lang, "This session"))) } else { String::new() },
+            esc(&t(lang, "Browser session")),
             if s.ip.is_empty() { String::new() } else { format!(" · {}", esc(&s.ip)) },
-            if this { "Now".to_owned() } else { ui::friendly(s.last_seen) },
+            esc(&if this { t(lang, "Now") } else { ui::friendly(lang, s.last_seen) }),
         ));
     }
     if hidden_sessions > 0 {
         rows.push_str(&format!(
-            "<li class=\"row session\"><div class=\"row-text\"><span class=\"muted\">… and {hidden_sessions} older browser session(s). “Sign out all other browsers” ends them.</span></div></li>"
+            "<li class=\"row session\"><div class=\"row-text\"><span class=\"muted\">{}</span></div></li>",
+            esc(&tf(lang, "… and {0} older browser session(s). “Sign out all other browsers” ends them.", &[&hidden_sessions.to_string()]))
         ));
     }
     let chip = format!(
-        "<span class=\"chip\">{} active</span>",
-        pw.len() + sessions.len() + hidden_sessions
+        "<span class=\"chip\">{}</span>",
+        esc(&tf(
+            lang,
+            "{0} active",
+            &[&(pw.len() + sessions.len() + hidden_sessions).to_string()]
+        ))
     );
     let list = if rows.is_empty() {
-        "<div class=\"empty\">No devices are connected.</div>".to_owned()
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(lang, "No devices are connected."))
+        )
     } else {
         format!("<ul class=\"rows\">{rows}</ul>")
     };
     let create = format!(
         "<form class=\"createrow\" method=\"post\" action=\"/devices/create\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-         <label>Device name<input type=\"text\" name=\"name\" placeholder=\"e.g. Backup server\" required maxlength=\"128\"></label>\
-         <button class=\"primary\" type=\"submit\">Create</button></form>"
+         <label>{}<input type=\"text\" name=\"name\" placeholder=\"{}\" required maxlength=\"128\"></label>\
+         <button class=\"primary\" type=\"submit\">{}</button></form>",
+        esc(&t(lang, "Device name")),
+        esc(&t(lang, "e.g. Backup server")),
+        esc(&t(lang, "Create"))
     );
     let account = format!(
-        "<dl class=\"facts\"><dt>Username</dt><dd class=\"mono\">{}</dd><dt>Password hash</dt><dd>Argon2id</dd></dl>\
-         <p><a class=\"button wide\" href=\"/settings/password\">Change password</a></p>\
+        "<dl class=\"facts\"><dt>{}</dt><dd class=\"mono\">{}</dd><dt>{}</dt><dd>Argon2id</dd></dl>\
+         <p><a class=\"button wide\" href=\"/settings/password\">{}</a></p>\
          <form method=\"post\" action=\"/devices/sign-out-others\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-         <button class=\"danger wide\" type=\"submit\">Sign out all other browsers</button></form>",
-        esc(&p.name)
+         <button class=\"danger wide\" type=\"submit\">{}</button></form>",
+        esc(&t(lang, "Username")),
+        esc(&p.name),
+        esc(&t(lang, "Password hash")),
+        esc(&t(lang, "Change password")),
+        esc(&t(lang, "Sign out all other browsers"))
     );
     let body = format!(
         "{}{notice}{}<div class=\"cols\">{}{}</div>",
         ui::page_head(
+            lang,
             "Devices & security",
             "Every device signs in with its own app password. Revoking it signs the device out immediately – your account password stays the same.",
             ""
         ),
-        ui::card("Connected devices", &chip, &list),
+        ui::card(lang, "Connected devices", &chip, &list),
         ui::card(
+            lang,
             "Create app password",
             "",
             &format!(
-                "<p class=\"muted\">For clients without browser sign-in, such as rclone, davfs2 or scripts. The Nextcloud app does not need this – it connects through the sign-in page.</p>{create}"
+                "<p class=\"muted\">{}</p>{create}",
+                esc(&t(
+                    lang,
+                    "For clients without browser sign-in, such as rclone, davfs2 or scripts. The Nextcloud app does not need this – it connects through the sign-in page."
+                ))
             )
         ),
-        ui::card("Account", "", &account),
+        ui::card(lang, "Account", "", &account),
     );
     ui::page(a, status, "Devices", "devices", &body)
 }
@@ -295,9 +356,13 @@ pub async fn device_create(
     match state.device_create(&a.session.principal, &f.name).await {
         Ok(token) => {
             let notice = format!(
-                "<div class=\"notice token\" role=\"status\"><b>App password for “{}”. It is shown only once; copy it now.</b><br>\
+                "<div class=\"notice token\" role=\"status\"><b>{}</b><br>\
                  <code>{}</code></div>",
-                esc(f.name.trim()),
+                esc(&tf(
+                    a.lang,
+                    "App password for “{0}”. It is shown only once; copy it now.",
+                    &[f.name.trim()]
+                )),
                 esc(&token)
             );
             devices_page(&state, &a, StatusCode::OK, &notice).await
@@ -361,6 +426,7 @@ async fn settings_page(
     status: StatusCode,
     notice: &str,
 ) -> Response {
+    let lang = a.lang;
     let p = &a.session.principal;
     let u = match state.usage_overview(p).await {
         Ok(u) => u,
@@ -381,33 +447,86 @@ async fn settings_page(
         crate::layout::enc(&p.name)
     );
     let csrf = esc(&a.csrf);
+    let prof = state.profile(p).await.unwrap_or_default();
+    let lang_pref = state
+        .pref(p, "language")
+        .await
+        .ok()
+        .flatten()
+        .unwrap_or_else(|| "auto".to_owned());
+    let lang_opt = |v: &str, label: &str| {
+        format!(
+            "<option value=\"{v}\"{}>{}</option>",
+            if lang_pref == v { " selected" } else { "" },
+            esc(label)
+        )
+    };
+    let profile = ui::card(
+        lang,
+        "Profile",
+        "",
+        &format!(
+            "<form class=\"createrow\" method=\"post\" action=\"/settings/profile\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+             <label>{}<input type=\"text\" name=\"display_name\" value=\"{}\" maxlength=\"80\" autocomplete=\"name\"></label>\
+             <label>{}<input type=\"text\" name=\"email\" value=\"{}\" maxlength=\"254\" inputmode=\"email\" autocomplete=\"email\" placeholder=\"name@example.com\"></label>\
+             <label>{}<select name=\"language\">{}{}{}</select></label>\
+             <button class=\"primary\" type=\"submit\">{}</button></form>\
+             <dl class=\"facts\"><dt>{}</dt><dd class=\"mono\">{}</dd></dl>\
+             <p><a href=\"/settings/password\">{}</a></p>",
+            esc(&t(lang, "Display name")),
+            esc(&prof.display_name),
+            esc(&t(lang, "E-mail for notifications")),
+            esc(&prof.email),
+            esc(&t(lang, "Language")),
+            lang_opt("auto", &t(lang, "Same as browser")),
+            lang_opt("en", "English"),
+            lang_opt("de", "Deutsch"),
+            esc(&t(lang, "Save")),
+            esc(&t(lang, "Username")),
+            esc(&p.name),
+            esc(&t(lang, "Change password"))
+        ),
+    );
     let seg = |v: &str, label: &str| {
         let on = a.theme == v || (a.theme.is_empty() && v == "system");
         format!(
-            "<button type=\"submit\" name=\"theme\" value=\"{v}\" aria-pressed=\"{on}\"{}>{label}</button>",
-            if on { " class=\"on\"" } else { "" }
+            "<button type=\"submit\" name=\"theme\" value=\"{v}\" aria-pressed=\"{on}\"{}>{}</button>",
+            if on { " class=\"on\"" } else { "" },
+            esc(&t(lang, label))
         )
     };
     let appearance = ui::card(
+        lang,
         "Appearance",
         &format!(
             "<form class=\"segform\" method=\"post\" action=\"/settings/theme\">\
-             <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><div class=\"seg\" role=\"group\" aria-label=\"Theme\">{}{}{}</div></form>",
+             <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><div class=\"seg\" role=\"group\" aria-label=\"{}\">{}{}{}</div></form>",
+            esc(&t(lang, "Theme")),
             seg("light", "Light"),
             seg("dark", "Dark"),
             seg("system", "Same as system")
         ),
-        "<p class=\"muted\">The whole page switches when you choose.</p>",
+        &format!(
+            "<p class=\"muted\">{}</p>",
+            esc(&t(lang, "The whole page switches when you choose."))
+        ),
     );
     let webdav = ui::card(
+        lang,
         "WebDAV address",
         "",
         &format!(
-            "<p class=\"muted\">For rclone, davfs2, Finder or Explorer. Sign in there with an app password.</p>\
+            "<p class=\"muted\">{}</p>\
              <div class=\"codebox\"><code id=\"webdav-url\">{}</code>\
-             <button type=\"button\" data-copy=\"webdav-url\" hidden>Copy</button></div>\
-             <p><a href=\"/devices\">Create an app password</a></p>",
-            esc(&url)
+             <button type=\"button\" data-copy=\"webdav-url\" hidden>{}</button></div>\
+             <p><a href=\"/devices\">{}</a></p>",
+            esc(&t(
+                lang,
+                "For rclone, davfs2, Finder or Explorer. Sign in there with an app password."
+            )),
+            esc(&url),
+            esc(&t(lang, "Copy")),
+            esc(&t(lang, "Create an app password"))
         ),
     );
     // stacked usage bar: files, versions, trash
@@ -431,52 +550,50 @@ async fn settings_page(
             x += w;
         }
     }
-    let quota = u.quota.map_or_else(|| "unlimited".to_owned(), bytes);
+    let quota = u.quota.map_or_else(|| t(lang, "unlimited"), bytes);
     let storage = ui::card(
+        lang,
         "Storage",
         "",
         &format!(
             "<svg class=\"stack\" viewBox=\"0 0 100 1\" preserveAspectRatio=\"none\" role=\"img\" \
-             aria-label=\"{} used of {}\"><rect class=\"s-bg\" x=\"0\" y=\"0\" width=\"100\" height=\"1\"/>{rects}</svg>\
-             <ul class=\"legend\"><li><span class=\"dot s-files\" aria-hidden=\"true\"></span>Files<span>{}</span></li>\
-             <li><span class=\"dot s-versions\" aria-hidden=\"true\"></span>Versions<span>{}</span></li>\
-             <li><span class=\"dot s-trash\" aria-hidden=\"true\"></span>Trash bin<span>{}</span></li></ul>\
-             <p class=\"muted\">Quota: {} · set by the administrator</p>",
-            bytes(u.used),
-            esc(&quota),
+             aria-label=\"{}\"><rect class=\"s-bg\" x=\"0\" y=\"0\" width=\"100\" height=\"1\"/>{rects}</svg>\
+             <ul class=\"legend\"><li><span class=\"dot s-files\" aria-hidden=\"true\"></span>{}<span>{}</span></li>\
+             <li><span class=\"dot s-versions\" aria-hidden=\"true\"></span>{}<span>{}</span></li>\
+             <li><span class=\"dot s-trash\" aria-hidden=\"true\"></span>{}<span>{}</span></li></ul>\
+             <p class=\"muted\">{}</p>",
+            esc(&tf(lang, "{0} used of {1}", &[&bytes(u.used), &quota])),
+            esc(&t(lang, "Files")),
             bytes(u.files),
+            esc(&t(lang, "Versions")),
             bytes(u.versions),
+            esc(&t(lang, "Trash bin")),
             bytes(u.trash),
-            esc(&quota)
-        ),
-    );
-    let prof = state.profile(p).await.unwrap_or_default();
-    let profile = ui::card(
-        "Profile",
-        "",
-        &format!(
-            "<form class=\"createrow\" method=\"post\" action=\"/settings/profile\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-             <label>Display name<input type=\"text\" name=\"display_name\" value=\"{}\" maxlength=\"80\" autocomplete=\"name\"></label>\
-             <label>E-mail for notifications<input type=\"text\" name=\"email\" value=\"{}\" maxlength=\"254\" inputmode=\"email\" autocomplete=\"email\" placeholder=\"name@example.com\"></label>\
-             <button class=\"primary\" type=\"submit\">Save</button></form>\
-             <dl class=\"facts\"><dt>Username</dt><dd class=\"mono\">{}</dd></dl>\
-             <p><a href=\"/settings/password\">Change password</a></p>",
-            esc(&prof.display_name),
-            esc(&prof.email),
-            esc(&p.name)
+            esc(&tf(
+                lang,
+                "Quota: {0} · set by the administrator",
+                &[&quota]
+            ))
         ),
     );
     let export = ui::card(
+        lang,
         "Export your data",
         "",
         &format!(
-            "<p class=\"muted\">Downloads all your own files with their folder structure as a tar archive. Files shared with you, older versions and the trash are not included.</p>\
-             <form method=\"post\" action=\"/settings/export\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><button type=\"submit\">Start export</button></form>"
+            "<p class=\"muted\">{}</p>\
+             <form method=\"post\" action=\"/settings/export\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><button type=\"submit\">{}</button></form>",
+            esc(&t(
+                lang,
+                "Downloads all your own files with their folder structure as a tar archive. Files shared with you, older versions and the trash are not included."
+            )),
+            esc(&t(lang, "Start export"))
         ),
     );
     let body = format!(
         "{}{notice}{profile}{appearance}<div class=\"cols\">{webdav}{storage}</div>{export}",
         ui::page_head(
+            lang,
             "Settings",
             "Personal settings for your account. Changes are saved immediately.",
             ""
@@ -527,6 +644,8 @@ pub async fn set_theme(
 pub struct ProfileForm {
     csrf: String,
     #[serde(default)]
+    language: String,
+    #[serde(default)]
     display_name: String,
     #[serde(default)]
     email: String,
@@ -540,10 +659,19 @@ pub async fn set_profile(
     if !csrf_ok(&state, &a, &f.csrf) {
         return forbidden();
     }
-    match state
-        .set_profile(&a.session.principal, &f.display_name, &f.email)
-        .await
-    {
+    let res = async {
+        state
+            .set_profile(&a.session.principal, &f.display_name, &f.email)
+            .await?;
+        if !f.language.is_empty() {
+            state
+                .set_pref(&a.session.principal, "language", &f.language)
+                .await?;
+        }
+        Ok::<(), Error>(())
+    }
+    .await;
+    match res {
         Ok(()) => Redirect::to("/settings").into_response(),
         Err(e) => error_response_to(&a, &e, "/settings", "settings"),
     }
@@ -560,8 +688,15 @@ pub async fn password_page(a: Authed, Query(q): Query<PasswordQuery>) -> Respons
 }
 
 fn password_form(a: &Authed, status: StatusCode, done: bool, error: &str) -> Response {
+    let lang = a.lang;
     let note = if done {
-        "<div class=\"notice\" role=\"status\">Password changed. All other browsers were signed out; your connected devices keep working.</div>".to_owned()
+        format!(
+            "<div class=\"notice\" role=\"status\">{}</div>",
+            esc(&t(
+                lang,
+                "Password changed. All other browsers were signed out; your connected devices keep working."
+            ))
+        )
     } else if !error.is_empty() {
         format!("<div class=\"err\" role=\"alert\">{}</div>", esc(error))
     } else {
@@ -569,20 +704,26 @@ fn password_form(a: &Authed, status: StatusCode, done: bool, error: &str) -> Res
     };
     let form = format!(
         "{note}<form class=\"stack-form\" method=\"post\" action=\"/settings/password\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
-         <label>Current password<input type=\"password\" name=\"current\" autocomplete=\"current-password\" required></label>\
-         <label>New password (at least 10 characters)<input type=\"password\" name=\"new\" autocomplete=\"new-password\" required minlength=\"10\"></label>\
-         <label>New password again<input type=\"password\" name=\"again\" autocomplete=\"new-password\" required minlength=\"10\"></label>\
-         <div class=\"actions\"><button class=\"primary\" type=\"submit\">Change password</button><a class=\"button\" href=\"/settings\">Cancel</a></div></form>",
-        esc(&a.csrf)
+         <label>{}<input type=\"password\" name=\"current\" autocomplete=\"current-password\" required></label>\
+         <label>{}<input type=\"password\" name=\"new\" autocomplete=\"new-password\" required minlength=\"10\"></label>\
+         <label>{}<input type=\"password\" name=\"again\" autocomplete=\"new-password\" required minlength=\"10\"></label>\
+         <div class=\"actions\"><button class=\"primary\" type=\"submit\">{}</button><a class=\"button\" href=\"/settings\">{}</a></div></form>",
+        esc(&a.csrf),
+        esc(&t(lang, "Current password")),
+        esc(&t(lang, "New password (at least 10 characters)")),
+        esc(&t(lang, "New password again")),
+        esc(&t(lang, "Change password")),
+        esc(&t(lang, "Cancel"))
     );
     let body = format!(
         "{}{}",
         ui::page_head(
+            lang,
             "Change password",
             "Other browsers are signed out when the password changes. Connected devices keep their app passwords.",
             ""
         ),
-        ui::card("Password", "", &form)
+        ui::card(lang, "Password", "", &form)
     );
     ui::page(a, status, "Change password", "settings", &body)
 }
@@ -609,7 +750,7 @@ pub async fn password_submit(
             &a,
             StatusCode::BAD_REQUEST,
             false,
-            "The two new passwords are not the same.",
+            &t(a.lang, "The two new passwords are not the same."),
         );
     }
     match state
@@ -626,22 +767,23 @@ pub async fn password_submit(
             &a,
             StatusCode::UNAUTHORIZED,
             false,
-            "The current password is wrong.",
+            &t(a.lang, "The current password is wrong."),
         ),
         Err(Error::RateLimited { retry_after_secs }) => password_form(
             &a,
             StatusCode::TOO_MANY_REQUESTS,
             false,
-            &format!(
-                "Too many attempts. Try again in {} minutes.",
-                retry_after_secs.div_ceil(60)
+            &tf(
+                a.lang,
+                "Too many attempts. Try again in {0} minutes.",
+                &[&retry_after_secs.div_ceil(60).to_string()],
             ),
         ),
         Err(Error::BadRequest(_)) => password_form(
             &a,
             StatusCode::BAD_REQUEST,
             false,
-            "The new password must have at least 10 characters.",
+            &t(a.lang, "The new password must have at least 10 characters."),
         ),
         Err(e) => error_response_to(&a, &e, "/settings/password", "settings"),
     }

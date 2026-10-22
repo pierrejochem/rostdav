@@ -13,6 +13,7 @@ use rostdav_meta::WriteCondition;
 use serde::Deserialize;
 use tokio_util::io::{ReaderStream, StreamReader};
 
+use crate::i18n::{Lang, t, tf};
 use crate::layout::{self, enc, esc};
 use crate::session::{
     Authed, LOGIN_COOKIE, SESSION_COOKIE, client_ip, cookie_value, same_origin, set_cookie,
@@ -37,10 +38,11 @@ pub fn message_in(
         nav,
         &a.csrf,
         &format!(
-            "<h1>{}</h1><p class=\"notice\" role=\"alert\">{}</p><p><a class=\"button\" href=\"{}\">Back</a></p>",
-            esc(title),
-            esc(text),
-            esc(back)
+            "<h1>{}</h1><p class=\"notice\" role=\"alert\">{}</p><p><a class=\"button\" href=\"{}\">{}</a></p>",
+            esc(&t(a.lang, title)),
+            esc(&t(a.lang, text)),
+            esc(back),
+            esc(&t(a.lang, "Back"))
         ),
     )
 }
@@ -122,6 +124,7 @@ pub fn date(secs: i64) -> String {
 
 fn login_form(
     state: &AppState,
+    lang: Lang,
     user: &str,
     error: Option<&str>,
     status: StatusCode,
@@ -132,16 +135,21 @@ fn login_form(
         .map(|e| format!("<div class=\"notice\" role=\"alert\">{}</div>", esc(e)))
         .unwrap_or_default();
     let mut r = layout::bare(
+        lang,
         status,
         "Sign in",
         &format!(
-            "<div class=\"brand\">rost<b>dav</b></div><div class=\"card\"><h1>Sign in</h1>{err}\
+            "<div class=\"brand\">rost<b>dav</b></div><div class=\"card\"><h1>{}</h1>{err}\
              <form method=\"post\" action=\"/login\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
-             <label>Username<input type=\"text\" name=\"user\" value=\"{}\" autocomplete=\"username\" required autofocus></label>\
-             <label>Password<input type=\"password\" name=\"password\" autocomplete=\"current-password\" required></label>\
-             <button class=\"primary\" type=\"submit\">Sign in</button></form></div>",
+             <label>{}<input type=\"text\" name=\"user\" value=\"{}\" autocomplete=\"username\" required autofocus></label>\
+             <label>{}<input type=\"password\" name=\"password\" autocomplete=\"current-password\" required></label>\
+             <button class=\"primary\" type=\"submit\">{}</button></form></div>",
+            esc(&t(lang, "Sign in")),
             esc(&form),
-            esc(user)
+            esc(&t(lang, "Username")),
+            esc(user),
+            esc(&t(lang, "Password")),
+            esc(&t(lang, "Sign in"))
         ),
     );
     r.headers_mut().append(
@@ -152,7 +160,14 @@ fn login_form(
 }
 
 pub async fn login_show(State(state): State<AppState>, headers: HeaderMap) -> Response {
-    login_form(&state, "", None, StatusCode::OK, &headers)
+    login_form(
+        &state,
+        crate::session::accept_lang(&headers),
+        "",
+        None,
+        StatusCode::OK,
+        &headers,
+    )
 }
 
 #[derive(Deserialize)]
@@ -168,12 +183,14 @@ pub async fn login_submit(
     Form(f): Form<LoginForm>,
 ) -> Response {
     let headers = &parts.headers;
+    let lang = crate::session::accept_lang(headers);
     let cookie = cookie_value(headers, LOGIN_COOKIE).unwrap_or_default();
     if !same_origin(headers) || state.login_csrf_check(&cookie, &f.csrf).is_err() {
         return login_form(
             &state,
+            lang,
             &f.user,
-            Some("The form could not be verified. Try again."),
+            Some(&t(lang, "The form could not be verified. Try again.")),
             StatusCode::FORBIDDEN,
             headers,
         );
@@ -202,10 +219,12 @@ pub async fn login_submit(
         Err(Error::RateLimited { retry_after_secs }) => {
             let mut r = login_form(
                 &state,
+                lang,
                 &f.user,
-                Some(&format!(
-                    "Too many attempts. Try again in {} minutes.",
-                    retry_after_secs.div_ceil(60)
+                Some(&tf(
+                    lang,
+                    "Too many attempts. Try again in {0} minutes.",
+                    &[&retry_after_secs.div_ceil(60).to_string()],
                 )),
                 StatusCode::TOO_MANY_REQUESTS,
                 headers,
@@ -217,8 +236,9 @@ pub async fn login_submit(
         }
         Err(Error::Unauthenticated) => login_form(
             &state,
+            lang,
             &f.user,
-            Some("Wrong username or password."),
+            Some(&t(lang, "Wrong username or password.")),
             StatusCode::UNAUTHORIZED,
             headers,
         ),
@@ -226,8 +246,9 @@ pub async fn login_submit(
             tracing::error!(error = %e, "sign-in failed");
             login_form(
                 &state,
+                lang,
                 &f.user,
-                Some("Something went wrong."),
+                Some(&t(lang, "Something went wrong.")),
                 StatusCode::INTERNAL_SERVER_ERROR,
                 headers,
             )
@@ -450,13 +471,15 @@ pub async fn delete_confirm(a: Authed, Query(q): Query<PathQuery>) -> Response {
     };
     let back = back_to(&parent);
     let body = format!(
-        "<h1>Delete “{}”?</h1><form method=\"post\" action=\"/action/delete\" class=\"inline\">\
+        "<h1>{}</h1><form method=\"post\" action=\"/action/delete\" class=\"inline\">\
          <input type=\"hidden\" name=\"csrf\" value=\"{}\"><input type=\"hidden\" name=\"path\" value=\"{}\">\
-         <button class=\"danger\" type=\"submit\">Delete</button><a class=\"button\" href=\"{}\">Cancel</a></form>",
-        esc(name.as_str()),
+         <button class=\"danger\" type=\"submit\">{}</button><a class=\"button\" href=\"{}\">{}</a></form>",
+        esc(&tf(a.lang, "Delete “{0}”?", &[name.as_str()])),
         esc(&a.csrf),
         esc(&plain(&path)),
-        esc(&back)
+        esc(&t(a.lang, "Delete")),
+        esc(&back),
+        esc(&t(a.lang, "Cancel"))
     );
     layout::app(
         StatusCode::OK,

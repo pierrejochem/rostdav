@@ -11,35 +11,43 @@ use rostdav_meta::{NodeKind, WriteCondition};
 use serde::Deserialize;
 use tokio_util::io::StreamReader;
 
+use crate::i18n::{Lang, t, tf};
 use crate::layout::{self, enc, esc};
 use crate::pages::{ByteStream, date, human, parse_plain, plain};
 use crate::session::{
-    LOGIN_COOKIE, client_ip, cookie_value, same_origin, set_cookie, set_cookie_at,
+    LOGIN_COOKIE, accept_lang, client_ip, cookie_value, same_origin, set_cookie, set_cookie_at,
 };
 
 const TICKET_COOKIE: &str = "rostdav_link";
 
-fn gone() -> Response {
+fn gone(lang: Lang) -> Response {
     layout::public(
+        lang,
         StatusCode::NOT_FOUND,
         "Link not found",
-        "<div class=\"card\"><h1>Link not found</h1><p class=\"muted\">This link does not exist or has expired.</p></div>",
-    )
-}
-
-fn notice(status: StatusCode, token: &str, text: &str) -> Response {
-    layout::public(
-        status,
-        "Public link",
         &format!(
-            "<div class=\"card\"><p class=\"notice\" role=\"alert\">{}</p><a class=\"button\" href=\"/s/{}\">Back</a></div>",
-            esc(text),
-            enc(token)
+            "<div class=\"card\"><h1>{}</h1><p class=\"muted\">{}</p></div>",
+            esc(&t(lang, "Link not found")),
+            esc(&t(lang, "This link does not exist or has expired."))
         ),
     )
 }
 
-fn error_page(token: &str, e: &Error) -> Response {
+fn notice(lang: Lang, status: StatusCode, token: &str, text: &str) -> Response {
+    layout::public(
+        lang,
+        status,
+        "Public link",
+        &format!(
+            "<div class=\"card\"><p class=\"notice\" role=\"alert\">{}</p><a class=\"button\" href=\"/s/{}\">{}</a></div>",
+            esc(&t(lang, text)),
+            enc(token),
+            esc(&t(lang, "Back"))
+        ),
+    )
+}
+
+fn error_page(lang: Lang, token: &str, e: &Error) -> Response {
     let (status, text) = match e {
         Error::NotFound => (StatusCode::NOT_FOUND, "Not found."),
         Error::Forbidden => (StatusCode::FORBIDDEN, "This link does not allow that."),
@@ -55,7 +63,7 @@ fn error_page(token: &str, e: &Error) -> Response {
             (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong.")
         }
     };
-    notice(status, token, text)
+    notice(lang, status, token, text)
 }
 
 fn ticket(headers: &HeaderMap, token: &str) -> Option<String> {
@@ -69,6 +77,7 @@ fn csrf_pair(state: &AppState) -> (String, String) {
 }
 
 fn password_form(
+    lang: Lang,
     state: &AppState,
     token: &str,
     headers: &HeaderMap,
@@ -80,15 +89,19 @@ fn password_form(
         .map(|e| format!("<div class=\"notice\" role=\"alert\">{}</div>", esc(e)))
         .unwrap_or_default();
     let mut r = layout::public(
+        lang,
         status,
         "Password required",
         &format!(
-            "<div class=\"card\"><h1>Password required</h1>{err}\
+            "<div class=\"card\"><h1>{}</h1>{err}\
              <form method=\"post\" action=\"/s/{}/unlock\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
-             <label>Password<input type=\"password\" name=\"password\" autocomplete=\"off\" required autofocus></label>\
-             <button class=\"primary\" type=\"submit\">Open</button></form></div>",
+             <label>{}<input type=\"password\" name=\"password\" autocomplete=\"off\" required autofocus></label>\
+             <button class=\"primary\" type=\"submit\">{}</button></form></div>",
+            esc(&t(lang, "Password required")),
             enc(token),
-            esc(&form)
+            esc(&form),
+            esc(&t(lang, "Password")),
+            esc(&t(lang, "Open"))
         ),
     );
     r.headers_mut().append(
@@ -110,23 +123,24 @@ pub async fn view(
     Query(q): Query<ViewQuery>,
     headers: HeaderMap,
 ) -> Response {
+    let lang = accept_lang(&headers);
     let p = match state
         .link_page_principal(&token, ticket(&headers, &token).as_deref())
         .await
     {
         Ok(p) => p,
-        Err(Error::NotFound) => return gone(),
+        Err(Error::NotFound) => return gone(lang),
         Err(Error::Unauthenticated) => {
-            return password_form(&state, &token, &headers, StatusCode::OK, None);
+            return password_form(lang, &state, &token, &headers, StatusCode::OK, None);
         }
-        Err(e) => return error_page(&token, &e),
+        Err(e) => return error_page(lang, &token, &e),
     };
     let rostdav_app::Scope::Link { perms, .. } = p.scope else {
-        return gone();
+        return gone(lang);
     };
     let path = match parse_plain(&q.path) {
         Ok(path) => path,
-        Err(e) => return error_page(&token, &e),
+        Err(e) => return error_page(lang, &token, &e),
     };
     let (cookie, csrf) = csrf_pair(&state);
 
@@ -137,15 +151,15 @@ pub async fn view(
         match state.stat(&p, &path).await {
             Ok(n) if n.kind == NodeKind::File => is_dir = false,
             Ok(_) => {}
-            Err(e) => return error_page(&token, &e),
+            Err(e) => return error_page(lang, &token, &e),
         }
     }
-    let t = enc(&token);
+    let tok = enc(&token);
     let mut body = String::new();
     if can_read && is_dir {
         let list = match state.list(&p, &path).await {
             Ok(l) => l,
-            Err(e) => return error_page(&token, &e),
+            Err(e) => return error_page(lang, &token, &e),
         };
         let mut items: Vec<_> = list.children.iter().collect();
         items.sort_by(|x, y| {
@@ -159,11 +173,11 @@ pub async fn view(
             let child = path.join(&name);
             let (href, size) = match n.kind {
                 NodeKind::Dir => (
-                    format!("/s/{t}?path={}", enc(&plain(&child))),
+                    format!("/s/{tok}?path={}", enc(&plain(&child))),
                     String::new(),
                 ),
                 NodeKind::File => (
-                    format!("/s/{t}/dl?path={}", enc(&plain(&child))),
+                    format!("/s/{tok}/dl?path={}", enc(&plain(&child))),
                     human(n.size),
                 ),
             };
@@ -176,48 +190,62 @@ pub async fn view(
                 date(n.mtime)
             ));
         }
-        let mut crumbs = format!("<a href=\"/s/{t}\">Shared folder</a>");
+        let mut crumbs = format!(
+            "<a href=\"/s/{tok}\">{}</a>",
+            esc(&t(lang, "Shared folder"))
+        );
         let mut acc = LogicalPath::root();
         for seg in path.segments() {
             acc = acc.join(seg);
             crumbs.push_str(&format!(
-                " / <a href=\"/s/{t}?path={}\">{}</a>",
+                " / <a href=\"/s/{tok}?path={}\">{}</a>",
                 esc(&enc(&plain(&acc))),
                 esc(seg.as_str())
             ));
         }
         body.push_str(&format!(
-            "<h1>Shared files</h1><div class=\"crumbs\">{crumbs}</div>"
+            "<h1>{}</h1><div class=\"crumbs\">{crumbs}</div>",
+            esc(&t(lang, "Shared files"))
         ));
         body.push_str(&if rows.is_empty() {
-            "<div class=\"empty\">This folder is empty.</div>".to_owned()
+            format!("<div class=\"empty\">{}</div>", esc(&t(lang, "This folder is empty.")))
         } else {
-            format!("<table><thead><tr><th>Name</th><th class=\"num\">Size</th><th class=\"hide\">Modified</th></tr></thead><tbody>{rows}</tbody></table>")
+            format!(
+                "<table><thead><tr><th>{}</th><th class=\"num\">{}</th><th class=\"hide\">{}</th></tr></thead><tbody>{rows}</tbody></table>",
+                esc(&t(lang, "Name")),
+                esc(&t(lang, "Size")),
+                esc(&t(lang, "Modified"))
+            )
         });
     } else if can_read {
         let name = path
             .split_last()
             .map_or_else(String::new, |(_, n)| n.as_str().to_owned());
         body.push_str(&format!(
-            "<h1>{}</h1><p><a class=\"button primary\" href=\"/s/{t}/dl?path={}\">Download</a></p>",
+            "<h1>{}</h1><p><a class=\"button primary\" href=\"/s/{tok}/dl?path={}\">{}</a></p>",
             esc(&name),
-            esc(&enc(&plain(&path)))
+            esc(&enc(&plain(&path))),
+            esc(&t(lang, "Download"))
         ));
     } else {
-        body.push_str(
-            "<h1>Upload files</h1><p class=\"muted\">This folder accepts uploads only.</p>",
-        );
+        body.push_str(&format!(
+            "<h1>{}</h1><p class=\"muted\">{}</p>",
+            esc(&t(lang, "Upload files")),
+            esc(&t(lang, "This folder accepts uploads only."))
+        ));
     }
     if perms & 4 != 0 && is_dir {
         body.push_str(&format!(
-            "<div class=\"actions\"><form class=\"inline\" method=\"post\" action=\"/s/{t}/upload\" enctype=\"multipart/form-data\">\
+            "<div class=\"actions\"><form class=\"inline\" method=\"post\" action=\"/s/{tok}/upload\" enctype=\"multipart/form-data\">\
              <input type=\"hidden\" name=\"csrf\" value=\"{}\"><input type=\"hidden\" name=\"dir\" value=\"{}\">\
-             <input type=\"file\" name=\"file\" aria-label=\"File\" required><button class=\"primary\" type=\"submit\">Upload</button></form></div>",
+             <input type=\"file\" name=\"file\" aria-label=\"{}\" required><button class=\"primary\" type=\"submit\">{}</button></form></div>",
             esc(&csrf),
-            esc(&plain(&path))
+            esc(&plain(&path)),
+            esc(&t(lang, "File")),
+            esc(&t(lang, "Upload"))
         ));
     }
-    let mut r = layout::public(StatusCode::OK, "Shared files", &body);
+    let mut r = layout::public(lang, StatusCode::OK, "Shared files", &body);
     r.headers_mut().append(
         header::SET_COOKIE,
         set_cookie(&headers, LOGIN_COOKIE, &cookie, Some(900)),
@@ -238,28 +266,30 @@ pub async fn unlock(
     Form(f): Form<UnlockForm>,
 ) -> Response {
     let headers = &parts.headers;
+    let lang = accept_lang(headers);
     let cookie = cookie_value(headers, LOGIN_COOKIE).unwrap_or_default();
     if !same_origin(headers) || state.login_csrf_check(&cookie, &f.csrf).is_err() {
         return password_form(
+            lang,
             &state,
             &token,
             headers,
             StatusCode::FORBIDDEN,
-            Some("The form could not be verified. Try again."),
+            Some(&t(lang, "The form could not be verified. Try again.")),
         );
     }
     match state
         .link_unlock(&token, &f.password, client_ip(&parts))
         .await
     {
-        Ok(t) => {
+        Ok(ticket) => {
             let mut r = Redirect::to(&format!("/s/{}", enc(&token))).into_response();
             r.headers_mut().append(
                 header::SET_COOKIE,
                 set_cookie_at(
                     headers,
                     TICKET_COOKIE,
-                    &format!("{token}_{t}"),
+                    &format!("{token}_{ticket}"),
                     &format!("/s/{}", enc(&token)),
                     Some(3600),
                 ),
@@ -269,25 +299,28 @@ pub async fn unlock(
         Err(Error::Unauthenticated) => {
             // unknown link and wrong password look alike
             if matches!(state.link_needs_password(&token).await, Ok(None)) {
-                return gone();
+                return gone(lang);
             }
             password_form(
+                lang,
                 &state,
                 &token,
                 headers,
                 StatusCode::UNAUTHORIZED,
-                Some("Wrong password."),
+                Some(&t(lang, "Wrong password.")),
             )
         }
         Err(Error::RateLimited { retry_after_secs }) => {
             let mut r = password_form(
+                lang,
                 &state,
                 &token,
                 headers,
                 StatusCode::TOO_MANY_REQUESTS,
-                Some(&format!(
-                    "Too many attempts. Try again in {} minutes.",
-                    retry_after_secs.div_ceil(60)
+                Some(&tf(
+                    lang,
+                    "Too many attempts. Try again in {0} minutes.",
+                    &[&retry_after_secs.div_ceil(60).to_string()],
                 )),
             );
             if let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string()) {
@@ -295,7 +328,7 @@ pub async fn unlock(
             }
             r
         }
-        Err(e) => error_page(&token, &e),
+        Err(e) => error_page(lang, &token, &e),
     }
 }
 
@@ -305,24 +338,25 @@ pub async fn download(
     Query(q): Query<ViewQuery>,
     headers: HeaderMap,
 ) -> Response {
+    let lang = accept_lang(&headers);
     let p = match state
         .link_page_principal(&token, ticket(&headers, &token).as_deref())
         .await
     {
         Ok(p) => p,
-        Err(Error::NotFound) => return gone(),
+        Err(Error::NotFound) => return gone(lang),
         Err(Error::Unauthenticated) => {
             return Redirect::to(&format!("/s/{}", enc(&token))).into_response();
         }
-        Err(e) => return error_page(&token, &e),
+        Err(e) => return error_page(lang, &token, &e),
     };
     let path = match parse_plain(&q.path) {
         Ok(path) => path,
-        Err(e) => return error_page(&token, &e),
+        Err(e) => return error_page(lang, &token, &e),
     };
     match state.read(&p, &path).await {
         Ok((node, file)) => crate::pages::attachment(&node, file),
-        Err(e) => error_page(&token, &e),
+        Err(e) => error_page(lang, &token, &e),
     }
 }
 
@@ -333,6 +367,7 @@ pub async fn upload(
     mut mp: Multipart,
 ) -> Response {
     let headers = &parts.headers;
+    let lang = accept_lang(headers);
     if !same_origin(headers) {
         return StatusCode::FORBIDDEN.into_response();
     }
@@ -341,7 +376,7 @@ pub async fn upload(
         .await
     {
         Ok(p) => p,
-        Err(Error::NotFound) => return gone(),
+        Err(Error::NotFound) => return gone(lang),
         Err(_) => return StatusCode::FORBIDDEN.into_response(),
     };
     let cookie = cookie_value(headers, LOGIN_COOKIE).unwrap_or_default();
@@ -349,7 +384,7 @@ pub async fn upload(
     loop {
         let field = match mp.next_field().await {
             Ok(Some(f)) => f,
-            _ => return notice(StatusCode::BAD_REQUEST, &token, "No file was sent."),
+            _ => return notice(lang, StatusCode::BAD_REQUEST, &token, "No file was sent."),
         };
         match field.name() {
             Some("csrf") => csrf = field.text().await.ok(),
@@ -362,10 +397,10 @@ pub async fn upload(
                     return StatusCode::FORBIDDEN.into_response();
                 }
                 let Ok(dir) = parse_plain(dir.as_deref().unwrap_or("")) else {
-                    return error_page(&token, &Error::BadRequest("path"));
+                    return error_page(lang, &token, &Error::BadRequest("path"));
                 };
                 let Some(fname) = field.file_name().map(str::to_owned) else {
-                    return error_page(&token, &Error::BadRequest("name"));
+                    return error_page(lang, &token, &Error::BadRequest("name"));
                 };
                 let res = async {
                     let target = dir.join(&Name::parse(&fname)?);
@@ -384,7 +419,7 @@ pub async fn upload(
                         Redirect::to(&format!("/s/{}?path={}", enc(&token), enc(&plain(&dir))))
                             .into_response()
                     }
-                    Err(e) => error_page(&token, &e),
+                    Err(e) => error_page(lang, &token, &e),
                 };
             }
             _ => {}

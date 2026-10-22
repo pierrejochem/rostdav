@@ -11,6 +11,7 @@ use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, parse_quota};
 use rostdav_core::Error;
 use serde::Deserialize;
 
+use crate::i18n::{t, t_quiet, tf};
 use crate::layout::{enc, esc};
 use crate::pages::{date, human, message_in};
 use crate::session::Authed;
@@ -67,28 +68,39 @@ fn error_page(a: &Authed, e: &Error, back: &str) -> Response {
 }
 
 fn page(a: &Authed, title: &str, section: &str, body: &str) -> Response {
+    let lang = a.lang;
     let tab = |key: &str, label: &str, href: &str| {
         let cur = if key == section {
             " aria-current=\"page\" class=\"on\""
         } else {
             ""
         };
-        format!("<a href=\"{href}\"{cur}>{label}</a>")
+        format!("<a href=\"{href}\"{cur}>{}</a>", esc(&t(lang, label)))
     };
     let tabs = format!(
-        "<nav class=\"seg tabs\" aria-label=\"Administration sections\">{}{}{}{}</nav>",
+        "<nav class=\"seg tabs\" aria-label=\"{}\">{}{}{}{}</nav>",
+        esc(&t(lang, "Administration sections")),
         tab("users", "Users", "/admin/users"),
         tab("events", "Event log", "/admin/events"),
         tab("status", "Status", "/admin/status"),
         tab("server", "Server", "/admin/server"),
     );
     let pill = format!(
-        "<div class=\"pill\"><span class=\"dot live\" aria-hidden=\"true\"></span>Server running · version {}</div>",
-        esc(env!("CARGO_PKG_VERSION"))
+        "<div class=\"pill\"><span class=\"dot live\" aria-hidden=\"true\"></span>{}</div>",
+        esc(&tf(
+            lang,
+            "Server running · version {0}",
+            &[env!("CARGO_PKG_VERSION")]
+        ))
     );
     let body = format!(
         "{}{tabs}{body}",
-        ui::page_head("Administration", "Visible to administrators only.", &pill)
+        ui::page_head(
+            lang,
+            "Administration",
+            "Visible to administrators only.",
+            &pill
+        )
     );
     ui::page(a, StatusCode::OK, title, "admin", &body)
 }
@@ -110,6 +122,7 @@ pub async fn users(
         Ok(l) => l,
         Err(e) => return error_page(&a, &e, "/files"),
     };
+    let lang = a.lang;
     let needle = q.q.trim().to_lowercase();
     let csrf = esc(&a.csrf);
     let mut rows = String::new();
@@ -119,16 +132,19 @@ pub async fn users(
     {
         let storage = match u.quota_bytes {
             Some(q) if q > 0 => format!(
-                "<progress class=\"meter\" max=\"{q}\" value=\"{}\" aria-label=\"Storage of {}\"></progress>\
-                 <span class=\"muted\">{} % of {}</span>",
+                "<progress class=\"meter\" max=\"{q}\" value=\"{}\" aria-label=\"{}\"></progress>\
+                 <span class=\"muted\">{}</span>",
                 u.used_bytes.clamp(0, q),
-                esc(&u.name),
-                u.used_bytes * 100 / q,
-                human(q)
+                esc(&tf(lang, "Storage of {0}", &[&u.name])),
+                esc(&tf(
+                    lang,
+                    "{0} % of {1}",
+                    &[&(u.used_bytes * 100 / q).to_string(), &human(q)]
+                ))
             ),
             _ => format!(
-                "<span class=\"muted\">{} used · no quota</span>",
-                human(u.used_bytes)
+                "<span class=\"muted\">{}</span>",
+                esc(&tf(lang, "{0} used · no quota", &[&human(u.used_bytes)]))
             ),
         };
         let toggle = if u.name == a.session.principal.name {
@@ -137,55 +153,75 @@ pub async fn users(
             format!(
                 "<form method=\"post\" action=\"/admin/users/disabled\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
                  <input type=\"hidden\" name=\"name\" value=\"{}\"><input type=\"hidden\" name=\"disabled\" value=\"{}\">\
-                 <button class=\"{}\" type=\"submit\" aria-label=\"{} {}\">{}</button></form>",
+                 <button class=\"{}\" type=\"submit\" aria-label=\"{}\">{}</button></form>",
                 esc(&u.name),
                 if u.disabled { "0" } else { "1" },
                 if u.disabled { "" } else { "danger" },
-                if u.disabled { "Enable" } else { "Disable" },
-                esc(&u.name),
-                if u.disabled { "Enable" } else { "Disable" },
+                esc(&tf(
+                    lang,
+                    if u.disabled {
+                        "Enable {0}"
+                    } else {
+                        "Disable {0}"
+                    },
+                    &[&u.name]
+                )),
+                esc(&t(lang, if u.disabled { "Enable" } else { "Disable" })),
             )
         };
         rows.push_str(&format!(
             "<li class=\"row userrow{}\">{}<div class=\"row-text\"><b>{}</b><span class=\"muted\">{}</span></div>\
              <span class=\"u-storage\">{storage}</span>\
              <span class=\"chip {}\">{}</span>\
-             <div class=\"row-actions\"><a class=\"button\" href=\"/admin/users/manage?name={}\" aria-label=\"Edit {}\">Edit</a>{toggle}</div></li>",
+             <div class=\"row-actions\"><a class=\"button\" href=\"/admin/users/manage?name={}\" aria-label=\"{}\">{}</a>{toggle}</div></li>",
             if u.disabled { " off" } else { "" },
             ui::avatar(&u.name),
             esc(&u.name),
-            if u.is_admin { "Administrator" } else { "User" },
+            esc(&t(lang, if u.is_admin { "Administrator" } else { "User" })),
             if u.disabled { "" } else { "ok" },
-            if u.disabled { "Disabled" } else { "Active" },
+            esc(&t(lang, if u.disabled { "Disabled" } else { "Active" })),
             esc(&enc(&u.name)),
-            esc(&u.name),
+            esc(&tf(lang, "Edit {0}", &[&u.name])),
+            esc(&t(lang, "Edit")),
         ));
     }
     let list_html = if rows.is_empty() {
-        "<div class=\"empty\">No users match.</div>".to_owned()
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(lang, "No users match."))
+        )
     } else {
         format!("<ul class=\"rows\">{rows}</ul>")
     };
     let toolbar = format!(
         "<div class=\"cardbar\"><form class=\"search\" method=\"get\" action=\"/admin/users\" role=\"search\">{}\
-         <input type=\"search\" name=\"q\" value=\"{}\" placeholder=\"Search users\" aria-label=\"Search users\"></form>\
-         <details class=\"pop\"><summary class=\"button primary\">{}Add user</summary>\
+         <input type=\"search\" name=\"q\" value=\"{}\" placeholder=\"{search}\" aria-label=\"{search}\"></form>\
+         <details class=\"pop\"><summary class=\"button primary\">{}{add}</summary>\
          <form class=\"popover\" method=\"post\" action=\"/admin/users/create\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-         <label>Name<input type=\"text\" name=\"name\" required></label>\
-         <label>Password<input type=\"password\" name=\"password\" autocomplete=\"new-password\" required></label>\
-         <label class=\"check\"><input type=\"checkbox\" name=\"admin\" value=\"1\"> Administrator</label>\
-         <button class=\"primary\" type=\"submit\">Add user</button></form></details></div>",
+         <label>{}<input type=\"text\" name=\"name\" required></label>\
+         <label>{}<input type=\"password\" name=\"password\" autocomplete=\"new-password\" required></label>\
+         <label class=\"check\"><input type=\"checkbox\" name=\"admin\" value=\"1\"> {}</label>\
+         <button class=\"primary\" type=\"submit\">{add}</button></form></details></div>",
         ui::svg("search"),
         esc(&q.q),
         ui::svg("plus"),
+        esc(&t(lang, "Name")),
+        esc(&t(lang, "Password")),
+        esc(&t(lang, "Administrator")),
+        search = esc(&t(lang, "Search users")),
+        add = esc(&t(lang, "Add user")),
     );
     page(
         &a,
         "Users",
         "users",
         &ui::card(
+            lang,
             "Users",
-            &format!("<span class=\"chip\">{} total</span>", list.len()),
+            &format!(
+                "<span class=\"chip\">{}</span>",
+                esc(&tf(lang, "{0} total", &[&list.len().to_string()]))
+            ),
             &format!("{toolbar}{list_html}"),
         ),
     )
@@ -235,6 +271,7 @@ pub async fn manage(
     let Some(u) = list.iter().find(|u| u.name == q.name) else {
         return error_page(&a, &Error::NotFound, "/admin/users");
     };
+    let lang = a.lang;
     let csrf = esc(&a.csrf);
     let name = esc(&u.name);
     let hidden = format!(
@@ -250,50 +287,70 @@ pub async fn manage(
          <form method=\"post\" action=\"/admin/users/role\">{hidden}<input type=\"hidden\" name=\"admin\" value=\"{}\">\
          <button type=\"submit\">{}</button></form></div>",
         if u.disabled { "0" } else { "1" },
-        if u.disabled {
-            "Allow sign-in again"
-        } else {
-            "Block sign-in"
-        },
+        esc(&t(
+            lang,
+            if u.disabled {
+                "Allow sign-in again"
+            } else {
+                "Block sign-in"
+            }
+        )),
         if u.is_admin { "0" } else { "1" },
-        if u.is_admin {
-            "Remove administrator role"
-        } else {
-            "Make administrator"
-        },
+        esc(&t(
+            lang,
+            if u.is_admin {
+                "Remove administrator role"
+            } else {
+                "Make administrator"
+            }
+        )),
     );
     let quota_form = format!(
         "<form class=\"createrow\" method=\"post\" action=\"/admin/users/quota\">{hidden}\
-         <label>Quota<input type=\"text\" name=\"quota\" value=\"{}\"></label><button type=\"submit\">Set quota</button></form>\
-         <p class=\"muted\">Examples: 10G, 500M, unlimited.</p>",
-        esc(&quota)
+         <label>{}<input type=\"text\" name=\"quota\" value=\"{}\"></label><button type=\"submit\">{}</button></form>\
+         <p class=\"muted\">{}</p>",
+        esc(&t(lang, "Quota")),
+        esc(&quota),
+        esc(&t(lang, "Set quota")),
+        esc(&t(lang, "Examples: 10G, 500M, unlimited."))
     );
     let password_form = format!(
         "<form class=\"createrow\" method=\"post\" action=\"/admin/users/password\">{hidden}\
-         <label>New password<input type=\"password\" name=\"password\" autocomplete=\"new-password\" required></label>\
-         <button type=\"submit\">Set password</button>\
-         <label class=\"check\"><input type=\"checkbox\" name=\"revoke\" value=\"1\" checked> Sign out all devices</label></form>"
+         <label>{}<input type=\"password\" name=\"password\" autocomplete=\"new-password\" required></label>\
+         <button type=\"submit\">{}</button>\
+         <label class=\"check\"><input type=\"checkbox\" name=\"revoke\" value=\"1\" checked> {}</label></form>",
+        esc(&t(lang, "New password")),
+        esc(&t(lang, "Set password")),
+        esc(&t(lang, "Sign out all devices"))
     );
     let delete = format!(
-        "<p><a class=\"button danger\" href=\"/admin/users/delete?name={}\">Delete this user…</a></p>",
-        esc(&enc(&u.name))
+        "<p><a class=\"button danger\" href=\"/admin/users/delete?name={}\">{}</a></p>",
+        esc(&enc(&u.name)),
+        esc(&t(lang, "Delete this user…"))
     );
     let head = format!(
-        "{}<div class=\"row-text\"><b>{name}</b><span class=\"muted\">{} · {} · {} used · {} device(s) · created {}</span></div>",
+        "{}<div class=\"row-text\"><b>{name}</b><span class=\"muted\">{}</span></div>",
         ui::avatar(&u.name),
-        if u.is_admin { "Administrator" } else { "User" },
-        if u.disabled { "disabled" } else { "active" },
-        human(u.used_bytes),
-        u.devices,
-        date(u.created_at),
+        esc(&tf(
+            lang,
+            "{0} · {1} · {2} used · {3} device(s) · created {4}",
+            &[
+                &t(lang, if u.is_admin { "Administrator" } else { "User" }),
+                &t(lang, if u.disabled { "disabled" } else { "active" }),
+                &human(u.used_bytes),
+                &u.devices.to_string(),
+                &date(u.created_at),
+            ]
+        )),
     );
     let body = format!(
-        "<p><a href=\"/admin/users\">← Back to users</a></p><section class=\"card2\"><div class=\"row userhead\">{head}</div></section>\
+        "<p><a href=\"/admin/users\">{}</a></p><section class=\"card2\"><div class=\"row userhead\">{head}</div></section>\
          {}{}{}{}",
-        ui::card("Access", "", &access),
-        ui::card("Quota", "", &quota_form),
-        ui::card("Reset password", "", &password_form),
-        ui::card("Delete", "", &delete),
+        esc(&t(lang, "← Back to users")),
+        ui::card(lang, "Access", "", &access),
+        ui::card(lang, "Quota", "", &quota_form),
+        ui::card(lang, "Reset password", "", &password_form),
+        ui::card(lang, "Delete", "", &delete),
     );
     page(&a, "Manage user", "users", &body)
 }
@@ -414,24 +471,35 @@ pub async fn set_password(
 }
 
 pub async fn delete_confirm(Admin(a): Admin, Query(q): Query<NameQuery>) -> Response {
+    let lang = a.lang;
     let csrf = esc(&a.csrf);
     let name = esc(&q.name);
     let body = format!(
-        "<h2>Delete “{name}”?</h2><p>The account and its devices are removed. Choose what happens to the files.</p>\
+        "<h2>{}</h2><p>{}</p>\
          <form method=\"post\" action=\"/admin/users/delete\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
          <input type=\"hidden\" name=\"name\" value=\"{name}\">\
-         <label class=\"check\"><input type=\"radio\" name=\"mode\" value=\"transfer\" checked> Move the files to another user</label>\
-         <label>Receiving user<input type=\"text\" name=\"to\"></label>\
-         <label class=\"check\"><input type=\"radio\" name=\"mode\" value=\"delete\"> Delete the files for good</label>\
-         <div class=\"actions\"><button class=\"danger\" type=\"submit\">Delete user</button>\
-         <a class=\"button\" href=\"/admin/users/manage?name={}\">Cancel</a></div></form>",
+         <label class=\"check\"><input type=\"radio\" name=\"mode\" value=\"transfer\" checked> {}</label>\
+         <label>{}<input type=\"text\" name=\"to\"></label>\
+         <label class=\"check\"><input type=\"radio\" name=\"mode\" value=\"delete\"> {}</label>\
+         <div class=\"actions\"><button class=\"danger\" type=\"submit\">{}</button>\
+         <a class=\"button\" href=\"/admin/users/manage?name={}\">{}</a></div></form>",
+        esc(&tf(lang, "Delete “{0}”?", &[&q.name])),
+        esc(&t(
+            lang,
+            "The account and its devices are removed. Choose what happens to the files."
+        )),
+        esc(&t(lang, "Move the files to another user")),
+        esc(&t(lang, "Receiving user")),
+        esc(&t(lang, "Delete the files for good")),
+        esc(&t(lang, "Delete user")),
         esc(&enc(&q.name)),
+        esc(&t(lang, "Cancel")),
     );
     page(
         &a,
         "Delete user",
         "users",
-        &ui::card("Delete user", "", &body),
+        &ui::card(lang, "Delete user", "", &body),
     )
 }
 
@@ -486,6 +554,7 @@ pub async fn events(
     Admin(a): Admin,
     Query(q): Query<EventsQuery>,
 ) -> Response {
+    let lang = a.lang;
     let days = q.days.unwrap_or(7).clamp(1, 3650);
     let since = rostdav_app::now_secs() - days * 86_400;
     let mut list = match state
@@ -511,26 +580,45 @@ pub async fn events(
     }
     let more = if total > list.len() {
         format!(
-            "<p class=\"muted\">Showing the newest {} of {total} events.</p>",
-            list.len()
+            "<p class=\"muted\">{}</p>",
+            esc(&tf(
+                lang,
+                "Showing the newest {0} of {1} events.",
+                &[&list.len().to_string(), &total.to_string()]
+            ))
         )
     } else {
         String::new()
     };
     let opt = |d: i64| {
         let sel = if d == days { " selected" } else { "" };
-        format!("<option value=\"{d}\"{sel}>Last {d} day(s)</option>")
+        format!(
+            "<option value=\"{d}\"{sel}>{}</option>",
+            esc(&tf(lang, "Last {0} day(s)", &[&d.to_string()]))
+        )
     };
     let body = format!(
-        "<form class=\"inline\" method=\"get\" action=\"/admin/events\"><select name=\"days\" aria-label=\"Period\">{}{}{}{}</select>\
-         <button type=\"submit\">Show</button></form>{more}\
-         <table><thead><tr><th>Time (UTC)</th><th>Actor</th><th>Event</th><th>Target</th><th class=\"hide\">Address</th></tr></thead><tbody>{rows}</tbody></table>",
+        "<form class=\"inline\" method=\"get\" action=\"/admin/events\"><select name=\"days\" aria-label=\"{}\">{}{}{}{}</select>\
+         <button type=\"submit\">{}</button></form>{more}\
+         <table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th><th class=\"hide\">{}</th></tr></thead><tbody>{rows}</tbody></table>",
+        esc(&t(lang, "Period")),
         opt(1),
         opt(7),
         opt(30),
         opt(365),
+        esc(&t(lang, "Show")),
+        esc(&t(lang, "Time (UTC)")),
+        esc(&t(lang, "Actor")),
+        esc(&t(lang, "Event")),
+        esc(&t(lang, "Target")),
+        esc(&t(lang, "Address")),
     );
-    page(&a, "Event log", "events", &ui::card("Event log", "", &body))
+    page(
+        &a,
+        "Event log",
+        "events",
+        &ui::card(lang, "Event log", "", &body),
+    )
 }
 
 // ---- status and consistency check ---------------------------------------------------------------------
@@ -544,21 +632,33 @@ async fn status_page(state: &AppState, a: &Authed, report: &str) -> Response {
         Ok(l) => l,
         Err(e) => return error_page(a, &e, "/files"),
     };
+    let lang = a.lang;
     let used: i64 = list.iter().map(|u| u.used_bytes).sum();
     let csrf = esc(&a.csrf);
     let body = format!(
-        "<table><tbody><tr><td>Version</td><td class=\"num\">{}</td></tr>\
-         <tr><td>Users</td><td class=\"num\">{}</td></tr><tr><td>Storage used</td><td class=\"num\">{}</td></tr></tbody></table>\
-         <h2>Consistency check</h2><p class=\"muted\">Compares the database with the stored files. Safe to run while the server is in use.</p>\
+        "<table><tbody><tr><td>{}</td><td class=\"num\">{}</td></tr>\
+         <tr><td>{}</td><td class=\"num\">{}</td></tr><tr><td>{}</td><td class=\"num\">{}</td></tr></tbody></table>\
+         <h2>{}</h2><p class=\"muted\">{}</p>\
          <form class=\"inline\" method=\"post\" action=\"/admin/status/check\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-         <label class=\"check\"><input type=\"checkbox\" name=\"checksums\" value=\"1\"> Also re-read every file (slow)</label>\
-         <label class=\"check\"><input type=\"checkbox\" name=\"repair\" value=\"1\"> Repair what can be repaired</label>\
-         <button type=\"submit\">Run check</button></form>{report}",
+         <label class=\"check\"><input type=\"checkbox\" name=\"checksums\" value=\"1\"> {}</label>\
+         <label class=\"check\"><input type=\"checkbox\" name=\"repair\" value=\"1\"> {}</label>\
+         <button type=\"submit\">{}</button></form>{report}",
+        esc(&t(lang, "Version")),
         esc(env!("CARGO_PKG_VERSION")),
+        esc(&t(lang, "Users")),
         list.len(),
+        esc(&t(lang, "Storage used")),
         human(used),
+        esc(&t(lang, "Consistency check")),
+        esc(&t(
+            lang,
+            "Compares the database with the stored files. Safe to run while the server is in use."
+        )),
+        esc(&t(lang, "Also re-read every file (slow)")),
+        esc(&t(lang, "Repair what can be repaired")),
+        esc(&t(lang, "Run check")),
     );
-    page(a, "Status", "status", &ui::card("Status", "", &body))
+    page(a, "Status", "status", &ui::card(lang, "Status", "", &body))
 }
 
 #[derive(Deserialize)]
@@ -587,15 +687,27 @@ pub async fn check(
         Ok(r) => r,
         Err(e) => return error_page(&a, &e, "/admin/status"),
     };
-    let line =
-        |label: &str, n: usize| format!("<tr><td>{label}</td><td class=\"num\">{n}</td></tr>");
+    let lang = a.lang;
+    let line = |label: &str, n: usize| {
+        format!(
+            "<tr><td>{}</td><td class=\"num\">{n}</td></tr>",
+            esc(&t(lang, label))
+        )
+    };
     let report = format!(
-        "<h3>Result: {}</h3><table><tbody>{}{}{}{}{}{}{}</tbody></table>",
-        if r.is_clean() {
-            "no problems"
-        } else {
-            "problems found"
-        },
+        "<h3>{}</h3><table><tbody>{}{}{}{}{}{}{}</tbody></table>",
+        esc(&tf(
+            lang,
+            "Result: {0}",
+            &[&t(
+                lang,
+                if r.is_clean() {
+                    "no problems"
+                } else {
+                    "problems found"
+                }
+            )]
+        )),
         line("Files checked", r.blobs_checked),
         line("Missing files (not repairable)", r.missing_blobs.len()),
         line("Corrupt files", r.corrupt_blobs.len()),
@@ -617,24 +729,28 @@ pub async fn server(State(state): State<AppState>, Admin(a): Admin) -> Response 
         Ok(r) => r,
         Err(e) => return error_page(&a, &e, "/files"),
     };
+    let lang = a.lang;
     let rows: String = rows
         .iter()
         .map(|(k, v)| {
             format!(
                 "<tr><td>{}</td><td class=\"num\">{}</td></tr>",
-                esc(k),
-                esc(v)
+                esc(&t(lang, k)),
+                esc(&t_quiet(lang, v))
             )
         })
         .collect();
     let body = format!(
-        "<p class=\"muted\">Settings come from the configuration file and environment variables. \
-         Change them there and restart the server.</p><table><tbody>{rows}</tbody></table>"
+        "<p class=\"muted\">{}</p><table><tbody>{rows}</tbody></table>",
+        esc(&t(
+            lang,
+            "Settings come from the configuration file and environment variables. Change them there and restart the server."
+        ))
     );
     page(
         &a,
         "Server",
         "server",
-        &ui::card("Effective settings", "", &body),
+        &ui::card(lang, "Effective settings", "", &body),
     )
 }

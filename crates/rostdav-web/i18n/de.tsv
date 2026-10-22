@@ -1,0 +1,277 @@
+# English<TAB>Deutsch. The English text is the key. Keep {0}, {1}, … placeholders.
+ (password)	 (Passwort)
+1 item	1 Element
+Access	Zugriff
+Access denied	Zugriff verweigert
+Account	Konto
+Actions	Aktionen
+Active	Aktiv
+Actor	Akteur
+Add user	Benutzer hinzufügen
+Address	Adresse
+Administration	Administration
+Administration sections	Bereiche der Administration
+Administrator	Administrator
+All files	Alle Dateien
+All versions	Alle Versionen
+Allow sign-in again	Anmeldung wieder erlauben
+Also re-read every file (slow)	Jede Datei erneut lesen (langsam)
+Anonymise addresses in event log	Adressen im Ereignisprotokoll anonymisieren
+App password for “{0}”. It is shown only once; copy it now.	App-Passwort für „{0}“. Es wird nur einmal angezeigt; kopiere es jetzt.
+App password · created {0}	App-Passwort · erstellt {0}
+Appearance	Darstellung
+Back	Zurück
+Back to files	Zurück zu den Dateien
+Block sign-in	Anmeldung sperren
+Browser	Browser
+Browser on {0}	Browser unter {0}
+Browser session	Browser-Sitzung
+Browser session idle timeout	Inaktivitäts-Timeout der Browser-Sitzung
+Browser session maximum age	Maximale Dauer der Browser-Sitzung
+By	Von
+Can edit	Darf bearbeiten
+Cancel	Abbrechen
+Change password	Passwort ändern
+Check the address in your browser before entering your password. Rostdav never asks for an app password here.	Prüfe die Adresse in deinem Browser, bevor du dein Passwort eingibst. Rostdav fragt hier nie nach einem App-Passwort.
+Compares the database with the stored files. Safe to run while the server is in use.	Vergleicht die Datenbank mit den gespeicherten Dateien. Kann bei laufendem Betrieb ausgeführt werden.
+Connect device	Gerät verbinden
+Connected devices	Verbundene Geräte
+Consistency check	Konsistenzprüfung
+Copy	Kopieren
+Corrupt files	Beschädigte Dateien
+Could not complete the action	Die Aktion konnte nicht ausgeführt werden
+Could not upload	Hochladen nicht möglich
+Create	Erstellen
+Create a public link	Öffentlichen Link erstellen
+Create an app password	App-Passwort erstellen
+Create app password	App-Passwort erstellen
+Create folder	Ordner erstellen
+Create link	Link erstellen
+Current	Aktuell
+Current password	Aktuelles Passwort
+Current version	Aktuelle Version
+Dark	Dunkel
+Delete	Löschen
+Delete permanently	Endgültig löschen
+Delete permanently?	Endgültig löschen?
+Delete the files for good	Die Dateien endgültig löschen
+Delete this user…	Diesen Benutzer löschen …
+Delete user	Benutzer löschen
+Delete “{0}”?	„{0}“ löschen?
+Deleted items still count toward your storage until they are removed.	Gelöschte Elemente zählen weiter zu deinem Speicher, bis sie entfernt werden.
+Deleted {0}	Gelöscht {0}
+Deleted {0} by {1}	Gelöscht {0} von {1}
+Deny	Ablehnen
+Details	Details
+Device connected	Gerät verbunden
+Device name	Gerätename
+Devices	Geräte
+Devices & security	Geräte & Sicherheit
+Disable	Sperren
+Disable {0}	{0} sperren
+Disabled	Gesperrt
+Display name	Anzeigename
+Download	Herunterladen
+Downloads all your own files with their folder structure as a tar archive. Files shared with you, older versions and the trash are not included.	Lädt alle deine eigenen Dateien mit ihrer Ordnerstruktur als tar-Archiv herunter. Mit dir geteilte Dateien, ältere Versionen und der Papierkorb sind nicht enthalten.
+E-mail for notifications	E-Mail für Benachrichtigungen
+Edit	Bearbeiten
+Edit {0}	{0} bearbeiten
+Effective settings	Wirksame Einstellungen
+Empty trash	Papierkorb leeren
+Empty trash?	Papierkorb leeren?
+Enable	Entsperren
+Enable {0}	{0} entsperren
+Event	Ereignis
+Event log	Ereignisprotokoll
+Event log retention	Aufbewahrung des Ereignisprotokolls
+Every device signs in with its own app password. Revoking it signs the device out immediately – your account password stays the same.	Jedes Gerät meldet sich mit einem eigenen App-Passwort an. Wird es widerrufen, ist das Gerät sofort abgemeldet – dein Kontopasswort bleibt gleich.
+Everything in the trash will be removed for good. This cannot be undone.	Alles im Papierkorb wird endgültig entfernt. Das lässt sich nicht rückgängig machen.
+Examples: 10G, 500M, unlimited.	Beispiele: 10G, 500M, unlimited.
+Expires	Läuft ab
+Expires (YYYY-MM-DD, optional)	Läuft ab (JJJJ-MM-TT, optional)
+Export your data	Deine Daten exportieren
+File	Datei
+File ID	Datei-ID
+File list	Dateiliste
+Files	Dateien
+Files checked	Geprüfte Dateien
+Folder	Ordner
+Folder name	Ordnername
+For clients without browser sign-in, such as rclone, davfs2 or scripts. The Nextcloud app does not need this – it connects through the sign-in page.	Für Programme ohne Browser-Anmeldung, etwa rclone, davfs2 oder Skripte. Die Nextcloud-App braucht das nicht – sie verbindet sich über die Anmeldeseite.
+For rclone, davfs2, Finder or Explorer. Sign in there with an app password.	Für rclone, davfs2, Finder oder Explorer. Melde dich dort mit einem App-Passwort an.
+Invalid input.	Ungültige Eingabe.
+Language	Sprache
+Last {0} day(s)	Letzte {0} Tag(e)
+Light	Hell
+Link	Link
+Link invalid or expired	Link ungültig oder abgelaufen
+Link not found	Link nicht gefunden
+Main navigation	Hauptnavigation
+Make administrator	Zum Administrator machen
+Manage user	Benutzer verwalten
+Maximum chunk size	Maximale Teilgröße (Chunk)
+Maximum upload size	Maximale Upload-Größe
+Missing files (not repairable)	Fehlende Dateien (nicht reparierbar)
+Modified	Geändert
+Move the files to another user	Die Dateien einem anderen Benutzer übergeben
+Name	Name
+Never used	Nie benutzt
+New folder	Neuer Ordner
+New password	Neues Passwort
+New password (at least 10 characters)	Neues Passwort (mindestens 10 Zeichen)
+New password again	Neues Passwort wiederholen
+No device was connected. You can close this window.	Es wurde kein Gerät verbunden. Du kannst dieses Fenster schließen.
+No devices are connected.	Es sind keine Geräte verbunden.
+No file was sent.	Es wurde keine Datei gesendet.
+No users match.	Keine passenden Benutzer.
+Not found.	Nicht gefunden.
+Not shared	Nicht geteilt
+Not shared yet.	Noch nicht geteilt.
+Nothing matches the filter.	Nichts passt zum Filter.
+Now	Jetzt
+Older versions count toward your storage.	Ältere Versionen zählen zu deinem Speicher.
+Open	Öffnen
+Orphan upload folders	Verwaiste Upload-Ordner
+Other browsers are signed out when the password changes. Connected devices keep their app passwords.	Beim Ändern des Passworts werden andere Browser abgemeldet. Verbundene Geräte behalten ihre App-Passwörter.
+Password	Passwort
+Password (optional)	Passwort (optional)
+Password changed. All other browsers were signed out; your connected devices keep working.	Passwort geändert. Alle anderen Browser wurden abgemeldet; deine verbundenen Geräte funktionieren weiter.
+Password hash	Passwort-Hash
+Password required	Passwort erforderlich
+Period	Zeitraum
+Personal settings for your account. Changes are saved immediately.	Persönliche Einstellungen für dein Konto. Änderungen werden sofort gespeichert.
+Please try again later.	Bitte versuche es später noch einmal.
+Profile	Profil
+Public link	Öffentlicher Link
+Quota	Kontingent
+Quota: {0} · set by the administrator	Kontingent: {0} · vom Administrator festgelegt
+Receiving user	Empfangender Benutzer
+Remove administrator role	Administratorrolle entziehen
+Repair what can be repaired	Reparieren, was sich reparieren lässt
+Request rejected	Anfrage abgelehnt
+Reset password	Passwort zurücksetzen
+Restore	Wiederherstellen
+Result: {0}	Ergebnis: {0}
+Revoke	Widerrufen
+Revoke {0}	{0} widerrufen
+Rostdav · compatible with Nextcloud clients · not a Nextcloud product	Rostdav · kompatibel mit Nextcloud-Clients · kein Nextcloud-Produkt
+Run check	Prüfung starten
+Same as browser	Wie der Browser
+Same as system	Wie das System
+Save	Speichern
+Saved	Gespeichert
+Search in this folder	In diesem Ordner suchen
+Search users	Benutzer suchen
+Select a file to see its versions, sharing and details.	Wähle eine Datei, um ihre Versionen, Freigaben und Details zu sehen.
+Server	Server
+Server running · version {0}	Server läuft · Version {0}
+Set password	Passwort setzen
+Set quota	Kontingent setzen
+Settings	Einstellungen
+Settings come from the configuration file and environment variables. Change them there and restart the server.	Die Einstellungen stammen aus der Konfigurationsdatei und aus Umgebungsvariablen. Ändere sie dort und starte den Server neu.
+Share	Teilen
+Share with a user	Mit einem Benutzer teilen
+Share “{0}”	„{0}“ teilen
+Shared	Geteilt
+Shared files	Geteilte Dateien
+Shared folder	Geteilter Ordner
+Shared with	Geteilt mit
+Shares	Freigaben
+Sharing	Freigabe
+Show	Anzeigen
+Showing the newest {0} of {1} events.	Die neuesten {0} von {1} Ereignissen werden angezeigt.
+Sign in	Anmelden
+Sign in and allow access	Anmelden und Zugriff erlauben
+Sign in to allow access. The device gets its own app password, which you can revoke at any time.	Melde dich an, um den Zugriff zu erlauben. Das Gerät erhält ein eigenes App-Passwort, das du jederzeit widerrufen kannst.
+Sign out	Abmelden
+Sign out all devices	Alle Geräte abmelden
+Sign out all other browsers	Alle anderen Browser abmelden
+Size	Größe
+Something went wrong	Etwas ist schiefgelaufen
+Something went wrong.	Etwas ist schiefgelaufen.
+Start export	Export starten
+Start the connection again from your app.	Starte die Verbindung erneut in deiner App.
+Status	Status
+Stop sharing	Nicht mehr teilen
+Storage	Speicher
+Storage of {0}	Speicher von {0}
+Storage used	Belegter Speicher
+Table, scrolls sideways on small screens	Tabelle, scrollt auf kleinen Bildschirmen seitlich
+Target	Ziel
+The account and its devices are removed. Choose what happens to the files.	Das Konto und seine Geräte werden entfernt. Wähle, was mit den Dateien passiert.
+The current password is wrong.	Das aktuelle Passwort ist falsch.
+The file is too large.	Die Datei ist zu groß.
+The form could not be verified. Reload the page and try again.	Das Formular konnte nicht überprüft werden. Lade die Seite neu und versuche es erneut.
+The form could not be verified. Try again.	Das Formular konnte nicht überprüft werden. Versuche es erneut.
+The new password must have at least 10 characters.	Das neue Passwort muss mindestens 10 Zeichen haben.
+The trash is empty.	Der Papierkorb ist leer.
+The trash is turned off on this server. Deleted files are gone for good.	Der Papierkorb ist auf diesem Server ausgeschaltet. Gelöschte Dateien sind endgültig weg.
+The two new passwords are not the same.	Die beiden neuen Passwörter stimmen nicht überein.
+The upload was malformed.	Der Upload war fehlerhaft.
+The whole page switches when you choose.	Die ganze Seite wechselt sofort, wenn du wählst.
+Theme	Design
+There is no space left.	Es ist kein Speicherplatz mehr frei.
+This folder accepts uploads only.	Dieser Ordner nimmt nur Uploads an.
+This folder is empty.	Dieser Ordner ist leer.
+This link does not allow that.	Dieser Link erlaubt das nicht.
+This link does not exist or has expired.	Dieser Link existiert nicht oder ist abgelaufen.
+This session	Diese Sitzung
+Time (UTC)	Zeit (UTC)
+Today, {0}	Heute, {0}
+Too many attempts. Try again in {0} minutes.	Zu viele Versuche. Versuche es in {0} Minuten erneut.
+Trash	Papierkorb
+Trash bin	Papierkorb
+Trash retention	Aufbewahrung im Papierkorb
+Unreferenced files	Nicht zugeordnete Dateien
+Upload	Hochladen
+Upload files	Dateien hochladen
+Upload only	Nur Upload
+Upload progress	Upload-Fortschritt
+Upload sessions without folder	Upload-Sitzungen ohne Ordner
+User	Benutzer
+User name	Benutzername
+Username	Benutzername
+Users	Benutzer
+Version	Version
+Version retention	Aufbewahrung der Versionen
+Versioning	Versionierung
+Versioning is turned off on this server.	Die Versionierung ist auf diesem Server ausgeschaltet.
+Versions	Versionen
+Versions kept per file	Gespeicherte Versionen pro Datei
+Versions of “{0}”	Versionen von „{0}“
+Versions share of quota	Anteil der Versionen am Kontingent
+View only	Nur ansehen
+Visible to administrators only.	Nur für Administratoren sichtbar.
+WebDAV address	WebDAV-Adresse
+Wrong password.	Falsches Passwort.
+Wrong usage counters	Falsche Belegungszähler
+Wrong username or password.	Falscher Benutzername oder falsches Passwort.
+Yesterday	Gestern
+You can close this window and return to your app.	Du kannst dieses Fenster schließen und zu deiner App zurückkehren.
+You may not do that.	Das ist dir nicht erlaubt.
+Your storage is full.	Dein Speicher ist voll.
+active	aktiv
+disabled	gesperrt
+e.g. Backup server	z. B. Backup-Server
+keep	behalten
+never	nie
+no problems	keine Probleme
+off	aus
+on	an
+problems found	Probleme gefunden
+unlimited	unbegrenzt
+wants to connect to your account	möchte sich mit deinem Konto verbinden
+{0} % of {1}	{0} % von {1}
+{0} active	{0} aktiv
+{0} items	{0} Elemente
+{0} of {1}	{0} von {1}
+{0} on {1}	{0} unter {1}
+{0} total	{0} insgesamt
+{0} used	{0} belegt
+{0} used of {1}	{0} von {1} belegt
+{0} used · no quota	{0} belegt · kein Kontingent
+{0} · {1} · {2} used · {3} device(s) · created {4}	{0} · {1} · {2} belegt · {3} Gerät(e) · erstellt {4}
+“{0}” will be removed for good. This cannot be undone.	„{0}“ wird endgültig entfernt. Das lässt sich nicht rückgängig machen.
+… and {0} older browser session(s). “Sign out all other browsers” ends them.	… und {0} ältere Browser-Sitzung(en). „Alle anderen Browser abmelden“ beendet sie.
+← Back to users	← Zurück zu den Benutzern
+That name is already taken or not allowed here.	Dieser Name ist bereits vergeben oder hier nicht erlaubt.

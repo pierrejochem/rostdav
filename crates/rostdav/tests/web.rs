@@ -2495,3 +2495,229 @@ async fn data_export_is_a_tar_of_own_files() {
     .await;
     assert_eq!(r.status, StatusCode::SEE_OTHER);
 }
+
+#[tokio::test]
+async fn german_interface_is_complete() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+
+    // default: English, html lang en
+    let html = get(&e, "/settings", &root).await.text();
+    assert!(html.contains("<html lang=\"en\"") && html.contains(">Sign out<"));
+    assert!(html.contains("<option value=\"auto\" selected>"));
+
+    // invalid values are refused, German is remembered per user
+    let r = post_form(
+        &e,
+        "/settings/profile",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("display_name", ""),
+            ("email", ""),
+            ("language", "klingon"),
+        ],
+    )
+    .await;
+    assert!(r.status.is_client_error());
+    let r = post_form(
+        &e,
+        "/settings/profile",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("display_name", ""),
+            ("email", ""),
+            ("language", "de"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+
+    // some content to render
+    post_form(
+        &e,
+        "/action/mkdir",
+        &root,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Docs")],
+    )
+    .await;
+    upload(
+        &e,
+        &root,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Docs"),
+            ("file", Some("a.txt"), "one"),
+        ],
+    )
+    .await;
+    upload(
+        &e,
+        &root,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Docs"),
+            ("file", Some("a.txt"), "two!"),
+        ],
+    )
+    .await;
+    let anna = e
+        .state
+        .authenticate("root", PW, "192.0.2.9".parse().expect("ip"))
+        .await
+        .expect("auth");
+    e.state
+        .share_create(
+            &anna,
+            rostdav_app::ShareCreate {
+                path: Some(rostdav_core::LogicalPath::from_url_path("Docs").expect("p")),
+                share_type: 3,
+                permissions: Some(1),
+                ..Default::default()
+            },
+        )
+        .await
+        .expect("share");
+    post_form(
+        &e,
+        "/action/delete",
+        &root,
+        &[("csrf", &csrf), ("path", "Docs/a.txt")],
+    )
+    .await;
+    e.state.device_create(&anna, "phone").await.expect("device");
+
+    let pages = [
+        "/files",
+        "/files/Docs",
+        "/files/Docs?sel=a.txt",
+        "/files?q=zzz",
+        "/trash",
+        "/trash/empty",
+        "/trash/delete?entry=x",
+        "/devices",
+        "/settings",
+        "/settings/password",
+        "/settings/password?done=1",
+        "/share?path=Docs",
+        "/versions?path=Docs",
+        "/admin/users",
+        "/admin/users?q=zzz",
+        "/admin/users/manage?name=anna",
+        "/admin/users/delete?name=anna",
+        "/admin/events",
+        "/admin/status",
+        "/admin/server",
+        "/action/delete?path=Docs",
+    ];
+    for u in pages {
+        let r = get(&e, u, &root).await;
+        assert!(
+            r.status.is_success() || r.status.is_client_error(),
+            "{u} {}",
+            r.status
+        );
+        assert!(r.text().contains("<html lang=\"de\""), "{u}");
+    }
+    // forms that answer with pages
+    post_form(
+        &e,
+        "/settings/password",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("current", "wrong-current-pw"),
+            ("new", "brand-new-password-42"),
+            ("again", "brand-new-password-42"),
+        ],
+    )
+    .await;
+    post_form(
+        &e,
+        "/settings/password",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("current", PW),
+            ("new", "brand-new-password-42"),
+            ("again", "different"),
+        ],
+    )
+    .await;
+    post_form(
+        &e,
+        "/devices/create",
+        &root,
+        &[("csrf", &csrf), ("name", "tablet")],
+    )
+    .await;
+    post_form(&e, "/admin/status/check", &root, &[("csrf", &csrf)]).await;
+    post_form(
+        &e,
+        "/action/mkdir",
+        &root,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Docs")],
+    )
+    .await; // conflict page
+    let html = get(&e, "/files", &root).await.text();
+    assert!(html.contains("Dateien") && html.contains(">Abmelden<") && html.contains("Heute, "));
+    assert!(
+        get(&e, "/admin/users", &root)
+            .await
+            .text()
+            .contains("Benutzer hinzufügen")
+    );
+
+    // public link and sign-in pages follow Accept-Language
+    let de = [("accept-language", "de-DE,de;q=0.9,en;q=0.5")];
+    let r = send(&e, "GET", "/login", &de, Body::empty()).await;
+    assert!(r.text().contains("<html lang=\"de\"") && r.text().contains("Benutzername"));
+    let r = send(&e, "GET", "/s/doesnotexist1", &de, Body::empty()).await;
+    assert!(r.text().contains("Link nicht gefunden"));
+    let r = send(
+        &e,
+        "GET",
+        "/login",
+        &[("accept-language", "fr")],
+        Body::empty(),
+    )
+    .await;
+    assert!(r.text().contains("<html lang=\"en\""));
+
+    // choosing "same as browser" falls back to Accept-Language
+    post_form(
+        &e,
+        "/settings/profile",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("display_name", ""),
+            ("email", ""),
+            ("language", "auto"),
+        ],
+    )
+    .await;
+    assert!(
+        get(&e, "/files", &root)
+            .await
+            .text()
+            .contains("<html lang=\"en\"")
+    );
+    let r = send(
+        &e,
+        "GET",
+        "/files",
+        &[("cookie", &root), ("accept-language", "de")],
+        Body::empty(),
+    )
+    .await;
+    assert!(r.text().contains("<html lang=\"de\""));
+
+    let missing = rostdav_web::missing_translations();
+    assert!(
+        missing.is_empty(),
+        "missing German translations: {missing:#?}"
+    );
+}

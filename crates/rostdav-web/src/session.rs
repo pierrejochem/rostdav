@@ -2,6 +2,7 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 
+use crate::i18n::Lang;
 use axum::extract::FromRequestParts;
 use axum::http::request::Parts;
 use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
@@ -89,6 +90,7 @@ pub struct Authed {
     /// Name shown in the page header: the display name, else the user name.
     pub display: String,
     pub theme: String,
+    pub lang: Lang,
     pub csrf: String,
 }
 
@@ -117,6 +119,17 @@ impl FromRequestParts<AppState> for Authed {
             Ok(p) if !p.display_name.is_empty() => p.display_name,
             _ => session.principal.name.clone(),
         };
+        let lang = match state
+            .pref(&session.principal, "language")
+            .await
+            .ok()
+            .flatten()
+            .as_deref()
+            .and_then(Lang::from_code)
+        {
+            Some(l) => l,
+            None => accept_lang(&parts.headers),
+        };
         let csrf = state.web_csrf(session.id);
         let storage = state
             .storage_summary(&session.principal)
@@ -124,6 +137,7 @@ impl FromRequestParts<AppState> for Authed {
             .unwrap_or((0, None));
         Ok(Self {
             display,
+            lang,
             storage,
             admin: session.principal.is_admin,
             session,
@@ -139,7 +153,17 @@ impl Authed {
             theme: &self.theme,
             admin: self.admin,
             name: &self.display,
+            lang: self.lang,
             storage: self.storage,
         }
     }
+}
+
+/// The language asked for by the browser (`Accept-Language`); English if none fits.
+pub fn accept_lang(headers: &HeaderMap) -> Lang {
+    headers
+        .get(header::ACCEPT_LANGUAGE)
+        .and_then(|v| v.to_str().ok())
+        .map(Lang::from_accept)
+        .unwrap_or_default()
 }

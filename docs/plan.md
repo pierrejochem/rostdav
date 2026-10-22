@@ -66,7 +66,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 | M8 ✅ | Versioning incl. versions DAV endpoint and restore (2026-10-22) | M5 |
 | M9 ✅ | Shares: users, then public links (OCS Sharing API, mount points) (2026-10-22, [ADR 0004](adr/0004-shares-and-permissions.md)) | M5 |
 | M10 ✅ | Trash (trashbin DAV endpoint) (2026-10-22, [ADR 0005](adr/0005-trash.md)) | M5 |
-| M11 | Web interface: files, devices, settings, administration, light/dark ([ADR 0006](adr/0006-web-interface.md)). **11a ✅** (sign-in, Files, Trash, Devices, Settings, public link page); **11b (share dialog, versions panel, details, folder filter, chunked browser upload) ✅**; **11c administration (users, event log, status/fsck, server settings) ✅**, 11d: profile, change password and data export ✅, languages open | M7–M10 |
+| M11 | Web interface: files, devices, settings, administration, light/dark ([ADR 0006](adr/0006-web-interface.md)). **11a ✅** (sign-in, Files, Trash, Devices, Settings, public link page); **11b (share dialog, versions panel, details, folder filter, chunked browser upload) ✅**; **11c administration (users, event log, status/fsck, server settings) ✅**, **11d: profile, change password, data export, languages (de/en) ✅** | M7–M10 |
 | M12 | Optional two-factor authentication | M11 |
 | M13 | Retention rules, data export | M8, M10 |
 

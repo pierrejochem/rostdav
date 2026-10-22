@@ -10,6 +10,7 @@ use rostdav_core::Error;
 use rostdav_meta::{NodeKind, ShareKind};
 use serde::Deserialize;
 
+use crate::i18n::{Lang, t, tf};
 use crate::layout::{self, enc, esc};
 use crate::pages::{date, error_response_to, human, parse_plain, plain};
 use crate::session::Authed;
@@ -39,12 +40,15 @@ fn share_error(a: &Authed, e: &rostdav_app::ShareError, back: &str) -> Response 
     )
 }
 
-fn perm_label(kind: NodeKind, link: bool, perms: u8) -> &'static str {
-    match (perms, kind, link) {
-        (4, _, _) => "Upload only",
-        (1, _, _) => "View only",
-        _ => "Can edit",
-    }
+fn perm_label(lang: Lang, perms: u8) -> String {
+    t(
+        lang,
+        match perms {
+            4 => "Upload only",
+            1 => "View only",
+            _ => "Can edit",
+        },
+    )
 }
 
 fn origin_of(headers: &axum::http::HeaderMap) -> String {
@@ -75,6 +79,7 @@ pub async fn share_page(
     Query(q): Query<PathQuery>,
 ) -> Response {
     let p = &a.session.principal;
+    let lang = a.lang;
     let path = match parse_plain(&q.path) {
         Ok(p) if !p.is_root() => p,
         Ok(_) => return error_response_to(&a, &Error::BadRequest("root"), "/files", "files"),
@@ -108,11 +113,12 @@ pub async fn share_page(
         let who = if link {
             let url = format!("{origin}/s/{}", s.share.token.as_deref().unwrap_or(""));
             format!(
-                "Link{}<br><code>{}</code>",
+                "{}{}<br><code>{}</code>",
+                esc(&t(lang, "Link")),
                 if s.share.password_hash.is_some() {
-                    " (password)"
+                    esc(&t(lang, " (password)"))
                 } else {
-                    ""
+                    String::new()
                 },
                 esc(&url)
             )
@@ -123,41 +129,63 @@ pub async fn share_page(
             "<tr><td>{who}</td><td>{}</td><td class=\"hide\">{}</td><td class=\"num\">\
              <form class=\"inline\" method=\"post\" action=\"/share/delete\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
              <input type=\"hidden\" name=\"path\" value=\"{plain_path}\"><input type=\"hidden\" name=\"id\" value=\"{}\">\
-             <button class=\"danger\" type=\"submit\">Stop sharing</button></form></td></tr>",
-            perm_label(node.kind, link, s.share.permissions),
-            s.share.expires_at.map_or_else(|| "never".to_owned(), date),
-            s.share.id
+             <button class=\"danger\" type=\"submit\">{}</button></form></td></tr>",
+            esc(&perm_label(lang, s.share.permissions)),
+            s.share.expires_at.map_or_else(|| t(lang, "never"), date),
+            s.share.id,
+            esc(&t(lang, "Stop sharing"))
         ));
     }
     let list = if shares.is_empty() {
-        "<div class=\"empty\">Not shared yet.</div>".to_owned()
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(lang, "Not shared yet."))
+        )
     } else {
         format!(
-            "<table><thead><tr><th>Shared with</th><th>Access</th><th class=\"hide\">Expires</th><th></th></tr></thead><tbody>{rows}</tbody></table>"
+            "<table><thead><tr><th>{}</th><th>{}</th><th class=\"hide\">{}</th><th></th></tr></thead><tbody>{rows}</tbody></table>",
+            esc(&t(lang, "Shared with")),
+            esc(&t(lang, "Access")),
+            esc(&t(lang, "Expires"))
         )
     };
     let edit = if is_dir { 15 } else { 3 };
     let upload_opt = if is_dir {
-        "<option value=\"4\">Upload only</option>"
+        format!(
+            "<option value=\"4\">{}</option>",
+            esc(&t(lang, "Upload only"))
+        )
     } else {
-        ""
+        String::new()
     };
+    let view_only = esc(&t(lang, "View only"));
+    let can_edit = esc(&t(lang, "Can edit"));
     let body = format!(
-        "<h1>Share “{}”</h1><div class=\"crumbs\"><a href=\"/files\">Back to files</a></div>{list}\
-         <h2>Share with a user</h2>\
+        "<h1>{}</h1><div class=\"crumbs\"><a href=\"/files\">{}</a></div>{list}\
+         <h2>{}</h2>\
          <form class=\"inline\" method=\"post\" action=\"/share/user\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
          <input type=\"hidden\" name=\"path\" value=\"{plain_path}\">\
-         <label>User name<input type=\"text\" name=\"user\" required></label>\
-         <label>Access<select name=\"perms\"><option value=\"1\">View only</option><option value=\"{edit}\">Can edit</option></select></label>\
-         <button class=\"primary\" type=\"submit\">Share</button></form>\
-         <h2>Create a public link</h2>\
+         <label>{}<input type=\"text\" name=\"user\" required></label>\
+         <label>{}<select name=\"perms\"><option value=\"1\">{view_only}</option><option value=\"{edit}\">{can_edit}</option></select></label>\
+         <button class=\"primary\" type=\"submit\">{}</button></form>\
+         <h2>{}</h2>\
          <form class=\"inline\" method=\"post\" action=\"/share/link\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
          <input type=\"hidden\" name=\"path\" value=\"{plain_path}\">\
-         <label>Access<select name=\"perms\"><option value=\"1\">View only</option><option value=\"{edit}\">Can edit</option>{upload_opt}</select></label>\
-         <label>Password (optional)<input type=\"password\" name=\"password\" autocomplete=\"new-password\"></label>\
-         <label>Expires (YYYY-MM-DD, optional)<input type=\"text\" name=\"expire\" placeholder=\"2027-01-31\"></label>\
-         <button class=\"primary\" type=\"submit\">Create link</button></form>",
-        esc(node.name.as_str()),
+         <label>{}<select name=\"perms\"><option value=\"1\">{view_only}</option><option value=\"{edit}\">{can_edit}</option>{upload_opt}</select></label>\
+         <label>{}<input type=\"password\" name=\"password\" autocomplete=\"new-password\"></label>\
+         <label>{}<input type=\"text\" name=\"expire\" placeholder=\"2027-01-31\"></label>\
+         <button class=\"primary\" type=\"submit\">{}</button></form>",
+        esc(&tf(lang, "Share “{0}”", &[node.name.as_str()])),
+        esc(&t(lang, "Back to files")),
+        esc(&t(lang, "Share with a user")),
+        esc(&t(lang, "User name")),
+        esc(&t(lang, "Access")),
+        esc(&t(lang, "Share")),
+        esc(&t(lang, "Create a public link")),
+        esc(&t(lang, "Access")),
+        esc(&t(lang, "Password (optional)")),
+        esc(&t(lang, "Expires (YYYY-MM-DD, optional)")),
+        esc(&t(lang, "Create link")),
     );
     layout::app(
         StatusCode::OK,
@@ -269,6 +297,7 @@ pub async fn versions_page(
     Query(q): Query<PathQuery>,
 ) -> Response {
     let p = &a.session.principal;
+    let lang = a.lang;
     let path = match parse_plain(&q.path) {
         Ok(p) if !p.is_root() => p,
         Ok(_) => return error_response_to(&a, &Error::BadRequest("root"), "/files", "files"),
@@ -288,16 +317,18 @@ pub async fn versions_page(
     let mut rows = String::new();
     for e in listing.entries.iter().rev() {
         let actions = if e.live {
-            "<span class=\"muted\">Current</span>".to_owned()
+            format!("<span class=\"muted\">{}</span>", esc(&t(lang, "Current")))
         } else {
             format!(
                 "<form class=\"inline\" method=\"post\" action=\"/versions/restore\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
                  <input type=\"hidden\" name=\"path\" value=\"{plain_path}\"><input type=\"hidden\" name=\"time\" value=\"{t}\">\
-                 <button type=\"submit\">Restore</button></form>\
+                 <button type=\"submit\">{r}</button></form>\
                  <form class=\"inline\" method=\"post\" action=\"/versions/delete\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
                  <input type=\"hidden\" name=\"path\" value=\"{plain_path}\"><input type=\"hidden\" name=\"time\" value=\"{t}\">\
-                 <button class=\"danger\" type=\"submit\">Delete</button></form>",
-                t = e.version_time
+                 <button class=\"danger\" type=\"submit\">{d}</button></form>",
+                t = e.version_time,
+                r = esc(&t(lang, "Restore")),
+                d = esc(&t(lang, "Delete"))
             )
         };
         rows.push_str(&format!(
@@ -309,14 +340,22 @@ pub async fn versions_page(
     }
     let body = if state.versioning_enabled() || listing.entries.len() > 1 {
         format!(
-            "<h1>Versions of “{}”</h1><div class=\"crumbs\"><a href=\"/files\">Back to files</a></div>\
-             <p class=\"muted\">Older versions count toward your storage.</p>\
-             <table><thead><tr><th>Saved</th><th class=\"num\">Size</th><th class=\"hide\">By</th><th></th></tr></thead><tbody>{rows}</tbody></table>",
-            esc(node.name.as_str())
+            "<h1>{}</h1><div class=\"crumbs\"><a href=\"/files\">{}</a></div>\
+             <p class=\"muted\">{}</p>\
+             <table><thead><tr><th>{}</th><th class=\"num\">{}</th><th class=\"hide\">{}</th><th></th></tr></thead><tbody>{rows}</tbody></table>",
+            esc(&tf(lang, "Versions of “{0}”", &[node.name.as_str()])),
+            esc(&t(lang, "Back to files")),
+            esc(&t(lang, "Older versions count toward your storage.")),
+            esc(&t(lang, "Saved")),
+            esc(&t(lang, "Size")),
+            esc(&t(lang, "By"))
         )
     } else {
-        "<h1>Versions</h1><div class=\"empty\">Versioning is turned off on this server.</div>"
-            .to_owned()
+        format!(
+            "<h1>{}</h1><div class=\"empty\">{}</div>",
+            esc(&t(lang, "Versions")),
+            esc(&t(lang, "Versioning is turned off on this server."))
+        )
     };
     layout::app(
         StatusCode::OK,

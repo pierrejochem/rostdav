@@ -58,9 +58,19 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 - Downloads are always `attachment` with `nosniff` and `sandbox`.
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
-Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Pages follow the design: Files, Devices & security (without 2FA), Settings (appearance, WebDAV address, storage; no language or file options yet), Administration (users, event log, status, server; no security/compatibility tabs). Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
+Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Pages follow the design: Files, Devices & security (without 2FA), Settings (appearance, WebDAV address, storage; no file options yet), Administration (users, event log, status, server; no security/compatibility tabs). Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
 
 Checks done on every page (14 pages × 360/768/1440 px × light/dark, Playwright + axe-core 4.10, tags wcag2a/aa, wcag21a/aa, wcag22aa, best-practice): no horizontal page overflow, no axe violations. Tables scroll inside a focusable region on small screens; password fields get a show/hide button (`/static/password.js`, `aria-pressed`, field name kept stable); sign-in pages have a `main` landmark. Not covered by automated checks: screen-reader announcements and keyboard order were not tried by hand.
+
+## Languages
+
+English and German. The language comes from the user's setting (Settings › Profile › Language: Same as browser, English, Deutsch); "Same as browser" and the pages without a signed-in user (sign-in, Login Flow, public links) follow the `Accept-Language` header and fall back to English.
+
+- Texts are written in English in the code and looked up with `t(lang, "English text")` / `tf(lang, "… {0} …", &[arg])` (`crates/rostdav-web/src/i18n.rs`). The German version lives in `crates/rostdav-web/i18n/de.tsv` (`English<TAB>Deutsch`). A missing entry falls back to English.
+- Adding a language: add a variant to `Lang`, a table next to `de.tsv`, and the language to the allowed values of the `language` preference (`crates/rostdav-app/src/web.rs`).
+- `german_interface_is_complete` (`crates/rostdav/tests/web.rs`) renders every page in German and fails if any text has no translation; the dictionary test checks keys and placeholders.
+- Not translated: messages that come from the server core (for example share error texts from the OCS layer), event-log action names, and technical values on the administration Server page.
+- The scripts (`upload.js`, `password.js`, `copy.js`) carry their own small German tables and read the page language from `<html lang>`.
 
 Development with live reload: `docker compose -f compose.dev.yaml up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
 

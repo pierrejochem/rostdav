@@ -57,7 +57,10 @@ pub struct UsageOverview {
 }
 
 /// Preference keys the interface may set, with their allowed values.
-const PREFS: &[(&str, &[&str])] = &[("theme", &["system", "light", "dark"])];
+const PREFS: &[(&str, &[&str])] = &[
+    ("theme", &["system", "light", "dark"]),
+    ("language", &["auto", "en", "de"]),
+];
 
 impl AppState {
     // ---- sessions ----------------------------------------------------------------

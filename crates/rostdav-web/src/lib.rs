@@ -4,6 +4,7 @@
 
 mod admin;
 mod filespage;
+mod i18n;
 mod layout;
 mod links;
 mod login_page;
@@ -18,6 +19,9 @@ use axum::Router;
 use axum::extract::DefaultBodyLimit;
 use axum::routing::{get, post, put};
 use rostdav_app::AppState;
+
+/// English texts that were requested in German without a translation (for tests).
+pub use i18n::missing as missing_translations;
 
 /// Routes of this layer.
 pub fn router() -> Router<AppState> {

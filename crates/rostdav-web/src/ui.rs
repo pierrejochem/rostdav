@@ -4,21 +4,25 @@ use axum::http::StatusCode;
 use axum::response::Response;
 use rostdav_core::time::rfc3339;
 
+use crate::i18n::{Lang, t, tf};
 use crate::layout::{self, Opts, esc};
 use crate::session::Authed;
 
-const MONTHS: [&str; 12] = [
+const MONTHS_EN: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
+const MONTHS_DE: [&str; 12] = [
+    "Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez",
+];
 
-/// "Today, 09:41", "Yesterday", "Oct 12" (UTC).
-pub fn friendly(secs: i64) -> String {
+/// "Today, 09:41", "Yesterday", "Oct 12" / "12. Okt" (UTC).
+pub fn friendly(lang: Lang, secs: i64) -> String {
     let now = rostdav_app::now_secs();
     let (d, n, y) = (rfc3339(secs), rfc3339(now), rfc3339(now - 86_400));
     if d[..10] == n[..10] {
-        format!("Today, {}", &d[11..16])
+        tf(lang, "Today, {0}", &[&d[11..16]])
     } else if d[..10] == y[..10] {
-        "Yesterday".to_owned()
+        t(lang, "Yesterday")
     } else {
         let m: usize = d[5..7].parse().unwrap_or(1);
         let day: u32 = d[8..10].parse().unwrap_or(1);
@@ -27,12 +31,15 @@ pub fn friendly(secs: i64) -> String {
         } else {
             format!(" {}", &d[..4])
         };
-        format!("{} {day}{year}", MONTHS[m.clamp(1, 12) - 1])
+        match lang {
+            Lang::En => format!("{} {day}{year}", MONTHS_EN[m.clamp(1, 12) - 1]),
+            Lang::De => format!("{day}. {}{year}", MONTHS_DE[m.clamp(1, 12) - 1]),
+        }
     }
 }
 
 /// "Firefox on Linux" from a user agent; "Browser" if nothing is recognised.
-pub fn ua_summary(ua: &str) -> String {
+pub fn ua_summary(lang: Lang, ua: &str) -> String {
     let browser = ["Edg/", "OPR/", "Firefox/", "Chrome/", "Safari/"]
         .iter()
         .zip(["Edge", "Opera", "Firefox", "Chrome", "Safari"])
@@ -50,24 +57,32 @@ pub fn ua_summary(ua: &str) -> String {
     .find(|(m, _)| ua.contains(m))
     .map(|(_, n)| *n);
     match (browser, os) {
-        (Some(b), Some(o)) => format!("{b} on {o}"),
+        (Some(b), Some(o)) => tf(lang, "{0} on {1}", &[b, o]),
         (Some(b), None) => b.to_owned(),
-        (None, Some(o)) => format!("Browser on {o}"),
-        _ => "Browser".to_owned(),
+        (None, Some(o)) => tf(lang, "Browser on {0}", &[o]),
+        _ => t(lang, "Browser"),
     }
 }
 
 /// Title and one line of explanation above the cards; `aside` sits at the right.
-pub fn page_head(title: &str, lede: &str, aside: &str) -> String {
+pub fn page_head(lang: Lang, title: &str, lede: &str, aside: &str) -> String {
     format!(
         "<header class=\"pagehead\"><div><h1>{}</h1><p class=\"lede\">{}</p></div>{aside}</header>",
-        esc(title),
-        esc(lede)
+        esc(&t(lang, title)),
+        esc(&t(lang, lede))
     )
 }
 
 /// A glass card with a heading, an optional chip at the right and the content.
-pub fn card(heading: &str, chip: &str, inner: &str) -> String {
+pub fn card(lang: Lang, heading: &str, chip: &str, inner: &str) -> String {
+    format!(
+        "<section class=\"card2\"><div class=\"card2-head\"><h2>{}</h2>{chip}</div>{inner}</section>",
+        esc(&t(lang, heading))
+    )
+}
+
+/// Like [`card`] for a heading that is already translated text (for example a count).
+pub fn card_text(heading: &str, chip: &str, inner: &str) -> String {
     format!(
         "<section class=\"card2\"><div class=\"card2-head\"><h2>{}</h2>{chip}</div>{inner}</section>",
         esc(heading)
