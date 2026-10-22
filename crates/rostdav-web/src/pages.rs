@@ -22,7 +22,7 @@ fn message(a: &Authed, status: StatusCode, title: &str, text: &str, back: &str) 
     message_in(a, status, title, text, back, "files")
 }
 
-fn message_in(
+pub fn message_in(
     a: &Authed,
     status: StatusCode,
     title: &str,
@@ -264,15 +264,42 @@ pub async fn root() -> Redirect {
 
 // ---- files ------------------------------------------------------------------------------
 
-pub async fn files_root(state: State<AppState>, a: Authed) -> Response {
-    browse(state, a, String::new()).await
+#[derive(Deserialize, Default)]
+pub struct FilesQuery {
+    /// Name filter for the current folder.
+    #[serde(default)]
+    q: String,
 }
 
-pub async fn files_path(state: State<AppState>, a: Authed, Path(path): Path<String>) -> Response {
-    browse(state, a, path).await
+pub async fn files_root(
+    state: State<AppState>,
+    a: Authed,
+    Query(q): Query<FilesQuery>,
+) -> Response {
+    browse(state, a, String::new(), q.q).await
 }
 
-async fn browse(State(state): State<AppState>, a: Authed, raw: String) -> Response {
+pub async fn files_path(
+    state: State<AppState>,
+    a: Authed,
+    Path(path): Path<String>,
+    Query(q): Query<FilesQuery>,
+) -> Response {
+    browse(state, a, path, q.q).await
+}
+
+struct Row {
+    name: String,
+    kind: NodeKind,
+    size: i64,
+    mtime: i64,
+    id: i64,
+    etag: String,
+    /// Not a received share: can be shared on.
+    own: bool,
+}
+
+async fn browse(State(state): State<AppState>, a: Authed, raw: String, filter: String) -> Response {
     let p = &a.session.principal;
     let path = match LogicalPath::from_url_path(&raw) {
         Ok(path) => path,
@@ -293,53 +320,87 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String) -> Respon
         ));
     }
 
-    // (name, kind, size, mtime)
-    let mut rows: Vec<(String, NodeKind, i64, i64)> = list
+    let mut rows: Vec<Row> = list
         .children
         .iter()
-        .map(|n| (n.name.clone(), n.kind, n.size, n.mtime))
+        .map(|n| Row {
+            name: n.name.clone(),
+            kind: n.kind,
+            size: n.size,
+            mtime: n.mtime,
+            id: n.id,
+            etag: n.etag.clone(),
+            own: list.access.origin == rostdav_app::Origin::Own,
+        })
         .collect();
-    rows.extend(
-        list.mounts
-            .iter()
-            .map(|m| (m.name.clone(), m.node.kind, m.node.size, m.node.mtime)),
-    );
+    rows.extend(list.mounts.iter().map(|m| Row {
+        name: m.name.clone(),
+        kind: m.node.kind,
+        size: m.node.size,
+        mtime: m.node.mtime,
+        id: m.node.id,
+        etag: m.node.etag.clone(),
+        own: false,
+    }));
+    let needle = filter.trim().to_lowercase();
+    if !needle.is_empty() {
+        rows.retain(|r| r.name.to_lowercase().contains(&needle));
+    }
     rows.sort_by(|x, y| {
-        (x.1 == NodeKind::File, x.0.to_lowercase())
-            .cmp(&(y.1 == NodeKind::File, y.0.to_lowercase()))
+        (x.kind == NodeKind::File, x.name.to_lowercase())
+            .cmp(&(y.kind == NodeKind::File, y.name.to_lowercase()))
     });
 
     let mut table = String::new();
-    for (name, kind, size, mtime) in &rows {
-        let Ok(n) = Name::parse(name) else { continue };
-        let child = path.join(&n);
-        let (link, size_txt) = match kind {
-            NodeKind::Dir => (url_of("/files", &child), String::new()),
-            NodeKind::File => (url_of("/download", &child), human(*size)),
+    for r in &rows {
+        let Ok(n) = Name::parse(&r.name) else {
+            continue;
         };
+        let child = path.join(&n);
+        let (link, size_txt) = match r.kind {
+            NodeKind::Dir => (url_of("/files", &child), String::new()),
+            NodeKind::File => (url_of("/download", &child), human(r.size)),
+        };
+        let q = esc(&enc(&plain(&child)));
+        let mut actions = String::new();
+        if r.own {
+            actions.push_str(&format!(
+                "<a class=\"button\" href=\"/share?path={q}\">Share</a> "
+            ));
+        }
+        if r.kind == NodeKind::File {
+            actions.push_str(&format!(
+                "<a class=\"button\" href=\"/versions?path={q}\">Versions</a> "
+            ));
+        }
         table.push_str(&format!(
             "<tr><td><a href=\"{}\">{}{}</a></td><td class=\"num\">{}</td><td class=\"hide\">{}</td>\
-             <td class=\"num\"><a class=\"button\" href=\"/action/delete?path={}\">Delete</a></td></tr>",
+             <td class=\"hide\"><code>{}</code> <span class=\"muted\">{}</span></td>\
+             <td class=\"num\">{actions}<a class=\"button\" href=\"/action/delete?path={q}\">Delete</a></td></tr>",
             esc(&link),
-            esc(name),
-            if *kind == NodeKind::Dir { "/" } else { "" },
+            esc(&r.name),
+            if r.kind == NodeKind::Dir { "/" } else { "" },
             size_txt,
-            date(*mtime),
-            esc(&enc(&plain(&child))),
+            date(r.mtime),
+            r.id,
+            esc(r.etag.trim_matches('"')),
         ));
     }
     let listing = if rows.is_empty() {
         "<div class=\"empty\">This folder is empty.</div>".to_owned()
     } else {
         format!(
-            "<table><thead><tr><th>Name</th><th class=\"num\">Size</th><th class=\"hide\">Modified</th><th></th></tr></thead><tbody>{table}</tbody></table>"
+            "<table><thead><tr><th>Name</th><th class=\"num\">Size</th><th class=\"hide\">Modified</th><th class=\"hide\">ID · ETag</th><th></th></tr></thead><tbody>{table}</tbody></table>"
         )
     };
     let dir = esc(&plain(&path));
     let csrf = esc(&a.csrf);
+    let q = esc(&filter);
     let body = format!(
         "<h1>Files</h1><div class=\"crumbs\">{crumbs}</div>\
          <div class=\"actions\">\
+         <form class=\"inline\" method=\"get\" action=\"\"><input type=\"text\" name=\"q\" value=\"{q}\" placeholder=\"Filter this folder\" aria-label=\"Filter\">\
+         <button type=\"submit\">Filter</button></form>\
          <form class=\"inline\" method=\"post\" action=\"/action/mkdir\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
          <input type=\"hidden\" name=\"dir\" value=\"{dir}\"><input type=\"text\" name=\"name\" placeholder=\"New folder\" aria-label=\"Folder name\" required>\
          <button type=\"submit\">Create folder</button></form>\

@@ -8,6 +8,7 @@ mod login_page;
 mod pages;
 mod pages_more;
 mod session;
+mod sharing;
 
 use axum::Router;
 use axum::routing::{get, post};
@@ -43,6 +44,13 @@ pub fn router() -> Router<AppState> {
         .route("/s/{token}/unlock", post(links::unlock))
         .route("/s/{token}/dl", get(links::download))
         .route("/s/{token}/upload", post(links::upload))
+        .route("/share", get(sharing::share_page))
+        .route("/share/user", post(sharing::share_user))
+        .route("/share/link", post(sharing::share_link))
+        .route("/share/delete", post(sharing::share_delete))
+        .route("/versions", get(sharing::versions_page))
+        .route("/versions/restore", post(sharing::version_restore))
+        .route("/versions/delete", post(sharing::version_delete))
         .route("/settings", get(pages_more::settings))
         .route("/settings/theme", post(pages_more::set_theme))
         .route("/devices", get(pages_more::devices))

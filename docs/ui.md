@@ -37,6 +37,9 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/devices`, `/devices/{create,revoke,sign-out-others}` | App passwords (shown once), browser sessions |
 | `/settings`, `POST /settings/theme` | Theme (system/light/dark), WebDAV address, storage overview |
 | `/s/<token>`, `/s/<token>/{unlock,dl,upload}` | Public link page: list, download, password form, upload |
+| `/share?path=`, `/share/{user,link,delete}` | Sharing dialog: share with a user, create/stop public links (password, expiry, view/edit/upload-only) |
+| `/versions?path=`, `/versions/{restore,delete}` | Versions panel of a file |
+| `/files?q=` | Name filter of the current folder; the list also shows file ID and ETag |
 | `/login/v2/flow/<token>` | Connect device (Login Flow v2) |
 | `/static/{app,login}.css` | Embedded stylesheets |
 
@@ -50,7 +53,7 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 - Downloads are always `attachment` with `nosniff` and `sandbox`.
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
-Not yet: Settings for language/profile, share dialog, version panel, chunked browser upload, administration pages, second factor (slices 11b–11d, M12).
+Not yet: language/profile settings, recursive search, chunked browser upload (needs a script; the CSP will get `script-src 'self'` then), administration pages, second factor (slices 11b–11d, M12).
 
 Development with live reload: `docker compose -f compose.dev.yaml up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
 

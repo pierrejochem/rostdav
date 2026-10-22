@@ -1157,3 +1157,309 @@ async fn public_link_upload_rules() {
     .await;
     assert_eq!(d.status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn share_dialog_user_and_link() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let cb = login(&e, "bob").await;
+    let csrf = page_csrf(&e, &ca).await;
+    post_form(
+        &e,
+        "/action/mkdir",
+        &ca,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Team")],
+    )
+    .await;
+    upload(
+        &e,
+        &ca,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, "Team"),
+            ("file", Some("n.txt"), "notes"),
+        ],
+    )
+    .await;
+
+    assert!(
+        get(&e, "/share?path=Team", &ca)
+            .await
+            .text()
+            .contains("Not shared yet.")
+    );
+    assert!(
+        get(&e, "/files", &ca)
+            .await
+            .text()
+            .contains("/share?path=Team")
+    );
+
+    // csrf, unknown user
+    let r = post_form(
+        &e,
+        "/share/user",
+        &ca,
+        &[
+            ("csrf", "forged"),
+            ("path", "Team"),
+            ("user", "bob"),
+            ("perms", "1"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        "/share/user",
+        &ca,
+        &[
+            ("csrf", &csrf),
+            ("path", "Team"),
+            ("user", "nobody"),
+            ("perms", "1"),
+        ],
+    )
+    .await;
+    assert!(r.status.is_client_error(), "{}", r.status);
+
+    let r = post_form(
+        &e,
+        "/share/user",
+        &ca,
+        &[
+            ("csrf", &csrf),
+            ("path", "Team"),
+            ("user", "bob"),
+            ("perms", "1"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let page = get(&e, "/share?path=Team", &ca).await.text();
+    assert!(page.contains("bob") && page.contains("View only"));
+    // bob sees a read-only mount and has no Share button for it
+    let fb = get(&e, "/files", &cb).await.text();
+    assert!(fb.contains("Team/"));
+    assert!(!fb.contains("/share?path=Team"));
+    assert_eq!(
+        get(&e, "/download/Team/n.txt", &cb).await.status,
+        StatusCode::OK
+    );
+    let csrf_b = page_csrf(&e, &cb).await;
+    let r = upload(
+        &e,
+        &cb,
+        &[
+            ("csrf", None, &csrf_b),
+            ("dir", None, "Team"),
+            ("file", Some("x.txt"), "x"),
+        ],
+    )
+    .await;
+    assert_ne!(r.status, StatusCode::SEE_OTHER);
+    // bob cannot manage anna's shares
+    let r = get(&e, "/share?path=Team", &cb).await;
+    assert!(r.status.is_client_error());
+
+    // link with password and expiry
+    let r = post_form(
+        &e,
+        "/share/link",
+        &ca,
+        &[
+            ("csrf", &csrf),
+            ("path", "Team"),
+            ("perms", "1"),
+            ("password", "open-sesame-please"),
+            ("expire", "2999-01-01"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let page = get(&e, "/share?path=Team", &ca).await.text();
+    assert!(page.contains("(password)") && page.contains("http://files.test/s/"));
+    let i = page.find("http://files.test/s/").expect("url") + 20;
+    let token = page[i..].split('<').next().expect("t").to_owned();
+    assert!(
+        send(&e, "GET", &format!("/s/{token}"), &[], Body::empty())
+            .await
+            .text()
+            .contains("Password required")
+    );
+    // bad expiry date
+    let r = post_form(
+        &e,
+        "/share/link",
+        &ca,
+        &[
+            ("csrf", &csrf),
+            ("path", "Team"),
+            ("perms", "1"),
+            ("password", ""),
+            ("expire", "yesterday"),
+        ],
+    )
+    .await;
+    assert!(r.status.is_client_error());
+
+    // stop sharing
+    let page = get(&e, "/share?path=Team", &ca).await.text();
+    let ids: Vec<String> = page
+        .split("name=\"id\" value=\"")
+        .skip(1)
+        .map(|s| s.split('"').next().expect("id").to_owned())
+        .collect();
+    assert_eq!(ids.len(), 2);
+    for id in &ids {
+        let r = post_form(
+            &e,
+            "/share/delete",
+            &ca,
+            &[("csrf", &csrf), ("path", "Team"), ("id", id)],
+        )
+        .await;
+        assert_eq!(r.status, StatusCode::SEE_OTHER);
+    }
+    assert!(
+        get(&e, "/share?path=Team", &ca)
+            .await
+            .text()
+            .contains("Not shared yet.")
+    );
+    assert_eq!(
+        get(&e, "/download/Team/n.txt", &cb).await.status,
+        StatusCode::NOT_FOUND
+    );
+    // another user's share id cannot be removed
+    let r = post_form(
+        &e,
+        "/share/delete",
+        &cb,
+        &[("csrf", &csrf_b), ("path", "Team"), ("id", &ids[0])],
+    )
+    .await;
+    assert_ne!(r.status, StatusCode::SEE_OTHER);
+}
+
+#[tokio::test]
+async fn versions_panel_restore_and_delete() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    for body in ["one", "second!", "third!!!"] {
+        upload(
+            &e,
+            &c,
+            &[
+                ("csrf", None, &csrf),
+                ("dir", None, ""),
+                ("file", Some("doc.txt"), body),
+            ],
+        )
+        .await;
+        // distinct mtimes: versions are named by the time of the archived content
+        tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    }
+    let page = get(&e, "/versions?path=doc.txt", &c).await;
+    assert_eq!(page.status, StatusCode::OK, "{}", page.text());
+    let html = page.text();
+    assert!(html.contains("Current"));
+    let times: Vec<String> = html
+        .split("name=\"time\" value=\"")
+        .skip(1)
+        .step_by(2)
+        .map(|s| s.split('"').next().expect("t").to_owned())
+        .collect();
+    assert_eq!(times.len(), 2, "{html}");
+
+    // csrf
+    let r = post_form(
+        &e,
+        "/versions/restore",
+        &c,
+        &[("csrf", "forged"), ("path", "doc.txt"), ("time", &times[0])],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    // restore the oldest version
+    let oldest = times
+        .iter()
+        .min_by_key(|t| t.parse::<i64>().unwrap_or(0))
+        .expect("t");
+    let r = post_form(
+        &e,
+        "/versions/restore",
+        &c,
+        &[("csrf", &csrf), ("path", "doc.txt"), ("time", oldest)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert_eq!(get(&e, "/download/doc.txt", &c).await.body, b"one");
+    // delete an archived version
+    let html = get(&e, "/versions?path=doc.txt", &c).await.text();
+    let t = html
+        .split("name=\"time\" value=\"")
+        .nth(1)
+        .expect("t")
+        .split('"')
+        .next()
+        .expect("v")
+        .to_owned();
+    let r = post_form(
+        &e,
+        "/versions/delete",
+        &c,
+        &[("csrf", &csrf), ("path", "doc.txt"), ("time", &t)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+
+    // others cannot see them; folders have none
+    let cb = login(&e, "bob").await;
+    assert!(
+        get(&e, "/versions?path=doc.txt", &cb)
+            .await
+            .status
+            .is_client_error()
+    );
+    post_form(
+        &e,
+        "/action/mkdir",
+        &c,
+        &[("csrf", &csrf), ("dir", ""), ("name", "D")],
+    )
+    .await;
+    assert!(
+        get(&e, "/versions?path=D", &c)
+            .await
+            .status
+            .is_client_error()
+    );
+}
+
+#[tokio::test]
+async fn files_filter_and_details() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    for n in ["Report.txt", "photo.jpg"] {
+        upload(
+            &e,
+            &c,
+            &[
+                ("csrf", None, &csrf),
+                ("dir", None, ""),
+                ("file", Some(n), "x"),
+            ],
+        )
+        .await;
+    }
+    let html = get(&e, "/files", &c).await.text();
+    assert!(html.contains("Report.txt") && html.contains("photo.jpg"));
+    assert!(html.contains("ID · ETag"));
+    let html = get(&e, "/files?q=REPORT", &c).await.text();
+    assert!(html.contains("Report.txt") && !html.contains("photo.jpg"));
+    let html = get(&e, "/files?q=%3Cscript%3E", &c).await.text();
+    assert!(!html.contains("<script>") && html.contains("&lt;script&gt;"));
+}
