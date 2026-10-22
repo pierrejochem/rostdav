@@ -2,3 +2,6 @@ target
 data
 .git
 graphify-out
+design
+docs
+tests/fixtures

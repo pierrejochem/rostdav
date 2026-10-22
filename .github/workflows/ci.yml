@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: "17 3 * * 1"
 
 permissions:
   contents: read
@@ -52,3 +54,29 @@ jobs:
         run: cargo build
       - name: litmus (basic, copymove)
         run: scripts/litmus.sh ./target/debug/rostdav
+
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build the image
+        run: docker build -t rostdav:ci .
+      - name: Start it and check health, user and data directory mode
+        run: |
+          docker run -d --name rd -p 127.0.0.1:18080:8080 rostdav:ci
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:18080/readyz && break; sleep 1; done
+          curl -sf http://127.0.0.1:18080/readyz
+          test "$(docker exec rd id -u)" = 10001
+          test "$(docker exec rd stat -c %a /data)" = 700
+          docker exec rd rostdav healthcheck
+
+  load:
+    # load tests are slow and meant for a look at numbers and for deadlocks: weekly, not on every push
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --release -p rostdav --test load -- --ignored --nocapture --test-threads=1

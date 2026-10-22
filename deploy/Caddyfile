@@ -1,0 +1,21 @@
+{$ROSTDAV_DOMAIN:localhost} {
+	encode zstd gzip
+
+	# Large uploads: no body limit, generous timeouts. Rostdav enforces its own limits.
+	request_body {
+		max_size 0
+	}
+
+	reverse_proxy rostdav:8080 {
+		# Caddy sets X-Forwarded-For/-Proto/-Host itself.
+		flush_interval -1
+		transport http {
+			read_timeout 0
+			write_timeout 0
+		}
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+	}
+}
