@@ -72,7 +72,7 @@ English and German. The language comes from the user's setting (Settings › Pro
 - Not translated: messages that come from the server core (for example share error texts from the OCS layer), event-log action names, and technical values on the administration Server page.
 - The scripts (`upload.js`, `password.js`, `copy.js`) carry their own small German tables and read the page language from `<html lang>`.
 
-Development with live reload: `docker compose -f compose.dev.yaml up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
+Development with live reload: `docker compose up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
 
 ## Design-Tokens
 

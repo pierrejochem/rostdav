@@ -303,7 +303,22 @@ pub fn app_opts(
     )
 }
 
-pub async fn static_file(axum::extract::Path(name): axum::extract::Path<String>) -> Response {
+/// Content hash used as ETag (FNV-1a, 64 bit): enough to tell versions of an asset apart.
+fn etag_of(body: &str) -> String {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for b in body.bytes() {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0100_0000_01b3);
+    }
+    format!("\"{h:016x}\"")
+}
+
+/// Static assets are revalidated on every load (`no-cache` + ETag): a new build shows
+/// up at once, and an unchanged asset costs only a 304.
+pub async fn static_file(
+    axum::extract::Path(name): axum::extract::Path<String>,
+    headers: axum::http::HeaderMap,
+) -> Response {
     let favicon = LOGO.replacen("<svg ", "<svg xmlns=\"http://www.w3.org/2000/svg\" ", 1);
     let (body, mime) = match name.as_str() {
         "app.css" => (APP_CSS, "text/css; charset=utf-8"),
@@ -313,13 +328,24 @@ pub async fn static_file(axum::extract::Path(name): axum::extract::Path<String>)
         "password.js" => (PASSWORD_JS, "text/javascript; charset=utf-8"),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
-    let mut r = body.to_owned().into_response();
+    let etag = etag_of(body);
+    let unchanged = headers
+        .get(header::IF_NONE_MATCH)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v.split(',').any(|t| t.trim() == etag));
+    let mut r = if unchanged {
+        StatusCode::NOT_MODIFIED.into_response()
+    } else {
+        body.to_owned().into_response()
+    };
     let h = r.headers_mut();
-    h.insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
-    h.insert(
-        header::CACHE_CONTROL,
-        HeaderValue::from_static("public, max-age=3600"),
-    );
+    if !unchanged {
+        h.insert(header::CONTENT_TYPE, HeaderValue::from_static(mime));
+    }
+    if let Ok(v) = HeaderValue::from_str(&etag) {
+        h.insert(header::ETAG, v);
+    }
+    h.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
     h.insert(
         header::X_CONTENT_TYPE_OPTIONS,
         HeaderValue::from_static("nosniff"),

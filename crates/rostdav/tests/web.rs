@@ -2721,3 +2721,32 @@ async fn german_interface_is_complete() {
         "missing German translations: {missing:#?}"
     );
 }
+
+#[tokio::test]
+async fn static_assets_are_revalidated_not_cached_blindly() {
+    let e = env().await;
+    let r = send(&e, "GET", "/static/app.css", &[], Body::empty()).await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert_eq!(r.h("cache-control"), "no-cache");
+    let etag = r.h("etag").to_owned();
+    assert!(etag.starts_with('"'));
+    let r = send(
+        &e,
+        "GET",
+        "/static/app.css",
+        &[("if-none-match", &etag)],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::NOT_MODIFIED);
+    assert!(r.body.is_empty());
+    let r = send(
+        &e,
+        "GET",
+        "/static/app.css",
+        &[("if-none-match", "\"other\"")],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK);
+}

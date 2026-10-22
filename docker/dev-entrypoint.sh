@@ -7,8 +7,9 @@ BIN=target/debug/rostdav
 DEMO_USER="${DEMO_USER:-demo}"
 DEMO_PASSWORD="${DEMO_PASSWORD:-korrekt-pferd-batterie}"
 
-cargo build -p rostdav
-if ! "$BIN" admin user list 2>/dev/null | grep -q "^$DEMO_USER\b"; then
+# A failed first build must not stop the container: cargo watch below retries on the next change.
+cargo build -p rostdav || echo 'first build failed; waiting for changes' >&2
+if [ -x "$BIN" ] && ! "$BIN" admin user list 2>/dev/null | grep -q "^$DEMO_USER\b"; then
     printf '%s\n' "$DEMO_PASSWORD" | "$BIN" admin user add "$DEMO_USER" --admin || true
 fi
 
