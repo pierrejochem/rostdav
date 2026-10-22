@@ -41,6 +41,10 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/versions?path=`, `/versions/{restore,delete}` | Versions panel of a file |
 | `/files?q=` | Name filter of the current folder; the list also shows file ID and ETag |
 | `/web/upload/<id>[/<chunk>\|/finish]` | Chunked, resumable browser upload (used by `/static/upload.js`; session + `X-CSRF-Token` header) |
+| `/admin/users`, `/admin/users/{create,manage,disabled,role,quota,password,delete}` | Administration: users (add, block, role, quota, password reset, delete with transfer) |
+| `/admin/events` | Administration: event log (period filter, newest 500) |
+| `/admin/status`, `POST /admin/status/check` | Administration: version, usage, consistency check (optional checksums and repair) |
+| `/admin/server` | Administration: effective settings (read-only) |
 | `/login/v2/flow/<token>` | Connect device (Login Flow v2) |
 | `/static/{app,login}.css` | Embedded stylesheets |
 
@@ -54,7 +58,7 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 - Downloads are always `attachment` with `nosniff` and `sandbox`.
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
-Not yet: language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
+Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Not yet: security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
 
 Development with live reload: `docker compose -f compose.dev.yaml up --build` (see the file header). The container rebuilds and restarts the server when files under `crates/` change.
 

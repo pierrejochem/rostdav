@@ -33,7 +33,7 @@ pub fn message_in(
     layout::app(
         status,
         title,
-        &a.theme,
+        &a.chrome(),
         nav,
         &a.csrf,
         &format!(
@@ -412,7 +412,7 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, filter: S
     layout::app_with_script(
         StatusCode::OK,
         "Files",
-        &a.theme,
+        &a.chrome(),
         "files",
         &a.csrf,
         &body,
@@ -614,7 +614,14 @@ pub async fn delete_confirm(a: Authed, Query(q): Query<PathQuery>) -> Response {
         esc(&plain(&path)),
         esc(&back)
     );
-    layout::app(StatusCode::OK, "Delete", &a.theme, "files", &a.csrf, &body)
+    layout::app(
+        StatusCode::OK,
+        "Delete",
+        &a.chrome(),
+        "files",
+        &a.csrf,
+        &body,
+    )
 }
 
 #[derive(Deserialize)]

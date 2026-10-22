@@ -80,23 +80,29 @@ pub fn bare(status: StatusCode, title: &str, body: &str) -> Response {
     )
 }
 
+/// What the navigation bar needs to know about the viewer.
+pub struct Chrome<'a> {
+    pub theme: &'a str,
+    pub admin: bool,
+}
+
 /// A signed-in page with the navigation bar. `current` marks the active entry.
 pub fn app(
     status: StatusCode,
     title: &str,
-    theme: &str,
+    chrome: &Chrome<'_>,
     current: &str,
     csrf: &str,
     body: &str,
 ) -> Response {
-    app_with_script(status, title, theme, current, csrf, body, None)
+    app_with_script(status, title, chrome, current, csrf, body, None)
 }
 
 /// Like [`app`], with one script from `/static/` loaded at the end of the page.
 pub fn app_with_script(
     status: StatusCode,
     title: &str,
-    theme: &str,
+    chrome: &Chrome<'_>,
     current: &str,
     csrf: &str,
     body: &str,
@@ -105,21 +111,27 @@ pub fn app_with_script(
     let script = script
         .map(|s| format!("<script src=\"/static/{s}\"></script>"))
         .unwrap_or_default();
-    let nav: String = [
+    let mut entries = vec![
         ("files", "Files", "/files"),
         ("trash", "Trash", "/trash"),
         ("devices", "Devices", "/devices"),
-    ]
-    .iter()
-    .map(|(k, label, href)| {
-        let cur = if *k == current {
-            " aria-current=\"page\""
-        } else {
-            ""
-        };
-        format!("<a href=\"{href}\"{cur}>{label}</a>")
-    })
-    .collect();
+        ("settings", "Settings", "/settings"),
+    ];
+    if chrome.admin {
+        entries.push(("admin", "Administration", "/admin/users"));
+    }
+    let nav: String = entries
+        .iter()
+        .map(|(k, label, href)| {
+            let cur = if *k == current {
+                " aria-current=\"page\""
+            } else {
+                ""
+            };
+            format!("<a href=\"{href}\"{cur}>{label}</a>")
+        })
+        .collect();
+    let theme = chrome.theme;
     let theme_attr = match theme {
         "light" | "dark" => format!(" data-theme=\"{theme}\""),
         _ => String::new(),

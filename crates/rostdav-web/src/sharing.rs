@@ -159,7 +159,14 @@ pub async fn share_page(
          <button class=\"primary\" type=\"submit\">Create link</button></form>",
         esc(node.name.as_str()),
     );
-    layout::app(StatusCode::OK, "Share", &a.theme, "files", &a.csrf, &body)
+    layout::app(
+        StatusCode::OK,
+        "Share",
+        &a.chrome(),
+        "files",
+        &a.csrf,
+        &body,
+    )
 }
 
 #[derive(Deserialize)]
@@ -314,7 +321,7 @@ pub async fn versions_page(
     layout::app(
         StatusCode::OK,
         "Versions",
-        &a.theme,
+        &a.chrome(),
         "files",
         &a.csrf,
         &body,

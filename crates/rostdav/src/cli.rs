@@ -380,37 +380,7 @@ async fn import(
 
 /// `10G`, `1.5T`, `500M`, `2048`, `unlimited` / `none`.
 pub fn parse_quota(s: &str) -> anyhow::Result<Option<i64>> {
-    let s = s.trim();
-    if s.eq_ignore_ascii_case("unlimited") || s.eq_ignore_ascii_case("none") {
-        return Ok(None);
-    }
-    let (num, mult) = match s.chars().last() {
-        Some(c) if c.is_ascii_alphabetic() => {
-            let m: f64 = match c.to_ascii_uppercase() {
-                'K' => 1024.0,
-                'M' => 1024.0 * 1024.0,
-                'G' => 1024.0 * 1024.0 * 1024.0,
-                'T' => 1024.0 * 1024.0 * 1024.0 * 1024.0,
-                'B' => 1.0,
-                _ => bail!("unknown size unit in {s:?} (use K, M, G, T)"),
-            };
-            (&s[..s.len() - 1], m)
-        }
-        _ => (s, 1.0),
-    };
-    let n: f64 = num
-        .trim()
-        .parse()
-        .with_context(|| format!("not a size: {s:?}"))?;
-    if !n.is_finite() || n < 0.0 {
-        bail!("a quota must not be negative");
-    }
-    let bytes = n * mult;
-    if bytes > 9.0e18 {
-        bail!("quota too large");
-    }
-    #[allow(clippy::cast_possible_truncation)]
-    Ok(Some(bytes as i64))
+    Ok(rostdav_app::parse_quota(s)?)
 }
 
 pub fn format_size(bytes: i64) -> String {

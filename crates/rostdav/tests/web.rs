@@ -24,6 +24,7 @@ async fn env() -> Env {
     for n in ["anna", "bob"] {
         state.add_user(n, PW, false).await.expect("user");
     }
+    state.add_user("root", PW, true).await.expect("admin");
     Env {
         app: rostdav::http::router_with(
             state.clone(),
@@ -1690,4 +1691,394 @@ async fn chunked_browser_upload_resume_and_rules() {
     // no session, no API
     let r = send(&e, "GET", up, &[], Body::empty()).await;
     assert_eq!(r.status, StatusCode::SEE_OTHER);
+}
+
+#[tokio::test]
+async fn admin_pages_are_for_administrators_only() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let root = login(&e, "root").await;
+
+    // navigation entry only for admins
+    assert!(
+        !get(&e, "/files", &ca)
+            .await
+            .text()
+            .contains("Administration")
+    );
+    assert!(
+        get(&e, "/files", &root)
+            .await
+            .text()
+            .contains("Administration")
+    );
+    assert!(get(&e, "/files", &root).await.text().contains(">Settings<"));
+
+    for uri in [
+        "/admin/users",
+        "/admin/users/manage?name=bob",
+        "/admin/users/delete?name=bob",
+        "/admin/events",
+        "/admin/status",
+        "/admin/server",
+    ] {
+        assert_eq!(
+            get(&e, uri, &ca).await.status,
+            StatusCode::FORBIDDEN,
+            "{uri}"
+        );
+        assert_eq!(
+            send(&e, "GET", uri, &[], Body::empty()).await.status,
+            StatusCode::SEE_OTHER,
+            "{uri}"
+        );
+        assert_eq!(get(&e, uri, &root).await.status, StatusCode::OK, "{uri}");
+    }
+    // posts: even with a valid token of the normal user
+    for (uri, fields) in [
+        (
+            "/admin/users/create",
+            vec![("name", "evil"), ("password", PW), ("admin", "1")],
+        ),
+        ("/admin/users/role", vec![("name", "anna"), ("admin", "1")]),
+        (
+            "/admin/users/disabled",
+            vec![("name", "bob"), ("disabled", "1")],
+        ),
+        ("/admin/users/quota", vec![("name", "bob"), ("quota", "1")]),
+        (
+            "/admin/users/password",
+            vec![("name", "bob"), ("password", "hacked-hacked-hacked")],
+        ),
+        (
+            "/admin/users/delete",
+            vec![("name", "bob"), ("mode", "delete")],
+        ),
+        ("/admin/status/check", vec![]),
+    ] {
+        let mut f = fields.clone();
+        f.push(("csrf", &csrf));
+        assert_eq!(
+            post_form(&e, uri, &ca, &f).await.status,
+            StatusCode::FORBIDDEN,
+            "{uri}"
+        );
+    }
+    // nothing changed: bob still signs in with the old password, anna is no admin
+    login(&e, "bob").await;
+    assert_eq!(
+        get(&e, "/admin/users", &ca).await.status,
+        StatusCode::FORBIDDEN
+    );
+    // csrf for admins too
+    let r = post_form(
+        &e,
+        "/admin/users/create",
+        &root,
+        &[("csrf", "forged"), ("name", "x"), ("password", PW)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn admin_manages_users() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+
+    // create; duplicates and weak passwords are refused
+    let r = post_form(
+        &e,
+        "/admin/users/create",
+        &root,
+        &[("csrf", &csrf), ("name", "carl"), ("password", PW)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let list = get(&e, "/admin/users", &root).await.text();
+    assert!(list.contains("carl") && list.contains("Active"));
+    assert!(
+        post_form(
+            &e,
+            "/admin/users/create",
+            &root,
+            &[("csrf", &csrf), ("name", "carl"), ("password", PW)]
+        )
+        .await
+        .status
+        .is_client_error()
+    );
+    assert!(
+        post_form(
+            &e,
+            "/admin/users/create",
+            &root,
+            &[("csrf", &csrf), ("name", "dave"), ("password", "short")]
+        )
+        .await
+        .status
+        .is_client_error()
+    );
+    login(&e, "carl").await;
+
+    // disabling ends the user's open session at once
+    let cb = login(&e, "bob").await;
+    assert_eq!(get(&e, "/files", &cb).await.status, StatusCode::OK);
+    let r = post_form(
+        &e,
+        "/admin/users/disabled",
+        &root,
+        &[("csrf", &csrf), ("name", "bob"), ("disabled", "1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(get(&e, "/files", &cb).await.status, StatusCode::SEE_OTHER);
+    assert!(
+        get(&e, "/admin/users/manage?name=bob", &root)
+            .await
+            .text()
+            .contains("Allow sign-in again")
+    );
+    post_form(
+        &e,
+        "/admin/users/disabled",
+        &root,
+        &[("csrf", &csrf), ("name", "bob"), ("disabled", "0")],
+    )
+    .await;
+    login(&e, "bob").await;
+
+    // quota
+    let r = post_form(
+        &e,
+        "/admin/users/quota",
+        &root,
+        &[("csrf", &csrf), ("name", "carl"), ("quota", "1M")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(
+        get(&e, "/admin/users", &root)
+            .await
+            .text()
+            .contains("1.0 MB")
+    );
+    assert!(
+        post_form(
+            &e,
+            "/admin/users/quota",
+            &root,
+            &[("csrf", &csrf), ("name", "carl"), ("quota", "lots")]
+        )
+        .await
+        .status
+        .is_client_error()
+    );
+    assert!(
+        post_form(
+            &e,
+            "/admin/users/quota",
+            &root,
+            &[("csrf", &csrf), ("name", "nobody"), ("quota", "1M")]
+        )
+        .await
+        .status
+        .is_client_error()
+    );
+
+    // password reset
+    let r = post_form(
+        &e,
+        "/admin/users/password",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("name", "carl"),
+            ("password", "brand-new-password-1"),
+            ("revoke", "1"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let page = send(&e, "GET", "/login", &[], Body::empty()).await;
+    let (lc, tok) = (
+        page.cookie("rostdav_login").expect("c"),
+        extract_csrf(&page.text()),
+    );
+    let ok = post_form(
+        &e,
+        "/login",
+        &lc,
+        &[
+            ("csrf", &tok),
+            ("user", "carl"),
+            ("password", "brand-new-password-1"),
+        ],
+    )
+    .await;
+    assert_eq!(ok.status, StatusCode::SEE_OTHER);
+    let old = post_form(
+        &e,
+        "/login",
+        &lc,
+        &[("csrf", &tok), ("user", "carl"), ("password", PW)],
+    )
+    .await;
+    assert_eq!(old.status, StatusCode::UNAUTHORIZED);
+
+    // the last administrator and yourself are protected
+    let r = post_form(
+        &e,
+        "/admin/users/role",
+        &root,
+        &[("csrf", &csrf), ("name", "root"), ("admin", "0")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::CONFLICT);
+    let r = post_form(
+        &e,
+        "/admin/users/delete",
+        &root,
+        &[("csrf", &csrf), ("name", "root"), ("mode", "delete")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::CONFLICT);
+    let r = post_form(
+        &e,
+        "/admin/users/disabled",
+        &root,
+        &[("csrf", &csrf), ("name", "root"), ("disabled", "1")],
+    )
+    .await;
+    assert!(r.status.is_client_error(), "{}", r.status);
+    assert_eq!(get(&e, "/files", &root).await.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn admin_deletes_user_with_transfer() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    let ca = login(&e, "anna").await;
+    let csrf_a = page_csrf(&e, &ca).await;
+    upload(
+        &e,
+        &ca,
+        &[
+            ("csrf", None, &csrf_a),
+            ("dir", None, ""),
+            ("file", Some("keep.txt"), "precious"),
+        ],
+    )
+    .await;
+
+    assert!(
+        get(&e, "/admin/users/delete?name=anna", &root)
+            .await
+            .text()
+            .contains("Delete “anna”?")
+    );
+    // transfer needs a receiver
+    let r = post_form(
+        &e,
+        "/admin/users/delete",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("name", "anna"),
+            ("mode", "transfer"),
+            ("to", ""),
+        ],
+    )
+    .await;
+    assert!(r.status.is_client_error());
+    let r = post_form(
+        &e,
+        "/admin/users/delete",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("name", "anna"),
+            ("mode", "transfer"),
+            ("to", "bob"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert_eq!(
+        get(&e, "/files", &ca).await.status,
+        StatusCode::SEE_OTHER,
+        "deleted user's session is gone"
+    );
+    let cb = login(&e, "bob").await;
+    assert_eq!(
+        get(&e, "/download/anna%20(transferred)/keep.txt", &cb)
+            .await
+            .body,
+        b"precious"
+    );
+    assert!(
+        !get(&e, "/admin/users", &root)
+            .await
+            .text()
+            .contains(">anna<")
+    );
+}
+
+#[tokio::test]
+async fn admin_event_log_status_and_server() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    post_form(
+        &e,
+        "/admin/users/quota",
+        &root,
+        &[("csrf", &csrf), ("name", "bob"), ("quota", "2G")],
+    )
+    .await;
+
+    let ev = get(&e, "/admin/events", &root).await.text();
+    assert!(ev.contains("admin.user_quota_set") && ev.contains("root"));
+    assert_eq!(
+        get(&e, "/admin/events?days=0", &root).await.status,
+        StatusCode::OK
+    );
+    assert_eq!(
+        get(&e, "/admin/events?days=abc", &root).await.status,
+        StatusCode::BAD_REQUEST
+    );
+
+    let st = get(&e, "/admin/status", &root).await.text();
+    assert!(st.contains("Consistency check") && st.contains("Users"));
+    let r = post_form(
+        &e,
+        "/admin/status/check",
+        &root,
+        &[("csrf", &csrf), ("checksums", "1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert!(r.text().contains("no problems"), "{}", r.text());
+    assert_eq!(
+        post_form(&e, "/admin/status/check", &root, &[("csrf", "forged")])
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+
+    let sv = get(&e, "/admin/server", &root).await.text();
+    assert!(sv.contains("Versioning") && sv.contains("Trash retention"));
+    // user-controlled text in the log is escaped
+    post_form(
+        &e,
+        "/admin/users/create",
+        &root,
+        &[("csrf", &csrf), ("name", "<b>x</b>"), ("password", PW)],
+    )
+    .await;
+    let ev = get(&e, "/admin/events", &root).await.text();
+    assert!(!ev.contains("<b>x</b>"));
 }

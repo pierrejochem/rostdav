@@ -2,6 +2,7 @@
 //!
 //! Login Flow v2 page (M4) and the browser interface with sessions (M11, ADR 0006).
 
+mod admin;
 mod layout;
 mod links;
 mod login_page;
@@ -68,6 +69,25 @@ pub fn router() -> Router<AppState> {
         .route("/versions", get(sharing::versions_page))
         .route("/versions/restore", post(sharing::version_restore))
         .route("/versions/delete", post(sharing::version_delete))
+        .route(
+            "/admin",
+            get(|| async { axum::response::Redirect::to("/admin/users") }),
+        )
+        .route("/admin/users", get(admin::users))
+        .route("/admin/users/create", post(admin::create))
+        .route("/admin/users/manage", get(admin::manage))
+        .route("/admin/users/disabled", post(admin::set_disabled))
+        .route("/admin/users/role", post(admin::set_role))
+        .route("/admin/users/quota", post(admin::set_quota))
+        .route("/admin/users/password", post(admin::set_password))
+        .route(
+            "/admin/users/delete",
+            get(admin::delete_confirm).post(admin::delete),
+        )
+        .route("/admin/events", get(admin::events))
+        .route("/admin/status", get(admin::status))
+        .route("/admin/status/check", post(admin::check))
+        .route("/admin/server", get(admin::server))
         .route("/settings", get(pages_more::settings))
         .route("/settings/theme", post(pages_more::set_theme))
         .route("/devices", get(pages_more::devices))

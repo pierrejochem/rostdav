@@ -25,6 +25,7 @@ mod versions;
 mod web;
 
 pub use access::{Access, MountView, Need, Origin, authorize_access};
+pub use admin::parse_quota;
 pub use admin::{Actor, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport};
 pub use audit::AuditOptions;
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, Scope, UserInfo, Via, authorize};
@@ -60,7 +61,7 @@ struct Inner {
     server_key: [u8; 32],
 }
 
-pub(crate) fn now_secs() -> i64 {
+pub fn now_secs() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map_or(0, |d| i64::try_from(d.as_secs()).unwrap_or(i64::MAX))

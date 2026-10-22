@@ -83,6 +83,7 @@ pub fn client_ip(parts: &Parts) -> IpAddr {
 /// A signed-in browser session. Unsafe methods must also pass the origin check.
 pub struct Authed {
     pub session: WebSession,
+    pub admin: bool,
     pub theme: String,
     pub csrf: String,
 }
@@ -110,9 +111,19 @@ impl FromRequestParts<AppState> for Authed {
             .unwrap_or_default();
         let csrf = state.web_csrf(session.id);
         Ok(Self {
+            admin: session.principal.is_admin,
             session,
             theme,
             csrf,
         })
+    }
+}
+
+impl Authed {
+    pub fn chrome(&self) -> crate::layout::Chrome<'_> {
+        crate::layout::Chrome {
+            theme: &self.theme,
+            admin: self.admin,
+        }
     }
 }

@@ -44,6 +44,41 @@ impl Actor<'_> {
     }
 }
 
+/// `10G`, `1.5T`, `500M`, `2048`, `unlimited` / `none` (no quota).
+pub fn parse_quota(s: &str) -> Result<Option<i64>> {
+    let s = s.trim();
+    if s.eq_ignore_ascii_case("unlimited") || s.eq_ignore_ascii_case("none") {
+        return Ok(None);
+    }
+    let (num, mult) = match s.chars().last() {
+        Some(c) if c.is_ascii_alphabetic() => {
+            let m: f64 = match c.to_ascii_uppercase() {
+                'K' => 1024.0,
+                'M' => 1024.0 * 1024.0,
+                'G' => 1024.0 * 1024.0 * 1024.0,
+                'T' => 1024.0 * 1024.0 * 1024.0 * 1024.0,
+                'B' => 1.0,
+                _ => return Err(Error::BadRequest("unknown size unit (use K, M, G, T)")),
+            };
+            (&s[..s.len() - 1], m)
+        }
+        _ => (s, 1.0),
+    };
+    let n: f64 = num
+        .trim()
+        .parse()
+        .map_err(|_| Error::BadRequest("not a size"))?;
+    if !n.is_finite() || n < 0.0 {
+        return Err(Error::BadRequest("a quota must not be negative"));
+    }
+    let bytes = n * mult;
+    if bytes > 9.0e18 {
+        return Err(Error::BadRequest("quota too large"));
+    }
+    #[allow(clippy::cast_possible_truncation)]
+    Ok(Some(bytes as i64))
+}
+
 /// What happens to a deleted user's files.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DeleteMode {
@@ -314,6 +349,56 @@ impl AppState {
             .await;
         self.collect_garbage().await?;
         Ok(())
+    }
+
+    /// The effective operating settings, for the administration page (read-only).
+    pub fn settings_summary(&self, actor: &Actor<'_>) -> Result<Vec<(&'static str, String)>> {
+        actor.require_admin()?;
+        let c = &self.inner.config;
+        let on = |b: bool| if b { "on" } else { "off" }.to_owned();
+        let days = |d: u32| {
+            if d == 0 {
+                "keep".to_owned()
+            } else {
+                format!("{d} days")
+            }
+        };
+        Ok(vec![
+            (
+                "Maximum upload size",
+                format!("{} bytes", c.limits.max_upload_bytes),
+            ),
+            (
+                "Maximum chunk size",
+                format!("{} bytes", c.limits.max_chunk_bytes),
+            ),
+            ("Versioning", on(c.versioning.enabled)),
+            (
+                "Versions kept per file",
+                if c.versioning.max_versions == 0 {
+                    "unlimited".to_owned()
+                } else {
+                    c.versioning.max_versions.to_string()
+                },
+            ),
+            ("Version retention", days(c.versioning.max_age_days)),
+            (
+                "Versions share of quota",
+                format!("{} %", c.versioning.max_quota_share_percent),
+            ),
+            ("Trash", on(c.trash.enabled)),
+            ("Trash retention", days(c.trash.retention_days)),
+            ("Event log retention", days(c.audit.retention_days)),
+            ("Anonymise addresses in event log", on(c.audit.anonymize_ip)),
+            (
+                "Browser session idle timeout",
+                format!("{} hours", c.web.idle_secs / 3600),
+            ),
+            (
+                "Browser session maximum age",
+                format!("{} days", c.web.max_secs / 86_400),
+            ),
+        ])
     }
 
     // ---- event log ------------------------------------------------------------

@@ -56,7 +56,14 @@ pub async fn trash(State(state): State<AppState>, a: Authed) -> Response {
              <table><thead><tr><th>Original location</th><th class=\"hide\">Deleted</th><th class=\"hide\">By</th><th></th></tr></thead><tbody>{rows}</tbody></table>"
         )
     };
-    layout::app(StatusCode::OK, "Trash", &a.theme, "trash", &a.csrf, &body)
+    layout::app(
+        StatusCode::OK,
+        "Trash",
+        &a.chrome(),
+        "trash",
+        &a.csrf,
+        &body,
+    )
 }
 
 #[derive(Deserialize)]
@@ -97,7 +104,7 @@ pub async fn trash_delete_confirm(a: Authed, Query(q): Query<EntryQuery>) -> Res
     layout::app(
         StatusCode::OK,
         "Delete permanently",
-        &a.theme,
+        &a.chrome(),
         "trash",
         &a.csrf,
         &body,
@@ -128,7 +135,7 @@ pub async fn trash_empty_confirm(a: Authed) -> Response {
     layout::app(
         StatusCode::OK,
         "Empty trash",
-        &a.theme,
+        &a.chrome(),
         "trash",
         &a.csrf,
         &body,
@@ -208,7 +215,7 @@ async fn devices_page(state: &AppState, a: &Authed, status: StatusCode, notice: 
          <form class=\"inline\" method=\"post\" action=\"/devices/sign-out-others\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
          <br><button type=\"submit\">Sign out all other browsers</button></form>"
     );
-    layout::app(status, "Devices", &a.theme, "devices", &a.csrf, &body)
+    layout::app(status, "Devices", &a.chrome(), "devices", &a.csrf, &body)
 }
 
 pub async fn devices(State(state): State<AppState>, a: Authed) -> Response {
@@ -348,7 +355,7 @@ async fn settings_page(
         bytes(u.used),
         quota
     );
-    layout::app(status, "Settings", &a.theme, "settings", &a.csrf, &body)
+    layout::app(status, "Settings", &a.chrome(), "settings", &a.csrf, &body)
 }
 
 #[derive(Deserialize)]
