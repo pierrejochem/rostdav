@@ -7,23 +7,23 @@ Requirements: sections 2.6–2.8 in [instructions.md](instructions.md). The desi
 | Source | Contents |
 |---|---|
 | Design canvas "Rostdav Web UI" (claude.ai, private) | Interactive design of all pages |
-| [`design/mockups/web-ui-glass/`](../design/mockups/web-ui-glass/) | Design ("liquid glass"): source files of the canvas pages (`.dc.html`) |
+| [`design/mockups/web-ui/`](../design/mockups/web-ui/) | Design ("liquid glass"): self-contained pages (`Files.html`, …) and sources (`src/*.dc.html`) |
 | [`design/mockups/logo/`](../design/mockups/logo/) | Logo, variants, color palette |
 | [`assets/brand/`](../assets/brand/) | Logo files as SVG |
 | [`crates/rostdav-web/static/app.css`](../crates/rostdav-web/static/app.css) | Implemented stylesheet with the design tokens for light and dark |
 
-The `.dc.html` files are sources of the design canvas and need its runtime (`support.js`); they do not run directly in the browser but are easy to read (HTML with inline styles and a small logic class per page). For the implementation, structure, texts, spacing and colors matter, not the mechanism.
+The `*.html` mockups open directly in a browser. The readable sources are `src/*.dc.html` (HTML with inline styles and a small logic class per page; they need the canvas runtime). For the implementation, structure, texts, spacing and colors matter, not the mechanism.
 
 ## Pages
 
 | Page | Mockup | Route (proposal) | Priority |
 |---|---|---|---|
-| Connect device (Login Flow v2) | `Login.dc.html` | `/login/v2/flow/{token}` (verify from recordings) | P1 |
-| Second factor | `Login2FA.dc.html` | `/login/2fa` | P2 |
-| Files | `Main.dc.html` | `/apps/files/` or `/files/` | P2 |
-| Devices & security | `Devices.dc.html` | `/settings/devices` | P2 |
-| Settings | `Settings.dc.html` | `/settings/personal` | P2 |
-| Administration | `Admin.dc.html` | `/settings/admin/{users,server,security,compat}` | P2 |
+| Connect device (Login Flow v2) | `Login.html` | `/login/v2/flow/{token}` (verify from recordings) | P1 |
+| Second factor | `Login2FA.html` | `/login/2fa` | P2 |
+| Files | `Files.html` | `/apps/files/` or `/files/` | P2 |
+| Devices & security | `Devices.html` | `/settings/devices` | P2 |
+| Settings | `Settings.html` | `/settings/personal` | P2 |
+| Administration | `Admin.html` | `/settings/admin/{users,server,security,compat}` | P2 |
 
 Avoid collisions with Nextcloud paths that the apps call: check the UI routes against `docs/compatibility.md` before M11.
 
