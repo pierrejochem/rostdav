@@ -1,6 +1,6 @@
 # ADR 0006: Web interface — sessions, CSRF, first slice
 
-- Status: **Proposed — approval point 3 (new way to authenticate: browser sessions) is open.** No code changed for it.
+- Status: **Accepted** by the project owner on 2026-10-22 as proposed (approval point 3 granted; fonts follow later).
 - Date: 2026-10-22
 - Inputs: [docs/ui.md](../ui.md), requirements 2.6–2.8 in [instructions.md](../instructions.md), the mockups in `design/mockups/web-ui/`.
 
@@ -48,8 +48,8 @@ Until now only apps sign in (Basic with app password / account password, Login F
 - The sessions table grows with sign-ins; expired rows are removed by the existing background cleanup.
 - Upload through the browser is a normal `multipart/form-data` POST limited by `max_upload_bytes` in slice 11a; chunked browser upload (progress, resume) comes with 11b.
 
-## Open questions
+## Decisions of the project owner (2026-10-22)
 
-1. Approve browser sessions as designed (approval point 3).
-2. `askama` as new dependency, htmx later — acceptable?
-3. Fonts: add the two OFL font files to the repository when available (you provide them or allow downloading them from their projects); until then system fonts.
+1. Browser sessions approved as designed.
+2. `askama` is allowed as dependency; htmx only later if needed.
+3. System fonts for now; the two OFL font files are added later.

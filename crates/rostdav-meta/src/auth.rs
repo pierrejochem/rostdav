@@ -21,6 +21,18 @@ pub struct AppPassword {
     pub last_used_at: Option<i64>,
 }
 
+/// A browser session (ADR 0006).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Session {
+    pub id: i64,
+    pub user_id: i64,
+    pub created_at: i64,
+    pub last_seen: i64,
+    pub expires_at: i64,
+    pub ip: String,
+    pub user_agent: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoginFlow {
     pub id: i64,
@@ -331,6 +343,180 @@ impl Db {
             .collect())
     }
 
+    // ---- browser sessions -------------------------------------------------------
+
+    pub async fn create_session(
+        &self,
+        user_id: i64,
+        token_hash: &str,
+        expires_at: i64,
+        ip: &str,
+        user_agent: &str,
+    ) -> Result<Session> {
+        let now = now_secs();
+        let id: i64 = sqlx::query_scalar(
+            "INSERT INTO sessions (user_id, token_hash, created_at, last_seen, expires_at, ip, user_agent)
+             VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
+        )
+        .bind(user_id)
+        .bind(token_hash)
+        .bind(now)
+        .bind(now)
+        .bind(expires_at)
+        .bind(ip)
+        .bind(user_agent)
+        .fetch_one(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(Session {
+            id,
+            user_id,
+            created_at: now,
+            last_seen: now,
+            expires_at,
+            ip: ip.into(),
+            user_agent: user_agent.into(),
+        })
+    }
+
+    /// The session for a cookie hash, if it has not expired (`idle_secs` of
+    /// inactivity count as expired too). Never returns sessions of disabled users.
+    pub async fn find_session(
+        &self,
+        token_hash: &str,
+        idle_secs: i64,
+    ) -> Result<Option<(Session, crate::User)>> {
+        let now = now_secs();
+        let row: Option<(i64, i64, i64, i64, i64, String, String)> = sqlx::query_as(
+            "SELECT s.id, s.user_id, s.created_at, s.last_seen, s.expires_at, s.ip, s.user_agent
+             FROM sessions s JOIN users u ON u.id = s.user_id
+             WHERE s.token_hash = ? AND s.expires_at > ? AND s.last_seen > ? AND u.disabled = 0",
+        )
+        .bind(token_hash)
+        .bind(now)
+        .bind(now - idle_secs)
+        .fetch_optional(self.pool())
+        .await
+        .map_err(err)?;
+        let Some((id, user_id, created_at, last_seen, expires_at, ip, user_agent)) = row else {
+            return Ok(None);
+        };
+        let Some(user) = self.find_user_by_id(user_id).await? else {
+            return Ok(None);
+        };
+        Ok(Some((
+            Session {
+                id,
+                user_id,
+                created_at,
+                last_seen,
+                expires_at,
+                ip,
+                user_agent,
+            },
+            user,
+        )))
+    }
+
+    /// Records activity, at most once a minute.
+    pub async fn touch_session(&self, id: i64) -> Result<()> {
+        let now = now_secs();
+        sqlx::query("UPDATE sessions SET last_seen = ?1 WHERE id = ?2 AND last_seen < ?1 - 60")
+            .bind(now)
+            .bind(id)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(())
+    }
+
+    pub async fn delete_session(&self, id: i64) -> Result<()> {
+        sqlx::query("DELETE FROM sessions WHERE id = ?")
+            .bind(id)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(())
+    }
+
+    /// Ends all sessions of a user except `keep`. Returns how many.
+    pub async fn delete_other_sessions(&self, user_id: i64, keep: i64) -> Result<u64> {
+        let r = sqlx::query("DELETE FROM sessions WHERE user_id = ? AND id != ?")
+            .bind(user_id)
+            .bind(keep)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(r.rows_affected())
+    }
+
+    pub async fn delete_user_sessions(&self, user_id: i64) -> Result<u64> {
+        let r = sqlx::query("DELETE FROM sessions WHERE user_id = ?")
+            .bind(user_id)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(r.rows_affected())
+    }
+
+    pub async fn list_sessions(&self, user_id: i64) -> Result<Vec<Session>> {
+        let rows: Vec<(i64, i64, i64, i64, String, String)> = sqlx::query_as(
+            "SELECT id, created_at, last_seen, expires_at, ip, user_agent FROM sessions WHERE user_id = ? ORDER BY last_seen DESC",
+        )
+        .bind(user_id)
+        .fetch_all(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(rows
+            .into_iter()
+            .map(
+                |(id, created_at, last_seen, expires_at, ip, user_agent)| Session {
+                    id,
+                    user_id,
+                    created_at,
+                    last_seen,
+                    expires_at,
+                    ip,
+                    user_agent,
+                },
+            )
+            .collect())
+    }
+
+    /// Removes expired and idle sessions.
+    pub async fn purge_sessions(&self, idle_secs: i64) -> Result<u64> {
+        let now = now_secs();
+        let r = sqlx::query("DELETE FROM sessions WHERE expires_at <= ? OR last_seen <= ?")
+            .bind(now)
+            .bind(now - idle_secs)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(r.rows_affected())
+    }
+
+    // ---- preferences ----------------------------------------------------------------
+
+    pub async fn get_pref(&self, user_id: i64, key: &str) -> Result<Option<String>> {
+        sqlx::query_scalar("SELECT value FROM user_prefs WHERE user_id = ? AND key = ?")
+            .bind(user_id)
+            .bind(key)
+            .fetch_optional(self.pool())
+            .await
+            .map_err(err)
+    }
+
+    pub async fn set_pref(&self, user_id: i64, key: &str, value: &str) -> Result<()> {
+        sqlx::query("INSERT INTO user_prefs (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value")
+            .bind(user_id)
+            .bind(key)
+            .bind(value)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(())
+    }
+
     pub async fn find_user_by_id(&self, id: i64) -> Result<Option<crate::User>> {
         let row: Option<(i64, String, String, bool, bool)> = sqlx::query_as(
             "SELECT id, name, password_hash, is_admin, disabled FROM users WHERE id = ?",
@@ -519,5 +705,70 @@ mod tests {
             .await
             .expect("del");
         assert_eq!(db.find_app_password(anna, "h").await.expect("f"), None);
+    }
+
+    #[tokio::test]
+    async fn sessions_expire_idle_out_and_follow_the_user() {
+        let (_d, db) = test_db().await;
+        let (a, b) = (user(&db, "anna").await, user(&db, "bob").await);
+        let far = i64::MAX / 2;
+        let s1 = db
+            .create_session(a, "h1", far, "10.0.0.1", "UA")
+            .await
+            .expect("create");
+        let s2 = db
+            .create_session(a, "h2", far, "", "")
+            .await
+            .expect("create");
+        db.create_session(b, "h3", far, "", "")
+            .await
+            .expect("create");
+        let (found, user_row) = db.find_session("h1", 3600).await.expect("f").expect("some");
+        assert_eq!(
+            (found.id, user_row.name.as_str(), found.ip.as_str()),
+            (s1.id, "anna", "10.0.0.1")
+        );
+        assert!(db.find_session("nope", 3600).await.expect("f").is_none());
+        // idle timeout
+        assert!(db.find_session("h1", -1).await.expect("f").is_none());
+        // absolute expiry
+        db.create_session(a, "old", 1, "", "")
+            .await
+            .expect("create");
+        assert!(db.find_session("old", 3600).await.expect("f").is_none());
+        assert_eq!(db.purge_sessions(3600).await.expect("p"), 1);
+        // disabled users have no sessions
+        db.set_user_disabled(b, true).await.expect("disable");
+        assert!(db.find_session("h3", 3600).await.expect("f").is_none());
+        // listing and ending
+        assert_eq!(db.list_sessions(a).await.expect("l").len(), 2);
+        assert_eq!(db.delete_other_sessions(a, s1.id).await.expect("d"), 1);
+        assert!(db.find_session("h2", 3600).await.expect("f").is_none());
+        db.touch_session(s1.id).await.expect("touch");
+        db.delete_session(s1.id).await.expect("delete");
+        assert!(db.find_session("h1", 3600).await.expect("f").is_none());
+        let _ = s2;
+        db.create_session(a, "h4", far, "", "")
+            .await
+            .expect("create");
+        assert_eq!(db.delete_user_sessions(a).await.expect("d"), 1);
+        // deleting the user removes the rest
+        db.set_user_disabled(b, false).await.expect("enable");
+        db.delete_user(b).await.expect("delete");
+        assert!(db.find_session("h3", 3600).await.expect("f").is_none());
+    }
+
+    #[tokio::test]
+    async fn preferences_roundtrip() {
+        let (_d, db) = test_db().await;
+        let a = user(&db, "anna").await;
+        assert_eq!(db.get_pref(a, "theme").await.expect("g"), None);
+        db.set_pref(a, "theme", "dark").await.expect("set");
+        db.set_pref(a, "theme", "light").await.expect("set again");
+        assert_eq!(
+            db.get_pref(a, "theme").await.expect("g").as_deref(),
+            Some("light")
+        );
+        assert_eq!(db.usage_breakdown(a).await.expect("u"), (0, 0, 0));
     }
 }

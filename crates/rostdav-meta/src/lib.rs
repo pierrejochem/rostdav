@@ -12,7 +12,9 @@ mod users;
 mod versions;
 
 pub use admin::{Event, UsageMismatch, UserSummary};
-pub use auth::{AppPassword, LoginFlow, MAX_UPLOAD_SESSIONS_PER_USER, PollResult, UploadSession};
+pub use auth::{
+    AppPassword, LoginFlow, MAX_UPLOAD_SESSIONS_PER_USER, PollResult, Session, UploadSession,
+};
 pub use nodes::{CommitOpts, NewBlob, Node, NodeKind, VersionPolicy, WriteCondition, Written};
 pub use shares::{
     NewShare, PERM_ALL, PERM_CREATE, PERM_DELETE, PERM_READ, PERM_UPDATE, Share, ShareKind,

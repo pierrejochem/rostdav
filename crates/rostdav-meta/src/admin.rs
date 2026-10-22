@@ -384,6 +384,20 @@ impl Db {
             .collect())
     }
 
+    /// `(live files, versions, trash)` in bytes for a user's storage overview.
+    pub async fn usage_breakdown(&self, user_id: i64) -> Result<(i64, i64, i64)> {
+        sqlx::query_as(
+            "SELECT
+               COALESCE((SELECT SUM(size) FROM nodes WHERE owner_id = ?1 AND kind = 'file' AND trash_id IS NULL), 0),
+               COALESCE((SELECT SUM(v.size) FROM versions v JOIN nodes n ON n.id = v.node_id WHERE n.owner_id = ?1), 0),
+               COALESCE((SELECT SUM(size) FROM nodes WHERE owner_id = ?1 AND kind = 'file' AND trash_id IS NOT NULL), 0)",
+        )
+        .bind(user_id)
+        .fetch_one(self.pool())
+        .await
+        .map_err(err)
+    }
+
     pub async fn set_used_bytes(&self, user_id: i64, used: i64) -> Result<()> {
         sqlx::query("UPDATE users SET used_bytes = ? WHERE id = ?")
             .bind(used)
