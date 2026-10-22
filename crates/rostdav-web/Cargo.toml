@@ -12,6 +12,11 @@ rostdav-core.workspace = true
 rostdav-app.workspace = true
 axum.workspace = true
 serde.workspace = true
+tokio.workspace = true
+tokio-util.workspace = true
+rostdav-meta.workspace = true
+percent-encoding.workspace = true
+futures-core.workspace = true
 tracing.workspace = true
 
 [lints]

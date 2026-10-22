@@ -140,6 +140,7 @@ dependencies = [
  "matchit",
  "memchr",
  "mime",
+ "multer",
  "percent-encoding",
  "pin-project-lite",
  "serde_core",
@@ -428,6 +429,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e9c71c2167ca323c882b99918929403426e2373ea17242ff5653e0d5e1058be"
 dependencies = [
  "serde",
+]
+
+[[package]]
+name = "encoding_rs"
+version = "0.8.35"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75030f3c4f45dafd7586dd6780965a8c7e8e285a5ecb86713e63a79c5b2766f3"
+dependencies = [
+ "cfg-if",
 ]
 
 [[package]]
@@ -1051,6 +1061,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "multer"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83e87776546dc87511aa5ee218730c92b666d7264ab6ed41f9d215af9cd5224b"
+dependencies = [
+ "bytes",
+ "encoding_rs",
+ "futures-util",
+ "http",
+ "httparse",
+ "memchr",
+ "mime",
+ "spin",
+ "version_check",
+]
+
+[[package]]
 name = "nu-ansi-term"
 version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1408,6 +1435,7 @@ dependencies = [
  "figment",
  "http-body-util",
  "httpdate",
+ "percent-encoding",
  "quick-xml",
  "rostdav-app",
  "rostdav-compat",
@@ -1514,9 +1542,14 @@ name = "rostdav-web"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "futures-core",
+ "percent-encoding",
  "rostdav-app",
  "rostdav-core",
+ "rostdav-meta",
  "serde",
+ "tokio",
+ "tokio-util",
  "tracing",
 ]
 

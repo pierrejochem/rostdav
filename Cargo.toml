@@ -30,7 +30,7 @@ rostdav-compat = { path = "crates/rostdav-compat" }
 rostdav-web = { path = "crates/rostdav-web" }
 
 anyhow = "1"
-axum = "0.8"
+axum = { version = "0.8", features = ["multipart"] }
 clap = { version = "4", features = ["derive", "env"] }
 figment = { version = "0.10", features = ["toml", "env"] }
 serde = { version = "1", features = ["derive"] }
