@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PROPFIND",
+    "path": "/remote.php/dav/trashbin/admin/trash",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/xml",
+      "Depth": "1",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 469,
+      "sha256": "eb7eed1936425af75ae716832ea31fa655657b09038c3799414633b9ba744900",
+      "text": "<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:prop><nc:trashbin-filename/><nc:trashbin-original-location/><nc:trashbin-deletion-time/><nc:trashbin-title/><nc:trashbin-deleted-by-id/><nc:trashbin-deleted-by-display-name/><d:getlastmodified/><d:getcontentlength/><d:getcontenttype/><d:resourcetype/><d:getetag/><oc:fileid/><oc:id/><oc:size/><oc:permissions/><nc:has-preview/></d:prop></d:propfind>"
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Thu, 22 Oct 2026 16:24:45 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Vary",
+        "Brief,Prefer"
+      ],
+      [
+        "DAV",
+        "1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, nc-paginate, nextcloud-checksum-update, nc-calendar-search, nc-enable-birthday-calendar, 2"
+      ],
+      [
+        "X-Request-Id",
+        "a1PPCrt42U9lb5erkcaj"
+      ],
+      [
+        "Content-Length",
+        "1680"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 1680,
+      "sha256": "28517d0c64b6bde00f13b0877cb8b3652c9ddff28ec06d1fd1bfab6bd4354d21",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/trashbin/admin/trash/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><nc:trashbin-filename/><nc:trashbin-original-location/><nc:trashbin-deletion-time/><nc:trashbin-title/><nc:trashbin-deleted-by-id/><nc:trashbin-deleted-by-display-name/><d:getlastmodified/><d:getcontentlength/><d:getcontenttype/><d:getetag/><oc:fileid/><oc:id/><oc:size/><oc:permissions/><nc:has-preview/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/trashbin/admin/trash/one.txt.d1792686285</d:href><d:propstat><d:prop><nc:trashbin-filename>one.txt</nc:trashbin-filename><nc:trashbin-original-location>/{{shared}}/one.txt</nc:trashbin-original-location><nc:trashbin-deletion-time>1792686285</nc:trashbin-deletion-time><nc:trashbin-title>/{{shared}}/one.txt</nc:trashbin-title><nc:trashbin-deleted-by-id>bob</nc:trashbin-deleted-by-id><nc:trashbin-deleted-by-display-name>bob</nc:trashbin-deleted-by-display-name><d:getlastmodified>Thu, 22 Oct 2026 16:24:45 GMT</d:getlastmodified><d:getcontentlength>4</d:getcontentlength><d:getcontenttype>text/plain</d:getcontenttype><d:resourcetype/><d:getetag></d:getetag><oc:fileid>329</oc:fileid><oc:id>329</oc:id><oc:size>4</oc:size><oc:permissions>GD</oc:permissions><nc:has-preview>true</nc:has-preview></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}

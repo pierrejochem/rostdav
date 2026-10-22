@@ -1,0 +1,133 @@
+{
+  "synthetic_request": true,
+  "note": "restored to the root?",
+  "request": {
+    "method": "GET",
+    "path": "/remote.php/dav/files/admin/b.txt",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Thu, 22 Oct 2026 16:24:38 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Last-Modified",
+        "Thu, 22 Oct 2026 16:24:12 GMT"
+      ],
+      [
+        "ETag",
+        "\"88260be7198cfd8a4e25bf0339dc8abe\""
+      ],
+      [
+        "Content-Length",
+        "7"
+      ],
+      [
+        "X-Request-Id",
+        "6y9Cj8oIJqS6Jgpq27wS"
+      ],
+      [
+        "OC-ETag",
+        "\"88260be7198cfd8a4e25bf0339dc8abe\""
+      ],
+      [
+        "Content-Disposition",
+        "attachment; filename*=UTF-8''b.txt; filename=\"b.txt\""
+      ],
+      [
+        "X-Accel-Buffering",
+        "no"
+      ],
+      [
+        "Content-Type",
+        "text/plain;charset=UTF-8"
+      ]
+    ],
+    "body": {
+      "length": 7,
+      "sha256": "a633061912d317e70ff3eb38a61c53b2a7588feed1a01c60c84019f9b6db4986",
+      "text": "file b\n"
+    }
+  }
+}

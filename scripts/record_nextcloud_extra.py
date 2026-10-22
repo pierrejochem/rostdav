@@ -6,7 +6,7 @@ one flow directory per run. It signs in with the admin password via Basic
 (the sign-in flow itself is recorded by the main script).
 
 Usage: scripts/record_nextcloud_extra.py <flow> [--host 127.0.0.1:18081] [--user admin] [--password ...]
-Flows: versions, shares
+Flows: versions, shares, trash
 """
 import argparse
 import hashlib
@@ -289,16 +289,160 @@ def shares(r, a):
     rec.finalize(r)
 
 
+def trash(r, a):
+    f = "11-trash"
+    d = rec.OUT / f
+    if d.exists():
+        shutil.rmtree(d)
+    r.counters.pop(f, None)
+    admin = (a.user, a.password)
+    dav = f"/remote.php/dav/files/{a.user}"
+    tb = f"/remote.php/dav/trashbin/{a.user}"
+    base = f"http://{a.host}"
+    tag = str(int(time.time()))
+    folder = f"Trash{tag}"
+    r.secret(folder, "{{folder}}")
+    props = ('<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"><d:prop>'
+             "<nc:trashbin-filename/><nc:trashbin-original-location/><nc:trashbin-deletion-time/><nc:trashbin-title/><nc:trashbin-deleted-by-id/><nc:trashbin-deleted-by-display-name/>"
+             "<d:getlastmodified/><d:getcontentlength/><d:getcontenttype/><d:resourcetype/><d:getetag/><oc:fileid/><oc:id/><oc:size/><oc:permissions/><nc:has-preview/>"
+             "</d:prop></d:propfind>")
+    xml = {**XML, "Depth": "1"}
+    # empty trash first (earlier runs)
+    r.call(f, "empty-first", "DELETE", f"{tb}/trash", auth=admin, record=False)
+
+    r.call(f, "setup-folder", "MKCOL", f"{dav}/{folder}", auth=admin)
+    r.call(f, "setup-file", "PUT", f"{dav}/{folder}/a.txt", {"X-OC-MTime": "1700000000"}, b"file a\n", auth=admin)
+    r.call(f, "setup-file-v2", "PUT", f"{dav}/{folder}/a.txt", {"X-OC-MTime": "1700000100"}, b"file a, second version\n", auth=admin)
+    r.call(f, "setup-sub", "MKCOL", f"{dav}/{folder}/sub", auth=admin)
+    r.call(f, "setup-inner", "PUT", f"{dav}/{folder}/sub/inner.txt", None, b"inner\n", auth=admin)
+    r.call(f, "setup-b", "PUT", f"{dav}/{folder}/b.txt", None, b"file b\n", auth=admin)
+    q = '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:quota-used-bytes/></d:prop></d:propfind>'
+    r.call(f, "quota-before-delete", "PROPFIND", f"{dav}/", {**XML, "Depth": "0"}, q, auth=admin)
+    r.call(f, "capabilities", "GET", "/ocs/v2.php/cloud/capabilities?format=json", OCS, auth=admin)
+
+    # trash is empty, then delete things
+    r.call(f, "trash-root-d0", "PROPFIND", f"{tb}/", {**XML, "Depth": "0"}, props, auth=admin)
+    r.call(f, "trash-root-d1-empty", "PROPFIND", f"{tb}/", xml, props, auth=admin)
+    r.call(f, "delete-file", "DELETE", f"{dav}/{folder}/a.txt", auth=admin)
+    r.call(f, "get-deleted", "GET", f"{dav}/{folder}/a.txt", auth=admin)
+    r.call(f, "quota-after-delete", "PROPFIND", f"{dav}/", {**XML, "Depth": "0"}, q, auth=admin)
+    r.call(f, "trash-root-d1", "PROPFIND", f"{tb}/", xml, props, auth=admin)
+    s, h, b = r.call(f, "trash-list", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+    names = re.findall(rb"/trashbin/" + a.user.encode() + rb"/trash/([^</\"]+)<", b)
+    item = names[0].decode() if names else "none"
+    r.secret(item, "{{item}}")
+    r.call(f, "trash-list-no-body", "PROPFIND", f"{tb}/trash", {"Depth": "1"}, auth=admin)
+    r.call(f, "trash-list-d0", "PROPFIND", f"{tb}/trash", {**XML, "Depth": "0"}, props, auth=admin)
+    r.call(f, "trash-item-d0", "PROPFIND", f"{tb}/trash/{item}", {**XML, "Depth": "0"}, props, auth=admin)
+    r.call(f, "trash-get", "GET", f"{tb}/trash/{item}", auth=admin)
+    r.call(f, "trash-head", "HEAD", f"{tb}/trash/{item}", auth=admin)
+    r.call(f, "trash-get-range", "GET", f"{tb}/trash/{item}", {"Range": "bytes=0-3"}, auth=admin)
+    r.call(f, "trash-get-missing", "GET", f"{tb}/trash/nothere.d1", auth=admin)
+    r.call(f, "trash-other-user", "PROPFIND", "/remote.php/dav/trashbin/someoneelse/trash", xml, props, auth=admin)
+    r.call(f, "trash-put", "PUT", f"{tb}/trash/new.txt", None, b"x", auth=admin)
+    r.call(f, "trash-mkcol", "MKCOL", f"{tb}/trash/newdir", auth=admin)
+    r.call(f, "trash-options", "OPTIONS", f"{tb}/trash", auth=admin)
+
+    # delete a folder with children
+    r.call(f, "delete-folder", "DELETE", f"{dav}/{folder}/sub", auth=admin)
+    s, h, b = r.call(f, "trash-list-with-folder", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+    names = [x.decode() for x in re.findall(rb"/trashbin/" + a.user.encode() + rb"/trash/([^</\"]+)<", b)]
+    sub = next((n for n in names if n.startswith("sub")), None)
+    if sub:
+        r.secret(sub, "{{subitem}}")
+        r.call(f, "trash-folder-d1", "PROPFIND", f"{tb}/trash/{sub}", xml, props, auth=admin)
+        r.call(f, "trash-folder-inner-get", "GET", f"{tb}/trash/{sub}/inner.txt", auth=admin)
+        r.call(f, "trash-folder-d0", "PROPFIND", f"{tb}/trash/{sub}", {**XML, "Depth": "0"}, props, auth=admin)
+
+    # same name deleted twice
+    r.call(f, "recreate-a", "PUT", f"{dav}/{folder}/a.txt", None, b"new a\n", auth=admin)
+    time.sleep(1.2)
+    r.call(f, "delete-a-again", "DELETE", f"{dav}/{folder}/a.txt", auth=admin)
+    r.call(f, "trash-list-two-a", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+
+    # restore: variants of the destination
+    names = [x.decode() for x in re.findall(rb"/trashbin/" + a.user.encode() + rb"/trash/([^</\"]+)<", r.call(f, "tmp", "PROPFIND", f"{tb}/trash", xml, props, auth=admin, record=False)[2])]
+    first_a = next((n for n in names if n.startswith("a.txt")), item)
+    r.call(f, "restore-no-destination", "MOVE", f"{tb}/trash/{first_a}", None, auth=admin)
+    r.call(f, "restore-wrong-destination", "MOVE", f"{tb}/trash/{first_a}", {"Destination": f"{base}{dav}/{folder}/elsewhere.txt"}, auth=admin)
+    r.call(f, "restore", "MOVE", f"{tb}/trash/{first_a}", {"Destination": f"{base}{tb}/restore/{first_a}"}, auth=admin)
+    r.call(f, "get-restored", "GET", f"{dav}/{folder}/a.txt", auth=admin)
+    r.call(f, "propfind-restored", "PROPFIND", f"{dav}/{folder}/a.txt", {**XML, "Depth": "0"}, '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getlastmodified/><d:getetag/><d:getcontentlength/></d:prop></d:propfind>', auth=admin)
+    r.call(f, "trash-list-after-restore", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+    r.call(f, "restore-again", "MOVE", f"{tb}/trash/{first_a}", {"Destination": f"{base}{tb}/restore/{first_a}"}, auth=admin, note="already restored")
+    # restore when the original name is taken
+    second_a = next((n for n in [x.decode() for x in re.findall(rb"/trashbin/" + a.user.encode() + rb"/trash/([^</\"]+)<", r.call(f, "tmp", "PROPFIND", f"{tb}/trash", xml, props, auth=admin, record=False)[2])] if n.startswith("a.txt")), None)
+    if second_a:
+        r.call(f, "restore-name-taken", "MOVE", f"{tb}/trash/{second_a}", {"Destination": f"{base}{tb}/restore/{second_a}"}, auth=admin)
+        r.call(f, "list-folder-after-conflict", "PROPFIND", f"{dav}/{folder}", xml, '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getcontentlength/></d:prop></d:propfind>', auth=admin)
+    # versions come back with a restored file
+    r.call(f, "versions-of-restored", "PROPFIND", f"{dav}/{folder}", xml, '<?xml version="1.0"?><d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:prop><oc:fileid/></d:prop></d:propfind>', auth=admin)
+
+    # restore a folder, restore into a missing parent
+    if sub:
+        r.call(f, "restore-folder", "MOVE", f"{tb}/trash/{sub}", {"Destination": f"{base}{tb}/restore/{sub}"}, auth=admin)
+        r.call(f, "get-restored-inner", "GET", f"{dav}/{folder}/sub/inner.txt", auth=admin)
+    r.call(f, "delete-b", "DELETE", f"{dav}/{folder}/b.txt", auth=admin)
+    r.call(f, "delete-parent", "DELETE", f"{dav}/{folder}", auth=admin)
+    s, h, b = r.call(f, "trash-list-parent-gone", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+    names = [x.decode() for x in re.findall(rb"/trashbin/" + a.user.encode() + rb"/trash/([^</\"]+)<", b)]
+    bname = next((n for n in names if n.startswith("b.txt")), None)
+    if bname:
+        r.call(f, "restore-parent-missing", "MOVE", f"{tb}/trash/{bname}", {"Destination": f"{base}{tb}/restore/{bname}"}, auth=admin)
+        r.call(f, "get-after-parent-missing", "GET", f"{dav}/b.txt", auth=admin, note="restored to the root?")
+        r.call(f, "get-after-parent-missing2", "GET", f"{dav}/{folder}/b.txt", auth=admin)
+
+    # delete from trash and empty
+    s, h, b = r.call(f, "trash-list-before-delete", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+    names = [x.decode() for x in re.findall(rb"/trashbin/" + a.user.encode() + rb"/trash/([^</\"]+)<", b)]
+    if names:
+        r.call(f, "delete-trash-item", "DELETE", f"{tb}/trash/{names[0]}", auth=admin)
+        r.call(f, "delete-trash-item-again", "DELETE", f"{tb}/trash/{names[0]}", auth=admin)
+    r.call(f, "empty-trash", "DELETE", f"{tb}/trash", auth=admin)
+    r.call(f, "trash-after-empty", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+    r.call(f, "quota-after-empty", "PROPFIND", f"{dav}/", {**XML, "Depth": "0"}, q, auth=admin)
+
+    # shares and trash
+    bob_pw = "bob-reference-password-1"
+    bob = ("bob", bob_pw)
+    r.secret(bob_pw, "{{bob_password}}")
+    bdav = "/remote.php/dav/files/bob"
+    form = {"Content-Type": "application/x-www-form-urlencoded", **OCS}
+    api = "/ocs/v2.php/apps/files_sharing/api/v1"
+    r.call(f, "create-user-bob", "POST", "/ocs/v2.php/cloud/users?format=json", form, f"userid=bob&password={bob_pw}", auth=admin, record=False)
+    sh = f"Shared{tag}"
+    r.secret(sh, "{{shared}}")
+    r.call(f, "share-mkcol", "MKCOL", f"{dav}/{sh}", auth=admin)
+    r.call(f, "share-put-1", "PUT", f"{dav}/{sh}/one.txt", None, b"one\n", auth=admin)
+    r.call(f, "share-put-2", "PUT", f"{dav}/{sh}/two.txt", None, b"two\n", auth=admin)
+    r.call(f, "share-create", "POST", f"{api}/shares?format=json", form, f"path=/{sh}&shareType=0&shareWith=bob&permissions=31", auth=admin)
+    r.call(f, "bob-deletes-shared-file", "DELETE", f"{bdav}/{sh}/one.txt", auth=bob)
+    r.call(f, "bob-trash", "PROPFIND", "/remote.php/dav/trashbin/bob/trash", xml, props, auth=bob)
+    r.call(f, "admin-trash-after-bobs-delete", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+    r.call(f, "owner-deletes-shared-folder", "DELETE", f"{dav}/{sh}", auth=admin)
+    r.call(f, "bob-sees-share-after-owner-delete", "PROPFIND", f"{bdav}/", {**XML, "Depth": "1"}, '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>', auth=bob)
+    s, h, b = r.call(f, "admin-trash-with-shared", "PROPFIND", f"{tb}/trash", xml, props, auth=admin)
+    names = [x.decode() for x in re.findall(rb"/trashbin/" + a.user.encode() + rb"/trash/([^</\"]+)<", b)]
+    shn = next((n for n in names if n.startswith("Shared")), None)
+    if shn:
+        r.call(f, "restore-shared-folder", "MOVE", f"{tb}/trash/{shn}", {"Destination": f"{base}{tb}/restore/{shn}"}, auth=admin)
+        r.call(f, "bob-after-restore", "PROPFIND", f"{bdav}/", {**XML, "Depth": "1"}, '<?xml version="1.0"?><d:propfind xmlns:d="DAV:"><d:prop><d:getetag/></d:prop></d:propfind>', auth=bob)
+        r.call(f, "shares-after-restore", "GET", f"{api}/shares?format=json", OCS, auth=admin)
+    r.call(f, "empty-trash-end", "DELETE", f"{tb}/trash", auth=admin)
+    r.call(f, "capabilities-end", "GET", "/ocs/v2.php/cloud/capabilities?format=json", OCS, auth=admin)
+    rec.finalize(r)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("flow", choices=["versions", "shares"])
+    ap.add_argument("flow", choices=["versions", "shares", "trash"])
     ap.add_argument("--host", default="127.0.0.1:18081")
     ap.add_argument("--user", default="admin")
     ap.add_argument("--password", default="admin-ref-password-1")
     a = ap.parse_args()
     r = rec.Recorder(a.host)
     r.secret(a.password, "{{password}}")
-    {"versions": versions, "shares": shares}[a.flow](r, a)
+    {"versions": versions, "shares": shares, "trash": trash}[a.flow](r, a)
 
 
 if __name__ == "__main__":

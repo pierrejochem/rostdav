@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "PROPFIND",
+    "path": "/remote.php/dav/trashbin/admin/trash",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "application/xml",
+      "Depth": "1",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 469,
+      "sha256": "eb7eed1936425af75ae716832ea31fa655657b09038c3799414633b9ba744900",
+      "text": "<?xml version=\"1.0\"?><d:propfind xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:prop><nc:trashbin-filename/><nc:trashbin-original-location/><nc:trashbin-deletion-time/><nc:trashbin-title/><nc:trashbin-deleted-by-id/><nc:trashbin-deleted-by-display-name/><d:getlastmodified/><d:getcontentlength/><d:getcontenttype/><d:resourcetype/><d:getetag/><oc:fileid/><oc:id/><oc:size/><oc:permissions/><nc:has-preview/></d:prop></d:propfind>"
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Thu, 22 Oct 2026 16:24:39 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Vary",
+        "Brief,Prefer"
+      ],
+      [
+        "DAV",
+        "1, 3, extended-mkcol, access-control, calendarserver-principal-property-search, nc-paginate, nextcloud-checksum-update, nc-calendar-search, nc-enable-birthday-calendar, 2"
+      ],
+      [
+        "X-Request-Id",
+        "YFDyTorg3K1tqhx6Bzlf"
+      ],
+      [
+        "Content-Length",
+        "2737"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 2737,
+      "sha256": "1cf437992a4a8f20fbaac4476e376b086941635c28bd5e9ca5033d93901b2cc5",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/trashbin/admin/trash/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><nc:trashbin-filename/><nc:trashbin-original-location/><nc:trashbin-deletion-time/><nc:trashbin-title/><nc:trashbin-deleted-by-id/><nc:trashbin-deleted-by-display-name/><d:getlastmodified/><d:getcontentlength/><d:getcontenttype/><d:getetag/><oc:fileid/><oc:id/><oc:size/><oc:permissions/><nc:has-preview/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/trashbin/admin/trash/{{folder}}.d1792686277/</d:href><d:propstat><d:prop><nc:trashbin-filename>{{folder}}</nc:trashbin-filename><nc:trashbin-original-location>{{folder}}</nc:trashbin-original-location><nc:trashbin-deletion-time>1792686277</nc:trashbin-deletion-time><nc:trashbin-title>{{folder}}</nc:trashbin-title><nc:trashbin-deleted-by-id>admin</nc:trashbin-deleted-by-id><nc:trashbin-deleted-by-display-name>admin</nc:trashbin-deleted-by-display-name><d:getlastmodified>Thu, 22 Oct 2026 16:24:37 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>1792686277</d:getetag><oc:fileid>315</oc:fileid><oc:id>315</oc:id><oc:size>29</oc:size><oc:permissions>GD</oc:permissions><nc:has-preview>false</nc:has-preview></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><d:getcontenttype/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/trashbin/admin/trash/sub.d1792686265/</d:href><d:propstat><d:prop><nc:trashbin-filename>sub</nc:trashbin-filename><nc:trashbin-original-location>{{folder}}/sub</nc:trashbin-original-location><nc:trashbin-deletion-time>1792686265</nc:trashbin-deletion-time><nc:trashbin-title>{{folder}}/sub</nc:trashbin-title><nc:trashbin-deleted-by-id>admin</nc:trashbin-deleted-by-id><nc:trashbin-deleted-by-display-name>admin</nc:trashbin-deleted-by-display-name><d:getlastmodified>Thu, 22 Oct 2026 16:24:25 GMT</d:getlastmodified><d:resourcetype><d:collection/></d:resourcetype><d:getetag>1792686265</d:getetag><oc:fileid>319</oc:fileid><oc:id>319</oc:id><oc:size>6</oc:size><oc:permissions>GD</oc:permissions><nc:has-preview>false</nc:has-preview></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat><d:propstat><d:prop><d:getcontentlength/><d:getcontenttype/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}
