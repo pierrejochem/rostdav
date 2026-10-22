@@ -168,6 +168,19 @@ impl AppState {
                 .await;
                 Err(Error::Unauthenticated)
             }
+            Some(u) if ok && allow_app_password && self.inner.db.totp_enabled(u.id).await? => {
+                // Two-factor is on: WebDAV and OCS take app passwords only (ADR 0007).
+                // The password was right, so the address is not punished.
+                self.audit(
+                    &u.name,
+                    "auth.login_failed",
+                    "",
+                    Some(ip),
+                    json!({"reason": "app password required (2fa)"}),
+                )
+                .await;
+                Err(Error::Unauthenticated)
+            }
             Some(u) if ok => {
                 self.inner.limiter.clear(&user_key);
                 Ok(Principal {

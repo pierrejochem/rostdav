@@ -323,6 +323,30 @@ pub async fn manage(
         esc(&t(lang, "Set password")),
         esc(&t(lang, "Sign out all devices"))
     );
+    let twofa_on = state
+        .user_two_factor_enabled(&Actor::User(&a.session.principal), &u.name)
+        .await
+        .unwrap_or(false);
+    let twofa = format!(
+        "<p class=\"muted\">{}</p>{}",
+        esc(&t(
+            lang,
+            if twofa_on {
+                "Two-factor authentication is on for this user."
+            } else {
+                "Two-factor authentication is off for this user."
+            }
+        )),
+        if twofa_on {
+            format!(
+                "<p><a class=\"button danger\" href=\"/admin/users/two-factor-reset?name={}\">{}</a></p>",
+                esc(&enc(&u.name)),
+                esc(&t(lang, "Reset two-factor authentication…"))
+            )
+        } else {
+            String::new()
+        }
+    );
     let delete = format!(
         "<p><a class=\"button danger\" href=\"/admin/users/delete?name={}\">{}</a></p>",
         esc(&enc(&u.name)),
@@ -345,11 +369,12 @@ pub async fn manage(
     );
     let body = format!(
         "<p><a href=\"/admin/users\">{}</a></p><section class=\"card2\"><div class=\"row userhead\">{head}</div></section>\
-         {}{}{}{}",
+         {}{}{}{}{}",
         esc(&t(lang, "← Back to users")),
         ui::card(lang, "Access", "", &access),
         ui::card(lang, "Quota", "", &quota_form),
         ui::card(lang, "Reset password", "", &password_form),
+        ui::card(lang, "Two-factor authentication", "", &twofa),
         ui::card(lang, "Delete", "", &delete),
     );
     page(&a, "Manage user", "users", &body)
@@ -753,4 +778,59 @@ pub async fn server(State(state): State<AppState>, Admin(a): Admin) -> Response 
         "server",
         &ui::card(lang, "Effective settings", "", &body),
     )
+}
+
+pub async fn twofa_reset_confirm(Admin(a): Admin, Query(q): Query<NameQuery>) -> Response {
+    let lang = a.lang;
+    let body = format!(
+        "<h2>{}</h2><p>{}</p>\
+         <form method=\"post\" action=\"/admin/users/two-factor-reset\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
+         <input type=\"hidden\" name=\"name\" value=\"{}\">\
+         <div class=\"actions\"><button class=\"danger\" type=\"submit\">{}</button>\
+         <a class=\"button\" href=\"/admin/users/manage?name={}\">{}</a></div></form>",
+        esc(&tf(
+            lang,
+            "Reset two-factor authentication for “{0}”?",
+            &[&q.name]
+        )),
+        esc(&t(
+            lang,
+            "The secret and the recovery codes are removed and the user's browser sessions end. The user can set it up again afterwards."
+        )),
+        esc(&a.csrf),
+        esc(&q.name),
+        esc(&t(lang, "Reset")),
+        esc(&enc(&q.name)),
+        esc(&t(lang, "Cancel")),
+    );
+    page(
+        &a,
+        "Reset two-factor authentication",
+        "users",
+        &ui::card(lang, "Reset two-factor authentication", "", &body),
+    )
+}
+
+#[derive(Deserialize)]
+pub struct TwofaResetForm {
+    csrf: String,
+    name: String,
+}
+
+pub async fn twofa_reset(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    Form(f): Form<TwofaResetForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    let back = format!("/admin/users/manage?name={}", enc(&f.name));
+    match state
+        .user_reset_two_factor(&Actor::User(&a.session.principal), &f.name)
+        .await
+    {
+        Ok(_) => Redirect::to(&back).into_response(),
+        Err(e) => error_page(&a, &e, &back),
+    }
 }

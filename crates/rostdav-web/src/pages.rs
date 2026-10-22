@@ -203,12 +203,32 @@ pub async fn login_submit(
         .web_sign_in(&f.user, &f.password, client_ip(&parts), ua)
         .await
     {
-        Ok((token, _)) => {
+        Ok(rostdav_app::SignIn::Done { cookie: token, .. }) => {
             let mut r = Redirect::to("/files").into_response();
             let h = r.headers_mut();
             h.append(
                 header::SET_COOKIE,
                 set_cookie(headers, SESSION_COOKIE, &token, None),
+            );
+            h.append(
+                header::SET_COOKIE,
+                set_cookie(headers, LOGIN_COOKIE, "", Some(0)),
+            );
+            r
+        }
+        Ok(rostdav_app::SignIn::SecondFactor { ticket }) => {
+            // the password was right: the code is asked for on the next page
+            let mut r = Redirect::to("/login/2fa").into_response();
+            let h = r.headers_mut();
+            h.append(
+                header::SET_COOKIE,
+                crate::session::set_cookie_at(
+                    headers,
+                    crate::session::TWOFA_COOKIE,
+                    &ticket,
+                    "/login",
+                    Some(300),
+                ),
             );
             h.append(
                 header::SET_COOKIE,

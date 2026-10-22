@@ -45,6 +45,10 @@ pub enum UserCommand {
     Disable { name: String },
     /// Allows the user to sign in again.
     Enable { name: String },
+    /// Removes the two-factor secret and recovery codes of a user who is locked out and
+    /// ends their browser sessions. The user can set it up again.
+    #[command(name = "reset-2fa")]
+    Reset2fa { name: String },
     /// Makes the user an administrator or a normal user.
     Role {
         name: String,
@@ -205,6 +209,21 @@ async fn user(
                 .await
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             writeln!(out, "user {name} disabled")?;
+        }
+        UserCommand::Reset2fa { name } => {
+            let was = state
+                .user_reset_two_factor(actor, &name)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            writeln!(
+                out,
+                "{}",
+                if was {
+                    format!("two-factor authentication of {name} removed; browser sessions ended")
+                } else {
+                    format!("{name} had no two-factor authentication; browser sessions ended")
+                }
+            )?;
         }
         UserCommand::Enable { name } => {
             state

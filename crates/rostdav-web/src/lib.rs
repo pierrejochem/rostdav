@@ -12,6 +12,7 @@ mod pages;
 mod pages_more;
 mod session;
 mod sharing;
+mod twofactor;
 mod ui;
 mod webupload;
 
@@ -90,6 +91,10 @@ pub fn router() -> Router<AppState> {
             "/admin/users/delete",
             get(admin::delete_confirm).post(admin::delete),
         )
+        .route(
+            "/admin/users/two-factor-reset",
+            get(admin::twofa_reset_confirm).post(admin::twofa_reset),
+        )
         .route("/admin/events", get(admin::events))
         .route("/admin/status", get(admin::status))
         .route("/admin/status/check", post(admin::check))
@@ -102,6 +107,22 @@ pub fn router() -> Router<AppState> {
             get(pages_more::password_page).post(pages_more::password_submit),
         )
         .route("/settings/export", post(pages_more::export))
+        .route(
+            "/login/2fa",
+            get(twofactor::login_second_show).post(twofactor::login_second_submit),
+        )
+        .route(
+            "/settings/2fa",
+            get(twofactor::setup_page).post(twofactor::setup_confirm),
+        )
+        .route(
+            "/settings/2fa/disable",
+            get(twofactor::disable_page).post(twofactor::disable_submit),
+        )
+        .route(
+            "/settings/2fa/codes",
+            get(twofactor::codes_page).post(twofactor::codes_submit),
+        )
         .route("/devices", get(pages_more::devices))
         .route("/devices/create", post(pages_more::device_create))
         .route("/devices/revoke", post(pages_more::device_revoke))

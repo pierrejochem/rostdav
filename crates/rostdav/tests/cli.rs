@@ -290,3 +290,17 @@ fn import_and_delete_with_transfer() {
         "{events}"
     );
 }
+
+#[test]
+fn reset_2fa_works_from_the_command_line() {
+    let c = Cli::new();
+    c.ok(&["user", "add", "anna"], &format!("{PW}\n"));
+    let out = c.ok(&["user", "reset-2fa", "anna"], "");
+    assert!(out.contains("had no two-factor authentication"), "{out}");
+    assert!(
+        c.fail(&["user", "reset-2fa", "nobody"], "")
+            .contains("not found")
+    );
+    let events = c.ok(&["audit", "export"], "");
+    assert!(events.contains("admin.2fa_reset"), "{events}");
+}

@@ -276,3 +276,51 @@ wants to connect to your account	möchte sich mit deinem Konto verbinden
 ← Back to users	← Zurück zu den Benutzern
 That name is already taken or not allowed here.	Dieser Name ist bereits vergeben oder hier nicht erlaubt.
 Account of {0}	Konto von {0}
+After five wrong codes, sign-in is locked for a few minutes.	Nach fünf falschen Codes ist die Anmeldung für einige Minuten gesperrt.
+Authenticator app	Authenticator-App
+Back to sign-in	Zurück zur Anmeldung
+Cannot scan? Enter this key in the app instead:	Scannen nicht möglich? Gib stattdessen diesen Schlüssel in der App ein:
+Code from your authenticator app	Code aus deiner Authenticator-App
+Code from your authenticator app, or a recovery code	Code aus deiner Authenticator-App oder ein Wiederherstellungscode
+Confirm and allow access	Bestätigen und Zugriff erlauben
+Confirm and sign in	Bestätigen und anmelden
+Confirm your sign-in	Anmeldung bestätigen
+Create new codes	Neue Codes erstellen
+Done	Fertig
+Each code works only once. Afterwards you see how many are left.	Jeder Code funktioniert nur einmal. Danach siehst du, wie viele noch übrig sind.
+Enter the six-digit code from your authenticator app.	Gib den sechsstelligen Code aus deiner Authenticator-App ein.
+Enter your password and a current code to confirm.	Gib zur Bestätigung dein Passwort und einen aktuellen Code ein.
+From now on, signing in in the browser asks for a code.	Ab jetzt fragt die Anmeldung im Browser nach einem Code.
+New recovery codes	Neue Wiederherstellungscodes
+No access to the app? Use a recovery code	Kein Zugriff auf die App? Nutze einen Wiederherstellungscode
+Off	Aus
+On	An
+Once it is on, WebDAV clients must use app passwords; your account password stops working there.	Sobald die Funktion an ist, müssen WebDAV-Clients App-Passwörter verwenden; dein Kontopasswort funktioniert dort nicht mehr.
+Optional. On every browser sign-in, Rostdav also asks for a six-digit code from your authenticator app. Connected devices keep their app passwords and need no changes.	Optional. Bei jeder Anmeldung im Browser fragt Rostdav zusätzlich nach einem sechsstelligen Code aus deiner Authenticator-App. Verbundene Geräte behalten ihre App-Passwörter und brauchen keine Änderung.
+QR code for the authenticator app	QR-Code für die Authenticator-App
+Recovery code	Wiederherstellungscode
+Recovery codes	Wiederherstellungscodes
+Reset	Zurücksetzen
+Reset two-factor authentication	Zwei-Faktor-Authentifizierung zurücksetzen
+Reset two-factor authentication for “{0}”?	Zwei-Faktor-Authentifizierung von „{0}“ zurücksetzen?
+Reset two-factor authentication…	Zwei-Faktor-Authentifizierung zurücksetzen …
+Save these recovery codes somewhere safe. Each works once, and they are not shown again.	Bewahre diese Wiederherstellungscodes sicher auf. Jeder funktioniert einmal und wird nicht noch einmal angezeigt.
+Scan the code with an authenticator app, then enter the six-digit code it shows.	Scanne den Code mit einer Authenticator-App und gib dann den sechsstelligen Code ein, den sie anzeigt.
+Set up	Einrichten
+Set up two-factor authentication	Zwei-Faktor-Authentifizierung einrichten
+Step 2 of 2	Schritt 2 von 2
+That code is wrong or has been used already.	Dieser Code ist falsch oder wurde schon verwendet.
+The old codes no longer work.	Die alten Codes funktionieren nicht mehr.
+The old codes stop working. Enter your password and a current code to confirm.	Die alten Codes funktionieren danach nicht mehr. Gib zur Bestätigung dein Passwort und einen aktuellen Code ein.
+The password or the code is wrong.	Das Passwort oder der Code ist falsch.
+The secret and the recovery codes are removed and the user's browser sessions end. The user can set it up again afterwards.	Das Geheimnis und die Wiederherstellungscodes werden entfernt, und die Browser-Sitzungen des Benutzers enden. Danach kann der Benutzer die Funktion neu einrichten.
+Turn off	Ausschalten
+Turn off two-factor authentication	Zwei-Faktor-Authentifizierung ausschalten
+Turn on	Einschalten
+Two-factor authentication	Zwei-Faktor-Authentifizierung
+Two-factor authentication is not available on this server.	Die Zwei-Faktor-Authentifizierung ist auf diesem Server nicht verfügbar.
+Two-factor authentication is off for this user.	Die Zwei-Faktor-Authentifizierung ist für diesen Benutzer aus.
+Two-factor authentication is on	Die Zwei-Faktor-Authentifizierung ist an
+Two-factor authentication is on for this user.	Die Zwei-Faktor-Authentifizierung ist für diesen Benutzer an.
+Use the authenticator app instead	Stattdessen die Authenticator-App verwenden
+{0} recovery codes left. Browser sign-in asks for a code; connected devices need nothing.	Noch {0} Wiederherstellungscodes. Die Anmeldung im Browser fragt nach einem Code; verbundene Geräte brauchen nichts.

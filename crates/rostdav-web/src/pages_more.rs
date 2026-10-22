@@ -309,8 +309,42 @@ async fn devices_page(state: &AppState, a: &Authed, status: StatusCode, notice: 
         esc(&t(lang, "Change password")),
         esc(&t(lang, "Sign out all other browsers"))
     );
+    let twofa = match state.two_factor_status(p).await {
+        Ok(st) if st.available || st.enabled => {
+            let chip = format!(
+                "<span class=\"chip{}\">{}</span>",
+                if st.enabled { " ok" } else { "" },
+                esc(&t(lang, if st.enabled { "On" } else { "Off" }))
+            );
+            let inner = if st.enabled {
+                format!(
+                    "<div class=\"twofa-row\"><p class=\"muted\">{}</p><div class=\"row-actions\">\
+                     <a class=\"button\" href=\"/settings/2fa/codes\">{}</a>\
+                     <a class=\"button danger\" href=\"/settings/2fa/disable\">{}</a></div></div>",
+                    esc(&tf(
+                        lang,
+                        "{0} recovery codes left. Browser sign-in asks for a code; connected devices need nothing.",
+                        &[&st.recovery_left.to_string()]
+                    )),
+                    esc(&t(lang, "New recovery codes")),
+                    esc(&t(lang, "Turn off"))
+                )
+            } else {
+                format!(
+                    "<div class=\"twofa-row\"><p class=\"muted\">{}</p><a class=\"button primary\" href=\"/settings/2fa\">{}</a></div>",
+                    esc(&t(
+                        lang,
+                        "Optional. On every browser sign-in, Rostdav also asks for a six-digit code from your authenticator app. Connected devices keep their app passwords and need no changes."
+                    )),
+                    esc(&t(lang, "Set up"))
+                )
+            };
+            ui::card(lang, "Two-factor authentication", &chip, &inner)
+        }
+        _ => String::new(),
+    };
     let body = format!(
-        "{}{notice}{}<div class=\"cols\">{}{}</div>",
+        "{}{notice}{}{twofa}<div class=\"cols\">{}{}</div>",
         ui::page_head(
             lang,
             "Devices & security",

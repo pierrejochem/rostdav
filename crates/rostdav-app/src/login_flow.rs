@@ -41,6 +41,15 @@ fn clean_client_name(raw: &str) -> String {
     }
 }
 
+/// What the password step of the Login Flow page leads to.
+#[derive(Debug)]
+pub enum FlowStep {
+    /// The app password was created.
+    Granted,
+    /// The code is still needed.
+    SecondFactor { ticket: String },
+}
+
 impl AppState {
     pub async fn start_login_flow(&self, client_name: &str) -> Result<StartedFlow> {
         let poll_token = random_token(TOKEN_LEN);
@@ -84,7 +93,8 @@ impl AppState {
     }
 
     /// The user signed in and allowed access: create the app password and hand
-    /// it to the poller. Browser logins accept the account password only.
+    /// it to the poller. Browser logins accept the account password only. With
+    /// two-factor authentication on, the code is asked for first (ticket).
     pub async fn flow_allow(
         &self,
         login_token: &str,
@@ -92,7 +102,7 @@ impl AppState {
         user: &str,
         password: &str,
         ip: IpAddr,
-    ) -> Result<()> {
+    ) -> Result<FlowStep> {
         self.check_csrf(login_token, "allow", csrf)?;
         let flow = self
             .inner
@@ -101,7 +111,44 @@ impl AppState {
             .await?
             .ok_or(Error::NotFound)?;
         let p = self.authenticate_with(user, password, ip, false).await?;
+        if self.inner.db.totp_enabled(p.user_id).await? {
+            return Ok(FlowStep::SecondFactor {
+                ticket: self.second_factor_ticket(p.user_id, login_token),
+            });
+        }
+        self.grant_flow_to(&flow, &p, ip).await?;
+        Ok(FlowStep::Granted)
+    }
 
+    /// Second step of the flow: the ticket from [`flow_allow`](Self::flow_allow) and a code.
+    pub async fn flow_second_factor(
+        &self,
+        login_token: &str,
+        csrf: &str,
+        ticket: &str,
+        code: &str,
+        ip: IpAddr,
+    ) -> Result<()> {
+        self.check_csrf(login_token, "allow", csrf)?;
+        let user_id = self
+            .second_factor_ticket_user(ticket, login_token)
+            .ok_or(Error::Unauthenticated)?;
+        let flow = self
+            .inner
+            .db
+            .open_flow_by_login(&hash_token(login_token))
+            .await?
+            .ok_or(Error::NotFound)?;
+        let p = self.second_factor_principal(user_id, code, ip).await?;
+        self.grant_flow_to(&flow, &p, ip).await
+    }
+
+    async fn grant_flow_to(
+        &self,
+        flow: &rostdav_meta::LoginFlow,
+        p: &crate::auth::Principal,
+        ip: IpAddr,
+    ) -> Result<()> {
         let (pw_id, token) = self
             .create_app_password_with_id(p.user_id, &flow.client_name)
             .await?;

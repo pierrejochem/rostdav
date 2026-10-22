@@ -21,6 +21,7 @@ mod secrets;
 mod share_tests;
 mod shares;
 mod trash;
+mod two_factor;
 mod uploads;
 mod versions;
 mod web;
@@ -31,12 +32,14 @@ pub use admin::{Actor, DeleteMode, FsckOptions, FsckReport, ImportOptions, Impor
 pub use audit::AuditOptions;
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, Scope, UserInfo, Via, authorize};
 pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, normalize_checksum};
+pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use shares::{
     LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,
 };
 pub use trash::{TrashEntry, TrashOptions};
+pub use two_factor::{SignIn, TotpKeySource, TwoFactorSetup, TwoFactorStatus};
 pub use uploads::UploadListing;
 pub use versions::{VersionEntry, VersionListing, VersioningOptions};
 pub use web::{Profile, UsageOverview, WebOptions, WebSession};
@@ -56,6 +59,8 @@ struct Inner {
     store: LocalStore,
     config: AppConfig,
     limiter: ratelimit::RateLimiter,
+    /// Wrong second-factor codes: five per user in 15 minutes (ADR 0007).
+    totp_limiter: ratelimit::RateLimiter,
     /// Instance ID used in Nextcloud-style file IDs (`oc:id`), e.g. `oc` + 10 characters.
     instance_id: String,
     /// 32-byte key for stateless tickets and CSRF values (stored in `settings`).
@@ -76,6 +81,14 @@ struct AppConfig {
     versioning: VersioningOptions,
     trash: TrashOptions,
     web: WebOptions,
+    security: SecurityOptions,
+}
+
+/// Settings of the security features.
+#[derive(Clone, Debug, Default)]
+pub struct SecurityOptions {
+    /// Where the key for the two-factor secrets comes from (ADR 0007).
+    pub totp_key: TotpKeySource,
 }
 
 /// Operating limits.
@@ -118,6 +131,10 @@ impl AppState {
                 store,
                 config: AppConfig::default(),
                 limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
+                totp_limiter: ratelimit::RateLimiter::new(
+                    5,
+                    std::time::Duration::from_secs(15 * 60),
+                ),
                 instance_id,
                 server_key,
             }),
@@ -133,6 +150,10 @@ impl AppState {
                 store: old.store.clone(),
                 config,
                 limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
+                totp_limiter: ratelimit::RateLimiter::new(
+                    5,
+                    std::time::Duration::from_secs(15 * 60),
+                ),
                 instance_id: old.instance_id.clone(),
                 server_key: old.server_key,
             }),
@@ -152,6 +173,15 @@ impl AppState {
     pub fn with_versioning(self, versioning: VersioningOptions) -> Self {
         let config = AppConfig {
             versioning,
+            ..self.inner.config.clone()
+        };
+        self.reconfigured(config)
+    }
+
+    #[must_use]
+    pub fn with_security(self, security: SecurityOptions) -> Self {
+        let config = AppConfig {
+            security,
             ..self.inner.config.clone()
         };
         self.reconfigured(config)
@@ -644,6 +674,7 @@ mod tests {
             IP,
         )
         .await
+        .map(|_| ())
     }
 
     #[tokio::test]

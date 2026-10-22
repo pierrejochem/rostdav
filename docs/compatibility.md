@@ -199,6 +199,19 @@ Source: `tests/fixtures/nextcloud/11-trash/` (`scripts/record_nextcloud_extra.py
 | Name conflict on restore: not recorded | `name (restored).ext` | chosen |
 | `MOVE`/`COPY` with `Overwrite: T` over an existing file | the replaced file is deleted for good | not recorded for the reference |
 
+## Implemented in M12: two-factor authentication
+
+Source: requirements (Nextcloud behaviour as described in `docs/instructions.md`), [ADR 0007](adr/0007-two-factor-authentication.md); **not** recorded from the reference server or the real app.
+
+| Topic | Behaviour here | Status |
+|---|---|---|
+| App passwords and Login Flow polling | Unchanged; they bypass 2FA | by design, as in Nextcloud |
+| Account password via Basic on WebDAV/OCS with 2FA on | Rejected (401) | tested here; the real app's reaction is **not tested** |
+| Capabilities | Nothing added, so the app starts no 2FA flow of its own | as intended |
+| Login Flow page with 2FA | Second step on the page (code or recovery code) before the app password is granted | tested here; the real app was not used |
+
+To check in M6 (emulator): connect the Nextcloud app to an account with 2FA on (through the Login Flow page) and use it afterwards.
+
 ## Not supported
 
 | Feature | App behavior without support | Source |

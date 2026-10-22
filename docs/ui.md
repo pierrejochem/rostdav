@@ -45,7 +45,8 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/admin/events` | Administration: event log (period filter, newest 500) |
 | `/admin/status`, `POST /admin/status/check` | Administration: version, usage, consistency check (optional checksums and repair) |
 | `/admin/server` | Administration: effective settings (read-only) |
-| `/login/v2/flow/<token>` | Connect device (Login Flow v2) |
+| `/login/2fa`, `/settings/2fa[/disable\|/codes]` | Second sign-in step; set up, turn off and recovery codes of two-factor authentication (ADR 0007); admin reset at `/admin/users/two-factor-reset` |
+| `/login/v2/flow/<token>` | Connect device (Login Flow v2; second step on the same page) |
 | `/static/{app,login}.css` | Embedded stylesheets |
 
 Route check against `docs/compatibility.md`: none of these paths is used by the Nextcloud apps' WebDAV, OCS or `status.php` calls. `/s/<token>` is the address Nextcloud itself uses for public links, so links created through the OCS API open in this page.
@@ -56,9 +57,10 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 - Every state-changing request needs a same-origin `Origin`/`Referer` and a CSRF token bound to the session. Anonymous forms (sign-in, link password, link upload) use a double-submit cookie.
 - Content-Security-Policy `default-src 'none'; script-src 'self'; connect-src 'self'; style-src 'self'; …`: no inline styles or scripts. The only script is `/static/upload.js` (chunked upload; the plain form works without it). All user-controlled text is HTML-escaped.
 - Downloads are always `attachment` with `nosniff` and `sandbox`.
+- Two-factor: after a correct password the browser holds only a 5-minute ticket cookie (`rostdav_2fa`, path `/login`, HttpOnly); the session exists only after a valid code. Codes are single-use and rate limited.
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
-Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Fonts: Space Grotesk (variable, latin) and JetBrains Mono 500 (latin), SIL OFL 1.1, taken from `design/Rostdav Web-UI.html`, stored in `crates/rostdav-web/static/fonts/` with their licences and served from `/static/` (CSP `font-src 'self'`). Latin only: umlauts work, other scripts fall back to the system font. Pages follow the design: Files, Devices & security (without 2FA), Settings (appearance, WebDAV address, storage; no file options yet), Administration (users, event log, status, server; no security/compatibility tabs). Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
+Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Fonts: Space Grotesk (variable, latin) and JetBrains Mono 500 (latin), SIL OFL 1.1, taken from `design/Rostdav Web-UI.html`, stored in `crates/rostdav-web/static/fonts/` with their licences and served from `/static/` (CSP `font-src 'self'`). Latin only: umlauts work, other scripts fall back to the system font. Pages follow the design: Files, Devices & security (with the two-factor card), Settings (appearance, WebDAV address, storage; no file options yet), Administration (users, event log, status, server; no security/compatibility tabs). Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
 
 Checks done on every page (14 pages × 360/768/1440 px × light/dark, Playwright + axe-core 4.10, tags wcag2a/aa, wcag21a/aa, wcag22aa, best-practice): no horizontal page overflow, no axe violations. Tables scroll inside a focusable region on small screens; password fields get a show/hide button (`/static/password.js`, `aria-pressed`, field name kept stable); sign-in pages have a `main` landmark. Not covered by automated checks: screen-reader announcements and keyboard order were not tried by hand.
 

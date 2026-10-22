@@ -22,7 +22,12 @@ pub struct TotpRow {
 
 impl Db {
     /// Starts (or restarts) a setup: replaces any earlier row of the user.
-    pub async fn totp_put_pending(&self, user_id: i64, secret_enc: &[u8], nonce: &[u8]) -> Result<()> {
+    pub async fn totp_put_pending(
+        &self,
+        user_id: i64,
+        secret_enc: &[u8],
+        nonce: &[u8],
+    ) -> Result<()> {
         sqlx::query(
             "INSERT INTO totp (user_id, secret_enc, nonce, created_at, enabled_at, last_step)
              VALUES (?, ?, ?, ?, NULL, 0)
@@ -40,29 +45,34 @@ impl Db {
     }
 
     pub async fn totp_get(&self, user_id: i64) -> Result<Option<TotpRow>> {
-        let row: Option<(Vec<u8>, Vec<u8>, i64, Option<i64>, i64)> = sqlx::query_as(
+        type Row = (Vec<u8>, Vec<u8>, i64, Option<i64>, i64);
+        let row: Option<Row> = sqlx::query_as(
             "SELECT secret_enc, nonce, created_at, enabled_at, last_step FROM totp WHERE user_id = ?",
         )
         .bind(user_id)
         .fetch_optional(self.pool())
         .await
         .map_err(err)?;
-        Ok(row.map(|(secret_enc, nonce, created_at, enabled_at, last_step)| TotpRow {
-            secret_enc,
-            nonce,
-            created_at,
-            enabled_at,
-            last_step,
-        }))
+        Ok(row.map(
+            |(secret_enc, nonce, created_at, enabled_at, last_step)| TotpRow {
+                secret_enc,
+                nonce,
+                created_at,
+                enabled_at,
+                last_step,
+            },
+        ))
     }
 
     /// Whether 2FA is switched on (setups in progress do not count).
     pub async fn totp_enabled(&self, user_id: i64) -> Result<bool> {
-        let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM totp WHERE user_id = ? AND enabled_at IS NOT NULL")
-            .bind(user_id)
-            .fetch_one(self.pool())
-            .await
-            .map_err(err)?;
+        let n: i64 = sqlx::query_scalar(
+            "SELECT COUNT(*) FROM totp WHERE user_id = ? AND enabled_at IS NOT NULL",
+        )
+        .bind(user_id)
+        .fetch_one(self.pool())
+        .await
+        .map_err(err)?;
         Ok(n > 0)
     }
 
@@ -80,8 +90,17 @@ impl Db {
     }
 
     /// Switches 2FA on after a valid first code and stores the recovery codes (replacing old ones).
-    pub async fn totp_enable(&self, user_id: i64, step: i64, recovery_hashes: &[String]) -> Result<()> {
-        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await.map_err(err)?;
+    pub async fn totp_enable(
+        &self,
+        user_id: i64,
+        step: i64,
+        recovery_hashes: &[String],
+    ) -> Result<()> {
+        let mut tx = self
+            .pool()
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(err)?;
         let r = sqlx::query("UPDATE totp SET enabled_at = ?, last_step = ? WHERE user_id = ? AND enabled_at IS NULL")
             .bind(now_secs())
             .bind(step)
@@ -98,7 +117,11 @@ impl Db {
 
     /// Removes the secret and all recovery codes (disable or administrator reset).
     pub async fn totp_delete(&self, user_id: i64) -> Result<bool> {
-        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await.map_err(err)?;
+        let mut tx = self
+            .pool()
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(err)?;
         sqlx::query("DELETE FROM recovery_codes WHERE user_id = ?")
             .bind(user_id)
             .execute(&mut *tx)
@@ -124,7 +147,11 @@ impl Db {
     }
 
     pub async fn recovery_replace(&self, user_id: i64, hashes: &[String]) -> Result<()> {
-        let mut tx = self.pool().begin_with("BEGIN IMMEDIATE").await.map_err(err)?;
+        let mut tx = self
+            .pool()
+            .begin_with("BEGIN IMMEDIATE")
+            .await
+            .map_err(err)?;
         replace_codes(&mut tx, user_id, hashes).await?;
         tx.commit().await.map_err(err)
     }
@@ -140,21 +167,24 @@ impl Db {
 
     /// Marks a code as used; `false` if it was used already (two requests, one code).
     pub async fn recovery_use(&self, id: i64) -> Result<bool> {
-        let r = sqlx::query("UPDATE recovery_codes SET used_at = ? WHERE id = ? AND used_at IS NULL")
-            .bind(now_secs())
-            .bind(id)
-            .execute(self.pool())
-            .await
-            .map_err(err)?;
+        let r =
+            sqlx::query("UPDATE recovery_codes SET used_at = ? WHERE id = ? AND used_at IS NULL")
+                .bind(now_secs())
+                .bind(id)
+                .execute(self.pool())
+                .await
+                .map_err(err)?;
         Ok(r.rows_affected() == 1)
     }
 
     pub async fn recovery_remaining(&self, user_id: i64) -> Result<i64> {
-        sqlx::query_scalar("SELECT COUNT(*) FROM recovery_codes WHERE user_id = ? AND used_at IS NULL")
-            .bind(user_id)
-            .fetch_one(self.pool())
-            .await
-            .map_err(err)
+        sqlx::query_scalar(
+            "SELECT COUNT(*) FROM recovery_codes WHERE user_id = ? AND used_at IS NULL",
+        )
+        .bind(user_id)
+        .fetch_one(self.pool())
+        .await
+        .map_err(err)
     }
 }
 
@@ -188,7 +218,11 @@ mod tests {
         let db = Db::open("sqlite::memory:").await.expect("db");
         db.migrate().await.expect("migrate");
         let u = db
-            .create_user(NewUser { name: "anna".into(), password_hash: "x".into(), is_admin: false })
+            .create_user(NewUser {
+                name: "anna",
+                password_hash: "x",
+                is_admin: false,
+            })
             .await
             .expect("user");
         (db, u.id)
@@ -198,11 +232,25 @@ mod tests {
     async fn setup_enable_replay_and_recovery() {
         let (db, id) = db_with_user().await;
         assert!(!db.totp_enabled(id).await.expect("q"));
-        db.totp_put_pending(id, b"sec", b"nonce").await.expect("pending");
-        assert!(!db.totp_enabled(id).await.expect("q"), "a setup in progress is not 2FA");
-        assert!(db.totp_get(id).await.expect("q").expect("row").enabled_at.is_none());
+        db.totp_put_pending(id, b"sec", b"nonce")
+            .await
+            .expect("pending");
+        assert!(
+            !db.totp_enabled(id).await.expect("q"),
+            "a setup in progress is not 2FA"
+        );
+        assert!(
+            db.totp_get(id)
+                .await
+                .expect("q")
+                .expect("row")
+                .enabled_at
+                .is_none()
+        );
 
-        db.totp_enable(id, 100, &["h1".into(), "h2".into(), "h3".into()]).await.expect("enable");
+        db.totp_enable(id, 100, &["h1".into(), "h2".into(), "h3".into()])
+            .await
+            .expect("enable");
         assert!(db.totp_enabled(id).await.expect("q"));
         assert_eq!(db.recovery_remaining(id).await.expect("q"), 3);
         // enabling twice fails
@@ -219,7 +267,9 @@ mod tests {
         assert!(db.recovery_use(codes[0].0).await.expect("q"));
         assert!(!db.recovery_use(codes[0].0).await.expect("q"));
         assert_eq!(db.recovery_remaining(id).await.expect("q"), 2);
-        db.recovery_replace(id, &["n1".into()]).await.expect("replace");
+        db.recovery_replace(id, &["n1".into()])
+            .await
+            .expect("replace");
         assert_eq!(db.recovery_unused(id).await.expect("q").len(), 1);
 
         // delete removes everything; unknown user is not an error

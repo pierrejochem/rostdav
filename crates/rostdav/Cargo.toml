@@ -25,6 +25,7 @@ clap.workspace = true
 figment.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+base64.workspace = true
 tokio.workspace = true
 tower.workspace = true
 tower-http = { workspace = true, features = ["set-header"] }
@@ -32,10 +33,11 @@ tracing.workspace = true
 tracing-subscriber.workspace = true
 
 [dev-dependencies]
+hmac.workspace = true
+sha1.workspace = true
 percent-encoding.workspace = true
 tempfile.workspace = true
 http-body-util = "0.1"
-base64.workspace = true
 quick-xml.workspace = true
 httpdate.workspace = true
 rostdav-app.workspace = true

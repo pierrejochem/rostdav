@@ -431,6 +431,7 @@ impl AppState {
             .db
             .purge_sessions(self.inner.config.web.idle_secs)
             .await?;
+        self.purge_two_factor().await?;
         let ids = self.inner.db.delete_unreferenced_blobs().await?;
         for id in &ids {
             self.inner.store.delete_blob(&BlobId::parse(id)?).await?;

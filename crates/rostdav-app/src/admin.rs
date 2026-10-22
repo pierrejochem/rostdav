@@ -24,14 +24,14 @@ pub enum Actor<'a> {
 }
 
 impl Actor<'_> {
-    fn name(&self) -> String {
+    pub(crate) fn name(&self) -> String {
         match self {
             Actor::Cli => "cli".into(),
             Actor::User(p) => p.name.clone(),
         }
     }
 
-    fn require_admin(&self) -> Result<()> {
+    pub(crate) fn require_admin(&self) -> Result<()> {
         match self {
             Actor::Cli => Ok(()),
             Actor::User(p) if p.is_admin => Ok(()),
@@ -147,7 +147,7 @@ pub struct ImportReport {
 }
 
 impl AppState {
-    async fn target_user(&self, name: &str) -> Result<User> {
+    pub(crate) async fn target_user(&self, name: &str) -> Result<User> {
         self.inner.db.find_user(name).await?.ok_or(Error::NotFound)
     }
 

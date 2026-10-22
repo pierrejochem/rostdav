@@ -8,6 +8,7 @@ use rostdav_meta::{AppPassword, Session};
 use serde_json::json;
 
 use crate::AppState;
+use crate::SignIn;
 use crate::auth::{Principal, Scope, Via};
 use crate::secrets::{hash_token, mac, mac_eq, random_token};
 
@@ -65,15 +66,37 @@ const PREFS: &[(&str, &[&str])] = &[
 impl AppState {
     // ---- sessions ----------------------------------------------------------------
 
-    /// Checks the account password and opens a session. Returns the cookie value.
+    /// Checks the account password. Without a second factor the session is opened;
+    /// with one the caller gets a ticket for the second step (ADR 0007).
     pub async fn web_sign_in(
         &self,
         user: &str,
         password: &str,
         ip: IpAddr,
         user_agent: &str,
-    ) -> Result<(String, Principal)> {
+    ) -> Result<SignIn> {
         let p = self.authenticate_with(user, password, ip, false).await?;
+        if self.inner.db.totp_enabled(p.user_id).await? {
+            return Ok(SignIn::SecondFactor {
+                ticket: self.second_factor_ticket(p.user_id, ""),
+            });
+        }
+        let cookie = self.open_session(&p, ip, user_agent).await?;
+        self.audit(&p.name, "auth.login", "web", Some(ip), json!({}))
+            .await;
+        Ok(SignIn::Done {
+            cookie,
+            principal: p,
+        })
+    }
+
+    /// Creates the session row and returns the cookie value.
+    pub(crate) async fn open_session(
+        &self,
+        p: &Principal,
+        ip: IpAddr,
+        user_agent: &str,
+    ) -> Result<String> {
         let token = random_token(COOKIE_LEN);
         let web = &self.inner.config.web;
         let ua: String = user_agent
@@ -95,9 +118,7 @@ impl AppState {
                 &ua,
             )
             .await?;
-        self.audit(&p.name, "auth.login", "web", Some(ip), json!({}))
-            .await;
-        Ok((token, p))
+        Ok(token)
     }
 
     /// The session behind a cookie value, if it is valid.
@@ -453,10 +474,13 @@ mod tests {
             .await
             .expect("user");
         assert!(st.web_sign_in("alice", "wrong", IP, "ua").await.is_err());
-        let (cookie, _) = st
+        let SignIn::Done { cookie, .. } = st
             .web_sign_in("alice", "correct horse battery", IP, "ua")
             .await
-            .expect("login");
+            .expect("login")
+        else {
+            panic!("no second factor expected")
+        };
         let s = st
             .web_session(&cookie)
             .await

@@ -12,6 +12,8 @@ use rostdav_core::ClientIp;
 
 pub const SESSION_COOKIE: &str = "rostdav_session";
 pub const LOGIN_COOKIE: &str = "rostdav_login";
+/// Proof of the password step while the second factor is outstanding (ADR 0007).
+pub const TWOFA_COOKIE: &str = "rostdav_2fa";
 
 pub fn cookie_value(headers: &HeaderMap, name: &str) -> Option<String> {
     headers

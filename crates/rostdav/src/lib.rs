@@ -40,6 +40,9 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
             enabled: cfg.trash.enabled,
             retention_days: cfg.trash.retention_days,
         })
+        .with_security(rostdav_app::SecurityOptions {
+            totp_key: totp_key_source(cfg)?,
+        })
         .with_web(rostdav_app::WebOptions {
             idle_secs: i64::from(cfg.web.session_idle_hours.max(1)) * 3600,
             max_secs: i64::from(cfg.web.session_max_days.max(1)) * 86_400,
@@ -48,4 +51,24 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
             anonymize_ip: cfg.audit.anonymize_ip,
             retention_days: cfg.audit.retention_days,
         }))
+}
+
+/// Where the key for the two-factor secrets comes from (ADR 0007).
+fn totp_key_source(cfg: &config::Config) -> anyhow::Result<rostdav_app::TotpKeySource> {
+    use base64::Engine;
+    if let Some(k) = &cfg.security.totp_key {
+        let bytes = base64::engine::general_purpose::STANDARD
+            .decode(k.trim())
+            .context("security.totp_key is not valid base64")?;
+        let key: [u8; 32] = bytes
+            .try_into()
+            .map_err(|_| anyhow::anyhow!("security.totp_key must be 32 bytes (base64)"))?;
+        return Ok(rostdav_app::TotpKeySource::Fixed(key));
+    }
+    let path = cfg
+        .security
+        .totp_key_file
+        .clone()
+        .unwrap_or_else(|| cfg.storage.data_dir.join("totp.key"));
+    Ok(rostdav_app::TotpKeySource::File(path))
 }

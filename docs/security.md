@@ -13,7 +13,7 @@ Binding requirements: section 5 of the [instructions](instructions.md). Short ve
 
 | ID | Threat | Mitigation | Status |
 |---|---|---|---|
-| S1 | Password guessing via WebDAV/OCS/login | Rate limit per IP and user, lockouts, app password requirement, 2FA | open (M4, M12) |
+| S1 | Password guessing via WebDAV/OCS/login | Rate limit per IP and user, lockouts, app password requirement, 2FA (TOTP, ADR 0007: code entry limited to five failures per user and 15 minutes, secrets encrypted with a key outside the database) | M4, M12 implemented |
 | S2 | Stolen app password | Revocable per device, last use visible, only hash stored | open (M4) |
 | S3 | Session theft in the web interface | HttpOnly, Secure, SameSite=Lax, short lifetime, reissue after sign-in | open (M11) |
 | T1 | Path Traversal | Physical paths independent of input, segment validation | open (M1) |

@@ -23,6 +23,7 @@ pub struct Config {
     pub versioning: Versioning,
     pub trash: Trash,
     pub web: Web,
+    pub security: Security,
     pub log: Log,
 }
 
@@ -42,6 +43,17 @@ impl Default for Trash {
             retention_days: 30,
         }
     }
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Security {
+    /// Key for the two-factor secrets: 32 random bytes, base64. Prefer the environment
+    /// variable `ROSTDAV_SECURITY__TOTP_KEY` to a value in the file.
+    pub totp_key: Option<String>,
+    /// File with the 32 raw key bytes. Default: `totp.key` in the data directory,
+    /// created when the first user starts a setup.
+    pub totp_key_file: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

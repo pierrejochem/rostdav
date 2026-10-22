@@ -2716,6 +2716,113 @@ async fn german_interface_is_complete() {
     .await;
     assert!(r.text().contains("<html lang=\"de\""));
 
+    // second step with a ticket, and a switched-on state
+    post_form(
+        &e,
+        "/settings/profile",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("display_name", ""),
+            ("email", ""),
+            ("language", "de"),
+        ],
+    )
+    .await;
+    let setup = get(&e, "/settings/2fa", &root).await.text();
+    let secret = between(&setup, "<p><code>", "</code>");
+    let r = post_form(
+        &e,
+        "/settings/2fa",
+        &root,
+        &[("csrf", &csrf), ("code", &totp_now(&secret, 0))],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert!(
+        r.text().contains("Wiederherstellungscodes"),
+        "{}",
+        r.text().chars().take(3000).collect::<String>()
+    );
+    assert!(
+        get(&e, "/devices", &root)
+            .await
+            .text()
+            .contains("Zwei-Faktor-Authentifizierung")
+    );
+    assert!(
+        get(&e, "/admin/users/manage?name=root", &root)
+            .await
+            .text()
+            .contains("<html lang=\"de\"")
+    );
+    post_form(
+        &e,
+        "/settings/2fa",
+        &root,
+        &[("csrf", &csrf), ("code", "000000")],
+    )
+    .await;
+    let de = [("accept-language", "de")];
+    let page = send(&e, "GET", "/login", &de, Body::empty()).await;
+    let (lc, tok) = (
+        page.cookie("rostdav_login").expect("c"),
+        extract_csrf(&page.text()),
+    );
+    let r = post_form(
+        &e,
+        "/login",
+        &lc,
+        &[("csrf", &tok), ("user", "root"), ("password", PW)],
+    )
+    .await;
+    let ticket = r
+        .cookies()
+        .into_iter()
+        .find(|c| c.starts_with("rostdav_2fa="))
+        .expect("ticket")
+        .split(';')
+        .next()
+        .expect("p")
+        .to_owned();
+    for u in ["/login/2fa", "/login/2fa?recovery=1"] {
+        let r = send(
+            &e,
+            "GET",
+            u,
+            &[("cookie", &ticket), ("accept-language", "de")],
+            Body::empty(),
+        )
+        .await;
+        assert!(r.text().contains("Schritt 2 von 2"), "{u}");
+    }
+    let page = send(
+        &e,
+        "GET",
+        "/login/2fa",
+        &[("cookie", &ticket), ("accept-language", "de")],
+        Body::empty(),
+    )
+    .await;
+    let (lc, tok) = (
+        page.cookie("rostdav_login").expect("c"),
+        extract_csrf(&page.text()),
+    );
+    let r = send(
+        &e,
+        "POST",
+        "/login/2fa",
+        &[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("cookie", &format!("{ticket}; {lc}")),
+            ("origin", &origin()),
+            ("accept-language", "de"),
+        ],
+        Body::from(form(&[("csrf", &tok), ("code", "000000")])),
+    )
+    .await;
+    assert!(r.text().contains("falsch"));
+
     let missing = rostdav_web::missing_translations();
     assert!(
         missing.is_empty(),
@@ -2769,4 +2876,775 @@ async fn fonts_are_served_from_the_same_origin() {
             && !css.contains("fonts.googleapis")
             && !css.contains("gstatic")
     );
+}
+
+// ---- two-factor authentication (ADR 0007) ----------------------------------------------------
+
+fn totp_now(secret_b32: &str, offset: i64) -> String {
+    use hmac::{Hmac, Mac};
+    const B32: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+    let (mut buf, mut bits, mut key) = (0u32, 0u32, Vec::new());
+    for c in secret_b32.bytes() {
+        buf = (buf << 5) | B32.iter().position(|b| *b == c).expect("base32") as u32;
+        bits += 5;
+        if bits >= 8 {
+            bits -= 8;
+            key.push(((buf >> bits) & 0xff) as u8);
+        }
+    }
+    let step = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("time")
+        .as_secs()
+        / 30;
+    let counter = u64::try_from(i64::try_from(step).expect("step") + offset).expect("counter");
+    let mut m = <Hmac<sha1::Sha1> as Mac>::new_from_slice(&key).expect("key");
+    m.update(&counter.to_be_bytes());
+    let h = m.finalize().into_bytes();
+    let o = usize::from(h[19] & 15);
+    let v = (u32::from(h[o] & 0x7f) << 24)
+        | (u32::from(h[o + 1]) << 16)
+        | (u32::from(h[o + 2]) << 8)
+        | u32::from(h[o + 3]);
+    format!("{:06}", v % 1_000_000)
+}
+
+fn between(html: &str, start: &str, end: &str) -> String {
+    let i = html
+        .find(start)
+        .unwrap_or_else(|| panic!("{start} not found"))
+        + start.len();
+    html[i..].split(end).next().expect("end").to_owned()
+}
+
+/// anna turns 2FA on; returns her session cookie, the secret and the recovery codes.
+async fn enable_2fa(e: &Env, user: &str) -> (String, String, Vec<String>) {
+    let c = login(e, user).await;
+    let csrf = page_csrf(e, &c).await;
+    let page = get(e, "/settings/2fa", &c).await;
+    assert_eq!(page.status, StatusCode::OK, "{}", page.text());
+    let html = page.text();
+    assert!(html.contains("<svg") && html.contains("Cannot scan?"));
+    let secret = between(&html, "<p><code>", "</code>");
+    let r = post_form(
+        e,
+        "/settings/2fa",
+        &c,
+        &[("csrf", &csrf), ("code", &totp_now(&secret, 0))],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert_eq!(r.h("cache-control"), "no-store");
+    let codes: Vec<String> = r
+        .text()
+        .split("<li><code>")
+        .skip(1)
+        .map(|s| s.split("</code>").next().expect("c").to_owned())
+        .collect();
+    assert_eq!(codes.len(), 10);
+    (c, secret, codes)
+}
+
+async fn password_step(e: &Env, user: &str) -> Res {
+    let page = send(e, "GET", "/login", &[], Body::empty()).await;
+    let (lc, tok) = (
+        page.cookie("rostdav_login").expect("c"),
+        extract_csrf(&page.text()),
+    );
+    post_form(
+        e,
+        "/login",
+        &lc,
+        &[("csrf", &tok), ("user", user), ("password", PW)],
+    )
+    .await
+}
+
+#[tokio::test]
+async fn two_factor_setup_rules() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    let d = get(&e, "/devices", &c).await.text();
+    assert!(
+        d.contains("Two-factor authentication")
+            && d.contains(">Off<")
+            && d.contains("/settings/2fa")
+    );
+    // csrf and wrong code
+    let setup = get(&e, "/settings/2fa", &c).await.text();
+    let secret = between(&setup, "<p><code>", "</code>");
+    assert!(
+        get(&e, "/settings/2fa", &c).await.text().contains(&secret),
+        "the pending setup is shown again"
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/settings/2fa",
+            &c,
+            &[("csrf", "forged"), ("code", &totp_now(&secret, 0))]
+        )
+        .await
+        .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/settings/2fa",
+            &c,
+            &[("csrf", &csrf), ("code", "000000")]
+        )
+        .await
+        .status,
+        StatusCode::UNAUTHORIZED
+    );
+    // still off: password sign-in has no second step
+    assert!(!get(&e, "/devices", &c).await.text().contains(">On<"));
+    let r = password_step(&e, "anna").await;
+    assert_eq!(r.h("location"), "/files");
+
+    let (c, secret, codes) = enable_2fa(&e, "bob").await;
+    let d = get(&e, "/devices", &c).await.text();
+    assert!(d.contains(">On<") && d.contains("10 recovery codes left"));
+    // setup again while on: back to the devices page
+    assert_eq!(
+        get(&e, "/settings/2fa", &c).await.status,
+        StatusCode::SEE_OTHER
+    );
+    assert!(secret.len() >= 32 && codes[0].len() == 14);
+    // the secret and the codes are not in the page again
+    assert!(!d.contains(&secret) && !d.contains(&codes[0]));
+}
+
+#[tokio::test]
+async fn two_factor_sign_in_second_step() {
+    let e = env().await;
+    let (_c, secret, codes) = enable_2fa(&e, "anna").await;
+
+    let r = password_step(&e, "anna").await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(r.h("location"), "/login/2fa");
+    assert!(
+        r.cookie("rostdav_session").is_none(),
+        "no session before the code"
+    );
+    let tc = r
+        .cookies()
+        .into_iter()
+        .find(|c| c.starts_with("rostdav_2fa="))
+        .expect("ticket cookie");
+    for flag in ["HttpOnly", "SameSite=Lax", "Path=/login", "Max-Age=300"] {
+        assert!(tc.contains(flag), "{tc}");
+    }
+    let ticket = tc.split(';').next().expect("pair").to_owned();
+    assert_eq!(
+        get(&e, "/files", &ticket).await.status,
+        StatusCode::SEE_OTHER,
+        "the ticket opens nothing else"
+    );
+    assert_eq!(
+        send(
+            &e,
+            "GET",
+            "/remote.php/dav/files/anna/",
+            &[("cookie", &ticket)],
+            Body::empty()
+        )
+        .await
+        .status,
+        StatusCode::UNAUTHORIZED
+    );
+
+    // without a ticket the page sends you back
+    let r = send(&e, "GET", "/login/2fa", &[], Body::empty()).await;
+    assert_eq!(r.h("location"), "/login");
+    let r = send(
+        &e,
+        "GET",
+        "/login/2fa",
+        &[("cookie", "rostdav_2fa=1.99999999999.deadbeef")],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(r.h("location"), "/login", "forged ticket");
+
+    let page = send(
+        &e,
+        "GET",
+        "/login/2fa",
+        &[("cookie", &ticket)],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(page.status, StatusCode::OK);
+    let html = page.text();
+    assert!(
+        html.contains("Step 2 of 2")
+            && html.contains("one-time-code")
+            && html.contains("No access to the app?")
+    );
+    assert!(
+        page.h("content-security-policy")
+            .contains("default-src 'none'")
+    );
+    let rec = send(
+        &e,
+        "GET",
+        "/login/2fa?recovery=1",
+        &[("cookie", &ticket)],
+        Body::empty(),
+    )
+    .await
+    .text();
+    assert!(rec.contains("xxxx-xxxx-xxxx") && rec.contains("Use the authenticator app instead"));
+
+    let lc = page.cookie("rostdav_login").expect("login cookie");
+    let tok = extract_csrf(&html);
+    let both = format!("{ticket}; {lc}");
+    // csrf / origin / wrong code
+    assert_eq!(
+        post_form(
+            &e,
+            "/login/2fa",
+            &both,
+            &[("csrf", "forged"), ("code", &totp_now(&secret, 1))]
+        )
+        .await
+        .status,
+        StatusCode::FORBIDDEN
+    );
+    let r = send(
+        &e,
+        "POST",
+        "/login/2fa",
+        &[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("cookie", &both),
+            ("origin", "http://evil.test"),
+        ],
+        Body::from(form(&[("csrf", &tok), ("code", &totp_now(&secret, 1))])),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let bad = post_form(
+        &e,
+        "/login/2fa",
+        &both,
+        &[("csrf", &tok), ("code", "000000")],
+    )
+    .await;
+    assert_eq!(bad.status, StatusCode::UNAUTHORIZED);
+    assert!(
+        bad.cookie("rostdav_session").is_none() && bad.text().contains("wrong or has been used")
+    );
+    // the setup code (already used) is replay-protected; the next step's code works
+    let replay = post_form(
+        &e,
+        "/login/2fa",
+        &both,
+        &[("csrf", &tok), ("code", &totp_now(&secret, 0))],
+    )
+    .await;
+    assert_eq!(replay.status, StatusCode::UNAUTHORIZED, "replay");
+    let ok = post_form(
+        &e,
+        "/login/2fa",
+        &both,
+        &[("csrf", &tok), ("code", &totp_now(&secret, 1))],
+    )
+    .await;
+    assert_eq!(ok.status, StatusCode::SEE_OTHER, "{}", ok.text());
+    assert_eq!(ok.h("location"), "/files");
+    let session = ok.cookie("rostdav_session").expect("session");
+    assert!(
+        ok.cookies()
+            .iter()
+            .any(|c| c.starts_with("rostdav_2fa=;") && c.contains("Max-Age=0")),
+        "ticket cleared"
+    );
+    assert_eq!(get(&e, "/files", &session).await.status, StatusCode::OK);
+    // the same code again is refused
+    let again = post_form(
+        &e,
+        "/login/2fa",
+        &both,
+        &[("csrf", &tok), ("code", &totp_now(&secret, 1))],
+    )
+    .await;
+    assert_eq!(again.status, StatusCode::UNAUTHORIZED);
+
+    // recovery code: once
+    let r = password_step(&e, "anna").await;
+    let ticket = r
+        .cookies()
+        .into_iter()
+        .find(|c| c.starts_with("rostdav_2fa="))
+        .expect("t")
+        .split(';')
+        .next()
+        .expect("p")
+        .to_owned();
+    let page = send(
+        &e,
+        "GET",
+        "/login/2fa",
+        &[("cookie", &ticket)],
+        Body::empty(),
+    )
+    .await;
+    let (lc, tok) = (
+        page.cookie("rostdav_login").expect("c"),
+        extract_csrf(&page.text()),
+    );
+    let both = format!("{ticket}; {lc}");
+    let ok = post_form(
+        &e,
+        "/login/2fa",
+        &both,
+        &[("csrf", &tok), ("code", &codes[0].to_uppercase())],
+    )
+    .await;
+    assert_eq!(ok.status, StatusCode::SEE_OTHER, "{}", ok.text());
+    let used = post_form(
+        &e,
+        "/login/2fa",
+        &both,
+        &[("csrf", &tok), ("code", &codes[0])],
+    )
+    .await;
+    assert_eq!(used.status, StatusCode::UNAUTHORIZED);
+    let c = ok.cookie("rostdav_session").expect("session");
+    assert!(
+        get(&e, "/devices", &c)
+            .await
+            .text()
+            .contains("9 recovery codes left")
+    );
+}
+
+#[tokio::test]
+async fn two_factor_brute_force_is_locked_out() {
+    let e = env().await;
+    let (_c, secret, _codes) = enable_2fa(&e, "anna").await;
+    let r = password_step(&e, "anna").await;
+    let ticket = r
+        .cookies()
+        .into_iter()
+        .find(|c| c.starts_with("rostdav_2fa="))
+        .expect("t")
+        .split(';')
+        .next()
+        .expect("p")
+        .to_owned();
+    let page = send(
+        &e,
+        "GET",
+        "/login/2fa",
+        &[("cookie", &ticket)],
+        Body::empty(),
+    )
+    .await;
+    let (lc, tok) = (
+        page.cookie("rostdav_login").expect("c"),
+        extract_csrf(&page.text()),
+    );
+    let both = format!("{ticket}; {lc}");
+    for _ in 0..5 {
+        assert_eq!(
+            post_form(
+                &e,
+                "/login/2fa",
+                &both,
+                &[("csrf", &tok), ("code", "000000")]
+            )
+            .await
+            .status,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+    let locked = post_form(
+        &e,
+        "/login/2fa",
+        &both,
+        &[("csrf", &tok), ("code", &totp_now(&secret, 1))],
+    )
+    .await;
+    assert_eq!(
+        locked.status,
+        StatusCode::TOO_MANY_REQUESTS,
+        "{}",
+        locked.text()
+    );
+    assert!(!locked.h("retry-after").is_empty());
+    assert!(locked.cookie("rostdav_session").is_none());
+}
+
+#[tokio::test]
+async fn two_factor_blocks_account_password_on_webdav_only() {
+    let e = env().await;
+    let anna = e
+        .state
+        .authenticate("anna", PW, "192.0.2.9".parse().expect("ip"))
+        .await
+        .expect("auth");
+    let app = e.state.device_create(&anna, "phone").await.expect("device");
+    let basic = |p: &str| {
+        use base64::Engine;
+        format!(
+            "Basic {}",
+            base64::engine::general_purpose::STANDARD.encode(format!("anna:{p}"))
+        )
+    };
+    let dav = |auth: String| {
+        let e = &e;
+        async move {
+            send(
+                e,
+                "PROPFIND",
+                "/remote.php/dav/files/anna/",
+                &[("authorization", &auth), ("depth", "0")],
+                Body::empty(),
+            )
+            .await
+            .status
+        }
+    };
+    assert_eq!(dav(basic(PW)).await, StatusCode::MULTI_STATUS, "before 2FA");
+    enable_2fa(&e, "anna").await;
+    assert_eq!(
+        dav(basic(PW)).await,
+        StatusCode::UNAUTHORIZED,
+        "account password refused"
+    );
+    assert_eq!(
+        dav(basic(&app)).await,
+        StatusCode::MULTI_STATUS,
+        "app password still works"
+    );
+    let r = send(
+        &e,
+        "GET",
+        "/ocs/v2.php/cloud/user?format=json",
+        &[("authorization", &basic(PW)), ("ocs-apirequest", "true")],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn two_factor_disable_and_new_codes_need_password_and_code() {
+    let e = env().await;
+    let (c, secret, codes) = enable_2fa(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    assert!(
+        get(&e, "/settings/2fa/disable", &c)
+            .await
+            .text()
+            .contains("Turn off two-factor authentication")
+    );
+    assert!(get(&e, "/settings/2fa/codes", &c).await.status.is_success());
+
+    // forged csrf, wrong password, wrong code
+    assert_eq!(
+        post_form(
+            &e,
+            "/settings/2fa/disable",
+            &c,
+            &[
+                ("csrf", "forged"),
+                ("password", PW),
+                ("code", &totp_now(&secret, 1))
+            ]
+        )
+        .await
+        .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/settings/2fa/disable",
+            &c,
+            &[
+                ("csrf", &csrf),
+                ("password", "wrong-password-1"),
+                ("code", &totp_now(&secret, 1))
+            ]
+        )
+        .await
+        .status,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/settings/2fa/disable",
+            &c,
+            &[("csrf", &csrf), ("password", PW), ("code", "000000")]
+        )
+        .await
+        .status,
+        StatusCode::UNAUTHORIZED
+    );
+    assert!(get(&e, "/devices", &c).await.text().contains(">On<"));
+
+    // new codes with a recovery code: shown once, old ones stop working
+    let r = post_form(
+        &e,
+        "/settings/2fa/codes",
+        &c,
+        &[("csrf", &csrf), ("password", PW), ("code", &codes[0])],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert_eq!(r.h("cache-control"), "no-store");
+    let new: Vec<String> = r
+        .text()
+        .split("<li><code>")
+        .skip(1)
+        .map(|s| s.split("</code>").next().expect("c").to_owned())
+        .collect();
+    assert_eq!(new.len(), 10);
+    assert!(new.iter().all(|n| !codes.contains(n)));
+    let r = password_step(&e, "anna").await;
+    let ticket = r
+        .cookies()
+        .into_iter()
+        .find(|c| c.starts_with("rostdav_2fa="))
+        .expect("t")
+        .split(';')
+        .next()
+        .expect("p")
+        .to_owned();
+    let page = send(
+        &e,
+        "GET",
+        "/login/2fa",
+        &[("cookie", &ticket)],
+        Body::empty(),
+    )
+    .await;
+    let (lc, tok) = (
+        page.cookie("rostdav_login").expect("c"),
+        extract_csrf(&page.text()),
+    );
+    let both = format!("{ticket}; {lc}");
+    assert_eq!(
+        post_form(
+            &e,
+            "/login/2fa",
+            &both,
+            &[("csrf", &tok), ("code", &codes[1])]
+        )
+        .await
+        .status,
+        StatusCode::UNAUTHORIZED,
+        "old code"
+    );
+
+    // turn off with the current code
+    let r = post_form(
+        &e,
+        "/settings/2fa/disable",
+        &c,
+        &[
+            ("csrf", &csrf),
+            ("password", PW),
+            ("code", &totp_now(&secret, 1)),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert!(get(&e, "/devices", &c).await.text().contains(">Off<"));
+    assert_eq!(password_step(&e, "anna").await.h("location"), "/files");
+}
+
+#[tokio::test]
+async fn administrator_can_reset_two_factor() {
+    let e = env().await;
+    let (ca, _secret, _codes) = enable_2fa(&e, "anna").await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    let manage = get(&e, "/admin/users/manage?name=anna", &root).await.text();
+    assert!(
+        manage.contains("Two-factor authentication is on for this user")
+            && manage.contains("two-factor-reset")
+    );
+    assert!(
+        get(&e, "/admin/users/manage?name=bob", &root)
+            .await
+            .text()
+            .contains("is off for this user")
+    );
+    assert!(
+        get(&e, "/admin/users/two-factor-reset?name=anna", &root)
+            .await
+            .text()
+            .contains("Reset two-factor authentication for")
+    );
+
+    // not for normal users, not without a token
+    let csrf_a = page_csrf(&e, &ca).await;
+    assert_eq!(
+        get(&e, "/admin/users/two-factor-reset?name=anna", &ca)
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/admin/users/two-factor-reset",
+            &ca,
+            &[("csrf", &csrf_a), ("name", "anna")]
+        )
+        .await
+        .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        post_form(
+            &e,
+            "/admin/users/two-factor-reset",
+            &root,
+            &[("csrf", "forged"), ("name", "anna")]
+        )
+        .await
+        .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(password_step(&e, "anna").await.h("location"), "/login/2fa");
+
+    let r = post_form(
+        &e,
+        "/admin/users/two-factor-reset",
+        &root,
+        &[("csrf", &csrf), ("name", "anna")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert_eq!(
+        get(&e, "/files", &ca).await.status,
+        StatusCode::SEE_OTHER,
+        "her browser sessions ended"
+    );
+    assert_eq!(password_step(&e, "anna").await.h("location"), "/files");
+    let log = get(&e, "/admin/events", &root).await.text();
+    assert!(log.contains("admin.2fa_reset") && log.contains("auth.2fa_enabled"));
+}
+
+#[tokio::test]
+async fn login_flow_page_asks_for_the_code() {
+    let e = env().await;
+    let (_c, secret, _codes) = enable_2fa(&e, "anna").await;
+    let flow = e
+        .state
+        .start_login_flow("Nextcloud Android")
+        .await
+        .expect("flow");
+    let url = format!("/login/v2/flow/{}", flow.login_token);
+    let page = send(&e, "GET", &url, &[], Body::empty()).await;
+    let csrf = extract_csrf(&page.text());
+    let post = |fields: Vec<(&'static str, String)>| {
+        let (e, url) = (&e, url.clone());
+        async move {
+            let f: Vec<(&str, &str)> = fields.iter().map(|(k, v)| (*k, v.as_str())).collect();
+            send(
+                e,
+                "POST",
+                &url,
+                &[
+                    ("content-type", "application/x-www-form-urlencoded"),
+                    ("origin", &origin()),
+                ],
+                Body::from(form(&f)),
+            )
+            .await
+        }
+    };
+    let r = post(vec![
+        ("csrf", csrf.clone()),
+        ("user", "anna".into()),
+        ("password", PW.into()),
+        ("action", "allow".into()),
+    ])
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    let html = r.text();
+    assert!(
+        html.contains("Step 2 of 2")
+            && html.contains("Nextcloud Android")
+            && !html.contains("Device connected")
+    );
+    assert!(
+        e.state
+            .poll_login_flow(&flow.poll_token)
+            .await
+            .expect("poll")
+            .is_none(),
+        "nothing granted yet"
+    );
+    let ticket = between(&html, "name=\"ticket\" value=\"", "\"");
+
+    // toggle to the recovery code field keeps the ticket
+    let r = post(vec![
+        ("csrf", csrf.clone()),
+        ("ticket", ticket.clone()),
+        ("action", "recovery".into()),
+    ])
+    .await;
+    assert!(r.text().contains("xxxx-xxxx-xxxx") && r.text().contains(&ticket));
+    // wrong code, forged csrf, forged ticket
+    let r = post(vec![
+        ("csrf", csrf.clone()),
+        ("ticket", ticket.clone()),
+        ("code", "000000".into()),
+        ("action", "second".into()),
+    ])
+    .await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED);
+    assert!(r.text().contains("wrong or has been used"));
+    let r = post(vec![
+        ("csrf", "forged".into()),
+        ("ticket", ticket.clone()),
+        ("code", totp_now(&secret, 1)),
+        ("action", "second".into()),
+    ])
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post(vec![
+        ("csrf", csrf.clone()),
+        ("ticket", "1.99999999999.deadbeef".into()),
+        ("code", totp_now(&secret, 1)),
+        ("action", "second".into()),
+    ])
+    .await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED);
+    assert!(
+        e.state
+            .poll_login_flow(&flow.poll_token)
+            .await
+            .expect("poll")
+            .is_none()
+    );
+
+    let r = post(vec![
+        ("csrf", csrf),
+        ("ticket", ticket),
+        ("code", totp_now(&secret, 1)),
+        ("action", "second".into()),
+    ])
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert!(r.text().contains("Device connected"));
+    let granted = e
+        .state
+        .poll_login_flow(&flow.poll_token)
+        .await
+        .expect("poll")
+        .expect("credentials");
+    assert_eq!(granted.login_name, "anna");
 }

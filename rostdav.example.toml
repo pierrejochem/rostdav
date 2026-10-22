@@ -50,6 +50,14 @@ data_dir = "./data"
 # ... or after this many days at the latest.
 # session_max_days = 14
 
+[security]
+# Key for the two-factor secrets (32 random bytes, base64). Prefer the environment
+# variable ROSTDAV_SECURITY__TOTP_KEY to a value here.
+# totp_key = "..."
+# Or a file with the 32 raw bytes. Default: totp.key in the data directory, created
+# when the first user starts a two-factor setup. Back it up with the data.
+# totp_key_file = "/var/lib/rostdav/totp.key"
+
 [limits]
 # Maximum size of a single upload in bytes (default: 16 GiB).
 # max_upload_bytes = 17179869184
