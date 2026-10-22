@@ -19,11 +19,22 @@ use crate::session::{
 };
 
 fn message(a: &Authed, status: StatusCode, title: &str, text: &str, back: &str) -> Response {
+    message_in(a, status, title, text, back, "files")
+}
+
+fn message_in(
+    a: &Authed,
+    status: StatusCode,
+    title: &str,
+    text: &str,
+    back: &str,
+    nav: &str,
+) -> Response {
     layout::app(
         status,
         title,
         &a.theme,
-        "files",
+        nav,
         &a.csrf,
         &format!(
             "<h1>{}</h1><p class=\"notice\" role=\"alert\">{}</p><p><a class=\"button\" href=\"{}\">Back</a></p>",
@@ -35,6 +46,10 @@ fn message(a: &Authed, status: StatusCode, title: &str, text: &str, back: &str) 
 }
 
 fn error_response(a: &Authed, e: &Error, back: &str) -> Response {
+    error_response_to(a, e, back, "files")
+}
+
+pub fn error_response_to(a: &Authed, e: &Error, back: &str, nav: &str) -> Response {
     let (status, text) = match e {
         Error::NotFound => (StatusCode::NOT_FOUND, "Not found."),
         Error::Forbidden => (StatusCode::FORBIDDEN, "You may not do that."),
@@ -50,7 +65,7 @@ fn error_response(a: &Authed, e: &Error, back: &str) -> Response {
             (StatusCode::INTERNAL_SERVER_ERROR, "Something went wrong.")
         }
     };
-    message(a, status, "Could not complete the action", text, back)
+    message_in(a, status, "Could not complete the action", text, back, nav)
 }
 
 /// A logical path from its plain-text form (`a/b/c`, no percent-encoding).
@@ -94,7 +109,7 @@ fn human(n: i64) -> String {
     }
 }
 
-fn date(secs: i64) -> String {
+pub fn date(secs: i64) -> String {
     // "2026-01-02T03:04:05Z" -> "2026-01-02 03:04"
     rostdav_core::time::rfc3339(secs)
         .replace('T', " ")

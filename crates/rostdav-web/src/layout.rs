@@ -88,17 +88,21 @@ pub fn app(
     csrf: &str,
     body: &str,
 ) -> Response {
-    let nav: String = [("files", "Files", "/files")]
-        .iter()
-        .map(|(k, label, href)| {
-            let cur = if *k == current {
-                " aria-current=\"page\""
-            } else {
-                ""
-            };
-            format!("<a href=\"{href}\"{cur}>{label}</a>")
-        })
-        .collect();
+    let nav: String = [
+        ("files", "Files", "/files"),
+        ("trash", "Trash", "/trash"),
+        ("devices", "Devices", "/devices"),
+    ]
+    .iter()
+    .map(|(k, label, href)| {
+        let cur = if *k == current {
+            " aria-current=\"page\""
+        } else {
+            ""
+        };
+        format!("<a href=\"{href}\"{cur}>{label}</a>")
+    })
+    .collect();
     let theme_attr = match theme {
         "light" | "dark" => format!(" data-theme=\"{theme}\""),
         _ => String::new(),

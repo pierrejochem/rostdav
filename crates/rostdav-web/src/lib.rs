@@ -5,6 +5,7 @@
 mod layout;
 mod login_page;
 mod pages;
+mod pages_more;
 mod session;
 
 use axum::Router;
@@ -26,6 +27,23 @@ pub fn router() -> Router<AppState> {
         .route(
             "/action/delete",
             get(pages::delete_confirm).post(pages::delete),
+        )
+        .route("/trash", get(pages_more::trash))
+        .route("/trash/restore", post(pages_more::trash_restore))
+        .route(
+            "/trash/delete",
+            get(pages_more::trash_delete_confirm).post(pages_more::trash_delete),
+        )
+        .route(
+            "/trash/empty",
+            get(pages_more::trash_empty_confirm).post(pages_more::trash_empty),
+        )
+        .route("/devices", get(pages_more::devices))
+        .route("/devices/create", post(pages_more::device_create))
+        .route("/devices/revoke", post(pages_more::device_revoke))
+        .route(
+            "/devices/sign-out-others",
+            post(pages_more::sign_out_others),
         )
         .route(
             "/login/v2/flow/{token}",

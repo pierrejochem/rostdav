@@ -585,3 +585,166 @@ async fn app_password_does_not_open_a_browser_session() {
     .await;
     assert_eq!(r.status, StatusCode::UNAUTHORIZED);
 }
+
+#[tokio::test]
+async fn trash_page_restore_and_purge() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    for n in ["a.txt", "b.txt"] {
+        upload(
+            &e,
+            &c,
+            &[
+                ("csrf", None, &csrf),
+                ("dir", None, ""),
+                ("file", Some(n), "x"),
+            ],
+        )
+        .await;
+        let r = post_form(&e, "/action/delete", &c, &[("csrf", &csrf), ("path", n)]).await;
+        assert_eq!(r.status, StatusCode::SEE_OTHER);
+    }
+    let t = get(&e, "/trash", &c).await;
+    assert_eq!(t.status, StatusCode::OK);
+    let html = t.text();
+    assert!(html.contains("a.txt") && html.contains("b.txt"));
+    let entry = |name: &str| {
+        let i = html
+            .find(&format!("name=\"entry\" value=\"{name}.d"))
+            .expect("entry")
+            + 20;
+        html[i..].split('"').next().expect("v").to_owned()
+    };
+
+    // restore
+    let r = post_form(
+        &e,
+        "/trash/restore",
+        &c,
+        &[("csrf", &csrf), ("entry", &entry("a.txt"))],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(get(&e, "/download/a.txt", &c).await.status, StatusCode::OK);
+
+    // permanent delete asks first, needs csrf
+    assert!(
+        get(&e, "/trash/delete?entry=x", &c)
+            .await
+            .text()
+            .contains("cannot be undone")
+    );
+    let r = post_form(
+        &e,
+        "/trash/delete",
+        &c,
+        &[("csrf", "forged"), ("entry", &entry("b.txt"))],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        "/trash/delete",
+        &c,
+        &[("csrf", &csrf), ("entry", &entry("b.txt"))],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(
+        get(&e, "/trash", &c)
+            .await
+            .text()
+            .contains("The trash is empty.")
+    );
+
+    // other users have their own trash
+    let cb = login(&e, "bob").await;
+    assert!(
+        get(&e, "/trash", &cb)
+            .await
+            .text()
+            .contains("The trash is empty.")
+    );
+    let r = post_form(&e, "/trash/empty", &c, &[("csrf", "forged")]).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn devices_page_create_revoke_and_sessions() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let c2 = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+
+    let r = post_form(
+        &e,
+        "/devices/create",
+        &c,
+        &[("csrf", "forged"), ("name", "phone")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        "/devices/create",
+        &c,
+        &[("csrf", &csrf), ("name", "phone")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK);
+    let html = r.text();
+    assert!(html.contains("shown only once"));
+    let i = html.find("<code>").expect("token") + 6;
+    let token = html[i..].split('<').next().expect("t").to_owned();
+    assert_eq!(token.len(), 72);
+
+    // the token is shown once only, and it works for WebDAV
+    let list = get(&e, "/devices", &c).await.text();
+    assert!(list.contains("phone") && !list.contains(&token));
+    let basic = {
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD.encode(format!("anna:{token}"))
+    };
+    let dav = |auth: String| {
+        let e = &e;
+        async move {
+            send(
+                e,
+                "PROPFIND",
+                "/remote.php/dav/files/anna/",
+                &[("authorization", &auth), ("depth", "0")],
+                Body::empty(),
+            )
+            .await
+            .status
+        }
+    };
+    assert_eq!(
+        dav(format!("Basic {basic}")).await,
+        StatusCode::MULTI_STATUS
+    );
+
+    // revoke
+    let id = list
+        .split("name=\"id\" value=\"")
+        .nth(1)
+        .expect("id")
+        .split('"')
+        .next()
+        .expect("v")
+        .to_owned();
+    let r = post_form(&e, "/devices/revoke", &c, &[("csrf", &csrf), ("id", &id)]).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        dav(format!("Basic {basic}")).await,
+        StatusCode::UNAUTHORIZED
+    );
+
+    // other browsers
+    assert_eq!(get(&e, "/files", &c2).await.status, StatusCode::OK);
+    let r = post_form(&e, "/devices/sign-out-others", &c, &[("csrf", &csrf)]).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(get(&e, "/files", &c2).await.status, StatusCode::SEE_OTHER);
+    assert_eq!(get(&e, "/files", &c).await.status, StatusCode::OK);
+}
