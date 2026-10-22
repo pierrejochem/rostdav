@@ -222,6 +222,14 @@ Server address entered as `http://10.0.2.2:8081`. The app was driven through `ad
 | Right after the sign-in | `HEAD /remote.php/dav/files/<user>/` got 405; the app then **restarted the whole login** (endless loop) | GET/HEAD on a collection answer 200 with the one-line text, as the reference |
 | Login Flow in the app's browser tab | The page renders and works; the app polls after the tab is closed | none; the client name shown is the whole user agent (`Mozilla/5.0 (Android) Nextcloud-android/35.0.1`) |
 | After the sign-in | File list (PROPFIND), capabilities, user info work; avatar, notifications and recommendations answer 404 and the app shrugs them off | none |
+| Connectivity probe | `GET /index.php/204` answered 404: the app saw a captive portal, cached that and created folders offline without any MKCOL. Reference: 204 without authentication | route added (`tests/signin.rs`); the app caches the verdict, restart it after a server fix |
+| Create folder | `MKCOL` 201 | none |
+| Upload 1 KB | `PUT` 201, hash identical | none |
+| Upload 30 MB | chunked v2: `MKCOL uploads/…`, `PUT …/000001`, `MOVE …/.file` 201, hash identical | none |
+| Download 30 MB | `GET` 200, hash identical on the device | none |
+| Rename | `MOVE` 201 | none |
+| Delete | `DELETE` 204, file appears in `trashbin/<user>/trash` | none |
+| Favorite | `PROPPATCH` on the file answers 405: **not implemented** (`oc:favorite` is always 0, the Favorites tab needs `REPORT` `oc:filter-files`) | open: needs a new table (approval point 2) |
 
 Both bugs were invisible to the contract tests because the fixtures contained neither request.
 
@@ -240,5 +248,3 @@ Both bugs were invisible to the contract tests because the fixtures contained ne
 - Error XML format for WebDAV errors that the app evaluates.
 - Which minimum version does the app require, and how does it react to older versions?
 - Behavior of the app when two-factor authentication is enabled in the login flow.
-
-- **`GET /index.php/204`**: Android 35.0.1 uses it as connectivity probe ("isWalled"); a 404 makes the app treat the server as a captive portal and create folders offline, never sending MKCOL. Reference answers 204 without authentication; Rostdav now does too (`tests/signin.rs`). The app caches the verdict, so restart it after a server fix.
