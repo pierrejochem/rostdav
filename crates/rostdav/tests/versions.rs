@@ -539,6 +539,28 @@ async fn errors_match_the_reference() {
 
 // ---- restore and delete ---------------------------------------------------------------
 
+/// The Android app (M6, 35.0.1) restores with `Destination: …/versions/<user>/restore/<fileid>`;
+/// the reference accepts any single name below `restore/`.
+#[tokio::test]
+async fn restore_accepts_the_android_apps_destination() {
+    let e = env().await;
+    let id = three_versions(&e).await;
+    let r = anna(
+        &e,
+        "MOVE",
+        &format!("{V}/versions/{id}/1700000100"),
+        &[
+            ("destination", &format!("http://cloud.test{V}/restore/{id}")),
+            ("overwrite", "T"),
+        ],
+        "",
+    )
+    .await;
+    assert_eq!(r.status, 201, "{}", r.text());
+    let g = anna(&e, "GET", &format!("{A}/ver/doc.txt"), &[], "").await;
+    assert_eq!(g.text(), "version one\n");
+}
+
 #[tokio::test]
 async fn restore_matches_the_reference() {
     let e = env().await;
@@ -569,7 +591,7 @@ async fn restore_matches_the_reference() {
     assert_eq!(r.status, 400, "the reference answers 500 (TypeError)");
     for bad in [
         format!("http://cloud.test{A}/ver/elsewhere.txt"),
-        format!("{V}/restore/other"),
+        format!("{V}/restore/a/b"),
         "http://cloud.test/remote.php/dav/versions/bob/restore/target".to_owned(),
         format!("{V}/versions/{id}/1700000200"),
         "restore/target".to_owned(),

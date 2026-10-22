@@ -78,7 +78,9 @@ impl VersionsTarget {
             (None, ..) => Location::Root,
             (Some("versions"), None, ..) => Location::VersionsDir,
             (Some("restore"), None, ..) => Location::RestoreDir,
-            (Some("restore"), Some("target"), None, _) => Location::RestoreTarget,
+            // The reference accepts any single name below `restore/`; the Android app uses the file ID
+            // (`restore/<fileid>`, M6), the other clients `target`.
+            (Some("restore"), Some(_), None, _) => Location::RestoreTarget,
             (Some("versions"), Some(f), None, _) => Location::File {
                 file_id: num(f).ok_or(Error::NotFound)?,
             },
@@ -399,7 +401,7 @@ mod tests {
             "anna/versions/-1",
             "anna/versions/12/1/extra",
             "anna/other",
-            "anna/restore/other",
+            "anna/restore/a/b",
             "anna/versions/%2e%2e",
             "anna/versions/1e3",
             "anna/versions/+5",
