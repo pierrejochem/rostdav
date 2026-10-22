@@ -8,6 +8,7 @@ mod auth;
 mod nodes;
 mod shares;
 mod trash;
+mod two_factor;
 mod users;
 mod versions;
 
@@ -21,6 +22,7 @@ pub use shares::{
     ShareUpdate,
 };
 pub use trash::TrashItem;
+pub use two_factor::TotpRow;
 pub use users::{NewUser, User};
 pub use versions::Version;
 

@@ -54,6 +54,10 @@ futures-core = "0.3"
 blake3 = "1"
 argon2 = { version = "0.5", features = ["std"] }
 ulid = "1"
+chacha20poly1305 = "0.10"
+hmac = "0.12"
+sha1 = "0.10"
+qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
