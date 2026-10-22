@@ -1474,7 +1474,6 @@ async fn files_filter_and_details() {
     assert!(html.contains("File ID") && html.contains("ETag") && html.contains("Not shared yet."));
     assert!(html.contains("aria-current=\"true\""));
     assert!(html.contains("/download/Report.txt") && html.contains("/versions?path=Report.txt"));
-    let html = get(&e, "/files", &c).await.text();
     let html = get(&e, "/files?q=REPORT", &c).await.text();
     assert!(html.contains("Report.txt") && !html.contains("photo.jpg"));
     let html = get(&e, "/files?q=%3Cscript%3E", &c).await.text();
