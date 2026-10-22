@@ -65,6 +65,7 @@ impl CompatConfig {
 pub fn router(cfg: CompatConfig) -> Router<AppState> {
     Router::new()
         .route("/status.php", get(status))
+        .route("/index.php/204", get(no_content))
         .route("/ocs/{version}/cloud/capabilities", get(ocs::capabilities))
         .route("/ocs/{version}/cloud/user", get(ocs::user))
         .route(
@@ -100,6 +101,11 @@ pub fn router(cfg: CompatConfig) -> Router<AppState> {
         .route("/index.php/login/v2/poll", post(login::poll))
         .route("/login/v2/poll", post(login::poll))
         .layer(axum::Extension(cfg))
+}
+
+/// Connectivity probe of the Android app. Reference (Nextcloud 35.0.2): 204 without authentication.
+async fn no_content() -> StatusCode {
+    StatusCode::NO_CONTENT
 }
 
 async fn status(

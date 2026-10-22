@@ -240,3 +240,5 @@ Both bugs were invisible to the contract tests because the fixtures contained ne
 - Error XML format for WebDAV errors that the app evaluates.
 - Which minimum version does the app require, and how does it react to older versions?
 - Behavior of the app when two-factor authentication is enabled in the login flow.
+
+- **`GET /index.php/204`**: Android 35.0.1 uses it as connectivity probe ("isWalled"); a 404 makes the app treat the server as a captive portal and create folders offline, never sending MKCOL. Reference answers 204 without authentication; Rostdav now does too (`tests/signin.rs`). The app caches the verdict, so restart it after a server fix.

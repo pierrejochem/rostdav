@@ -112,6 +112,13 @@ fn ocs_headers(u: &str, p: &str) -> Vec<(&'static str, String)> {
     ]
 }
 
+#[tokio::test]
+async fn index_php_204_answers_no_content_like_the_reference() {
+    let e = env().await;
+    let r = send(&e, "GET", "/index.php/204", &[], "").await;
+    assert_eq!(r.status, 204);
+}
+
 // ---- status.php -------------------------------------------------------------
 
 #[tokio::test]
