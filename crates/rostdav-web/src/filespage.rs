@@ -7,7 +7,6 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Response;
 use rostdav_app::{AppState, Origin, ShareFilter};
-use rostdav_core::time::rfc3339;
 use rostdav_core::{LogicalPath, Name};
 use rostdav_meta::{Node, NodeKind, ShareKind};
 use serde::Deserialize;
@@ -50,29 +49,7 @@ struct Row {
     own: bool,
 }
 
-const MONTHS: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
-
-/// "Today, 09:41", "Yesterday", "Oct 12" (UTC).
-fn friendly(secs: i64) -> String {
-    let now = rostdav_app::now_secs();
-    let (d, n, y) = (rfc3339(secs), rfc3339(now), rfc3339(now - 86_400));
-    if d[..10] == n[..10] {
-        format!("Today, {}", &d[11..16])
-    } else if d[..10] == y[..10] {
-        "Yesterday".to_owned()
-    } else {
-        let m: usize = d[5..7].parse().unwrap_or(1);
-        let day: u32 = d[8..10].parse().unwrap_or(1);
-        let year = if d[..4] == n[..4] {
-            String::new()
-        } else {
-            format!(" {}", &d[..4])
-        };
-        format!("{} {day}{year}", MONTHS[(m.clamp(1, 12)) - 1])
-    }
-}
+use crate::ui::friendly;
 
 fn tile_class(node: &Node) -> &'static str {
     if node.kind == NodeKind::Dir {

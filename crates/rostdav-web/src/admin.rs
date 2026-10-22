@@ -11,9 +11,10 @@ use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, parse_quota};
 use rostdav_core::Error;
 use serde::Deserialize;
 
-use crate::layout::{self, enc, esc};
+use crate::layout::{enc, esc};
 use crate::pages::{date, human, message_in};
 use crate::session::Authed;
+use crate::ui;
 
 /// A signed-in administrator. Everyone else gets 403.
 pub struct Admin(pub Authed);
@@ -68,62 +69,126 @@ fn error_page(a: &Authed, e: &Error, back: &str) -> Response {
 fn page(a: &Authed, title: &str, section: &str, body: &str) -> Response {
     let tab = |key: &str, label: &str, href: &str| {
         let cur = if key == section {
-            " aria-current=\"page\""
+            " aria-current=\"page\" class=\"on\""
         } else {
             ""
         };
         format!("<a href=\"{href}\"{cur}>{label}</a>")
     };
     let tabs = format!(
-        "<nav class=\"tabs\">{}{}{}</nav>",
+        "<nav class=\"seg tabs\" aria-label=\"Administration sections\">{}{}{}{}</nav>",
         tab("users", "Users", "/admin/users"),
         tab("events", "Event log", "/admin/events"),
-        tab("status", "Status", "/admin/status") + &tab("server", "Server", "/admin/server"),
+        tab("status", "Status", "/admin/status"),
+        tab("server", "Server", "/admin/server"),
     );
-    layout::app(
-        StatusCode::OK,
-        title,
-        &a.chrome(),
-        "admin",
-        &a.csrf,
-        &format!("<h1>Administration</h1>{tabs}{body}"),
-    )
+    let pill = format!(
+        "<div class=\"pill\"><span class=\"dot live\" aria-hidden=\"true\"></span>Server running · version {}</div>",
+        esc(env!("CARGO_PKG_VERSION"))
+    );
+    let body = format!(
+        "{}{tabs}{body}",
+        ui::page_head("Administration", "Visible to administrators only.", &pill)
+    );
+    ui::page(a, StatusCode::OK, title, "admin", &body)
 }
 
 // ---- users ----------------------------------------------------------------------------------
 
-pub async fn users(State(state): State<AppState>, Admin(a): Admin) -> Response {
+#[derive(Deserialize, Default)]
+pub struct UsersQuery {
+    #[serde(default)]
+    q: String,
+}
+
+pub async fn users(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    Query(q): Query<UsersQuery>,
+) -> Response {
     let list = match state.users_list(&Actor::User(&a.session.principal)).await {
         Ok(l) => l,
         Err(e) => return error_page(&a, &e, "/files"),
     };
+    let needle = q.q.trim().to_lowercase();
+    let csrf = esc(&a.csrf);
     let mut rows = String::new();
-    for u in &list {
-        let quota = u.quota_bytes.map_or_else(|| "unlimited".to_owned(), human);
+    for u in list
+        .iter()
+        .filter(|u| needle.is_empty() || u.name.to_lowercase().contains(&needle))
+    {
+        let storage = match u.quota_bytes {
+            Some(q) if q > 0 => format!(
+                "<progress class=\"meter\" max=\"{q}\" value=\"{}\" aria-label=\"Storage of {}\"></progress>\
+                 <span class=\"muted\">{} % of {}</span>",
+                u.used_bytes.clamp(0, q),
+                esc(&u.name),
+                u.used_bytes * 100 / q,
+                human(q)
+            ),
+            _ => format!(
+                "<span class=\"muted\">{} used · no quota</span>",
+                human(u.used_bytes)
+            ),
+        };
+        let toggle = if u.name == a.session.principal.name {
+            String::new()
+        } else {
+            format!(
+                "<form method=\"post\" action=\"/admin/users/disabled\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+                 <input type=\"hidden\" name=\"name\" value=\"{}\"><input type=\"hidden\" name=\"disabled\" value=\"{}\">\
+                 <button class=\"{}\" type=\"submit\" aria-label=\"{} {}\">{}</button></form>",
+                esc(&u.name),
+                if u.disabled { "0" } else { "1" },
+                if u.disabled { "" } else { "danger" },
+                if u.disabled { "Enable" } else { "Disable" },
+                esc(&u.name),
+                if u.disabled { "Enable" } else { "Disable" },
+            )
+        };
         rows.push_str(&format!(
-            "<tr><td>{}</td><td>{}</td><td>{}</td><td class=\"num\">{} / {}</td><td class=\"hide num\">{}</td>\
-             <td class=\"num\"><a class=\"button\" href=\"/admin/users/manage?name={}\">Manage</a></td></tr>",
+            "<li class=\"row userrow{}\">{}<div class=\"row-text\"><b>{}</b><span class=\"muted\">{}</span></div>\
+             <span class=\"u-storage\">{storage}</span>\
+             <span class=\"chip {}\">{}</span>\
+             <div class=\"row-actions\"><a class=\"button\" href=\"/admin/users/manage?name={}\" aria-label=\"Edit {}\">Edit</a>{toggle}</div></li>",
+            if u.disabled { " off" } else { "" },
+            ui::avatar(&u.name),
             esc(&u.name),
             if u.is_admin { "Administrator" } else { "User" },
+            if u.disabled { "" } else { "ok" },
             if u.disabled { "Disabled" } else { "Active" },
-            human(u.used_bytes),
-            esc(&quota),
-            u.devices,
             esc(&enc(&u.name)),
+            esc(&u.name),
         ));
     }
-    let csrf = esc(&a.csrf);
-    let body = format!(
-        "<table><thead><tr><th>Name</th><th>Role</th><th>State</th><th class=\"num\">Used / quota</th>\
-         <th class=\"hide num\">Devices</th><th></th></tr></thead><tbody>{rows}</tbody></table>\
-         <h2>Add a user</h2>\
-         <form class=\"inline\" method=\"post\" action=\"/admin/users/create\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+    let list_html = if rows.is_empty() {
+        "<div class=\"empty\">No users match.</div>".to_owned()
+    } else {
+        format!("<ul class=\"rows\">{rows}</ul>")
+    };
+    let toolbar = format!(
+        "<div class=\"cardbar\"><form class=\"search\" method=\"get\" action=\"/admin/users\" role=\"search\">{}\
+         <input type=\"search\" name=\"q\" value=\"{}\" placeholder=\"Search users\" aria-label=\"Search users\"></form>\
+         <details class=\"pop\"><summary class=\"button primary\">{}Add user</summary>\
+         <form class=\"popover\" method=\"post\" action=\"/admin/users/create\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
          <label>Name<input type=\"text\" name=\"name\" required></label>\
          <label>Password<input type=\"password\" name=\"password\" autocomplete=\"new-password\" required></label>\
          <label class=\"check\"><input type=\"checkbox\" name=\"admin\" value=\"1\"> Administrator</label>\
-         <button class=\"primary\" type=\"submit\">Add user</button></form>"
+         <button class=\"primary\" type=\"submit\">Add user</button></form></details></div>",
+        ui::svg("search"),
+        esc(&q.q),
+        ui::svg("plus"),
     );
-    page(&a, "Users", "users", &body)
+    page(
+        &a,
+        "Users",
+        "users",
+        &ui::card(
+            "Users",
+            &format!("<span class=\"chip\">{} total</span>", list.len()),
+            &format!("{toolbar}{list_html}"),
+        ),
+    )
 }
 
 #[derive(Deserialize)]
@@ -178,27 +243,12 @@ pub async fn manage(
     let quota = u
         .quota_bytes
         .map_or_else(|| "unlimited".to_owned(), |q| q.to_string());
-    let body = format!(
-        "<h2>{name}</h2><p class=\"muted\">{} · {} · {} used · {} device(s) · created {}</p>\
-         <h3>Access</h3><div class=\"actions\">\
-         <form class=\"inline\" method=\"post\" action=\"/admin/users/disabled\">{hidden}<input type=\"hidden\" name=\"disabled\" value=\"{}\">\
+    let access = format!(
+        "<div class=\"actions\">\
+         <form method=\"post\" action=\"/admin/users/disabled\">{hidden}<input type=\"hidden\" name=\"disabled\" value=\"{}\">\
          <button type=\"submit\">{}</button></form>\
-         <form class=\"inline\" method=\"post\" action=\"/admin/users/role\">{hidden}<input type=\"hidden\" name=\"admin\" value=\"{}\">\
-         <button type=\"submit\">{}</button></form></div>\
-         <h3>Quota</h3><form class=\"inline\" method=\"post\" action=\"/admin/users/quota\">{hidden}\
-         <input type=\"text\" name=\"quota\" value=\"{}\" aria-label=\"Quota\"><button type=\"submit\">Set quota</button></form>\
-         <p class=\"muted\">Examples: 10G, 500M, unlimited.</p>\
-         <h3>Reset password</h3><form class=\"inline\" method=\"post\" action=\"/admin/users/password\">{hidden}\
-         <input type=\"password\" name=\"password\" autocomplete=\"new-password\" aria-label=\"New password\" required>\
-         <label class=\"check\"><input type=\"checkbox\" name=\"revoke\" value=\"1\" checked> Sign out all devices</label>\
-         <button type=\"submit\">Set password</button></form>\
-         <h3>Delete</h3><p><a class=\"button danger\" href=\"/admin/users/delete?name={}\">Delete this user…</a></p>\
-         <p><a href=\"/admin/users\">Back to users</a></p>",
-        if u.is_admin { "Administrator" } else { "User" },
-        if u.disabled { "disabled" } else { "active" },
-        human(u.used_bytes),
-        u.devices,
-        date(u.created_at),
+         <form method=\"post\" action=\"/admin/users/role\">{hidden}<input type=\"hidden\" name=\"admin\" value=\"{}\">\
+         <button type=\"submit\">{}</button></form></div>",
         if u.disabled { "0" } else { "1" },
         if u.disabled {
             "Allow sign-in again"
@@ -211,8 +261,39 @@ pub async fn manage(
         } else {
             "Make administrator"
         },
-        esc(&quota),
-        esc(&enc(&u.name)),
+    );
+    let quota_form = format!(
+        "<form class=\"createrow\" method=\"post\" action=\"/admin/users/quota\">{hidden}\
+         <label>Quota<input type=\"text\" name=\"quota\" value=\"{}\"></label><button type=\"submit\">Set quota</button></form>\
+         <p class=\"muted\">Examples: 10G, 500M, unlimited.</p>",
+        esc(&quota)
+    );
+    let password_form = format!(
+        "<form class=\"createrow\" method=\"post\" action=\"/admin/users/password\">{hidden}\
+         <label>New password<input type=\"password\" name=\"password\" autocomplete=\"new-password\" required></label>\
+         <button type=\"submit\">Set password</button>\
+         <label class=\"check\"><input type=\"checkbox\" name=\"revoke\" value=\"1\" checked> Sign out all devices</label></form>"
+    );
+    let delete = format!(
+        "<p><a class=\"button danger\" href=\"/admin/users/delete?name={}\">Delete this user…</a></p>",
+        esc(&enc(&u.name))
+    );
+    let head = format!(
+        "{}<div class=\"row-text\"><b>{name}</b><span class=\"muted\">{} · {} · {} used · {} device(s) · created {}</span></div>",
+        ui::avatar(&u.name),
+        if u.is_admin { "Administrator" } else { "User" },
+        if u.disabled { "disabled" } else { "active" },
+        human(u.used_bytes),
+        u.devices,
+        date(u.created_at),
+    );
+    let body = format!(
+        "<p><a href=\"/admin/users\">← Back to users</a></p><section class=\"card2\"><div class=\"row userhead\">{head}</div></section>\
+         {}{}{}{}",
+        ui::card("Access", "", &access),
+        ui::card("Quota", "", &quota_form),
+        ui::card("Reset password", "", &password_form),
+        ui::card("Delete", "", &delete),
     );
     page(&a, "Manage user", "users", &body)
 }
@@ -346,7 +427,12 @@ pub async fn delete_confirm(Admin(a): Admin, Query(q): Query<NameQuery>) -> Resp
          <a class=\"button\" href=\"/admin/users/manage?name={}\">Cancel</a></div></form>",
         esc(&enc(&q.name)),
     );
-    page(&a, "Delete user", "users", &body)
+    page(
+        &a,
+        "Delete user",
+        "users",
+        &ui::card("Delete user", "", &body),
+    )
 }
 
 #[derive(Deserialize)]
@@ -444,7 +530,7 @@ pub async fn events(
         opt(30),
         opt(365),
     );
-    page(&a, "Event log", "events", &body)
+    page(&a, "Event log", "events", &ui::card("Event log", "", &body))
 }
 
 // ---- status and consistency check ---------------------------------------------------------------------
@@ -472,7 +558,7 @@ async fn status_page(state: &AppState, a: &Authed, report: &str) -> Response {
         list.len(),
         human(used),
     );
-    page(a, "Status", "status", &body)
+    page(a, "Status", "status", &ui::card("Status", "", &body))
 }
 
 #[derive(Deserialize)]
@@ -545,5 +631,10 @@ pub async fn server(State(state): State<AppState>, Admin(a): Admin) -> Response 
         "<p class=\"muted\">Settings come from the configuration file and environment variables. \
          Change them there and restart the server.</p><table><tbody>{rows}</tbody></table>"
     );
-    page(&a, "Server", "server", &body)
+    page(
+        &a,
+        "Server",
+        "server",
+        &ui::card("Effective settings", "", &body),
+    )
 }

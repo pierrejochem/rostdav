@@ -11,6 +11,7 @@ mod pages;
 mod pages_more;
 mod session;
 mod sharing;
+mod ui;
 mod webupload;
 
 use axum::Router;

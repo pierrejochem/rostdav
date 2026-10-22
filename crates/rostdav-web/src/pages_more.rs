@@ -9,8 +9,9 @@ use rostdav_core::Error;
 use serde::Deserialize;
 
 use crate::layout::{self, esc};
-use crate::pages::{date, error_response_to};
+use crate::pages::error_response_to;
 use crate::session::Authed;
+use crate::ui;
 
 fn csrf_ok(state: &AppState, a: &Authed, given: &str) -> bool {
     state.web_check_csrf(a.session.id, given).is_ok()
@@ -34,36 +35,49 @@ pub async fn trash(State(state): State<AppState>, a: Authed) -> Response {
     for i in &items {
         let entry = esc(&i.entry_name());
         rows.push_str(&format!(
-            "<tr><td>{}</td><td class=\"hide\">{}</td><td class=\"hide\">{}</td><td class=\"num\">\
-             <form class=\"inline\" method=\"post\" action=\"/trash/restore\">\
+            "<li class=\"row\"><span class=\"tile doc\">{}</span><div class=\"row-text\"><b>{}</b>\
+             <span class=\"muted\">Deleted {}{}</span></div>\
+             <form class=\"row-actions\" method=\"post\" action=\"/trash/restore\">\
              <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><input type=\"hidden\" name=\"entry\" value=\"{entry}\">\
-             <button type=\"submit\">Restore</button> \
-             <a class=\"button\" href=\"/trash/delete?entry={}\">Delete permanently</a></form></td></tr>",
+             <button type=\"submit\">Restore</button>\
+             <a class=\"button danger\" href=\"/trash/delete?entry={}\">Delete permanently</a></form></li>",
+            ui::svg("file"),
             esc(&i.orig_path),
-            date(i.deleted_at),
-            esc(i.deleted_by.as_deref().unwrap_or("")),
+            ui::friendly(i.deleted_at),
+            i.deleted_by.as_deref().map_or_else(String::new, |b| format!(" by {}", esc(b))),
             esc(&crate::layout::enc(&i.entry_name())),
         ));
     }
-    let body = if !enabled {
-        "<h1>Trash</h1><div class=\"empty\">The trash is turned off on this server. Deleted files are gone for good.</div>".to_owned()
+    let inner = if !enabled {
+        "<div class=\"empty\">The trash is turned off on this server. Deleted files are gone for good.</div>".to_owned()
     } else if items.is_empty() {
-        "<h1>Trash</h1><div class=\"empty\">The trash is empty.</div>".to_owned()
+        "<div class=\"empty\">The trash is empty.</div>".to_owned()
     } else {
-        format!(
-            "<h1>Trash</h1><p class=\"muted\">Deleted items still count toward your storage until they are removed.</p>\
-             <div class=\"actions\"><a class=\"button danger\" href=\"/trash/empty\">Empty trash</a></div>\
-             <table><thead><tr><th>Original location</th><th class=\"hide\">Deleted</th><th class=\"hide\">By</th><th></th></tr></thead><tbody>{rows}</tbody></table>"
-        )
+        format!("<ul class=\"rows\">{rows}</ul>")
     };
-    layout::app(
-        StatusCode::OK,
-        "Trash",
-        &a.chrome(),
-        "trash",
-        &a.csrf,
-        &body,
-    )
+    let chip = if enabled && !items.is_empty() {
+        "<a class=\"button danger\" href=\"/trash/empty\">Empty trash</a>".to_owned()
+    } else {
+        String::new()
+    };
+    let body = format!(
+        "{}{}",
+        ui::page_head(
+            "Trash",
+            "Deleted items still count toward your storage until they are removed.",
+            ""
+        ),
+        ui::card(
+            &format!(
+                "{} item{}",
+                items.len(),
+                if items.len() == 1 { "" } else { "s" }
+            ),
+            &chip,
+            &inner
+        )
+    );
+    ui::page(&a, StatusCode::OK, "Trash", "trash", &body)
 }
 
 #[derive(Deserialize)]
@@ -170,52 +184,93 @@ async fn devices_page(state: &AppState, a: &Authed, status: StatusCode, notice: 
         (Err(e), _) | (_, Err(e)) => return error_response_to(a, &e, "/files", "devices"),
     };
     let csrf = esc(&a.csrf);
-    let mut dev = String::new();
+    let mut rows = String::new();
     for d in &pw {
-        dev.push_str(&format!(
-            "<tr><td>{}</td><td class=\"hide\">{}</td><td class=\"hide\">{}</td><td class=\"num\">\
-             <form class=\"inline\" method=\"post\" action=\"/devices/revoke\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-             <input type=\"hidden\" name=\"id\" value=\"{}\"><button class=\"danger\" type=\"submit\">Revoke</button></form></td></tr>",
+        let lower = d.name.to_lowercase();
+        let (tile, icon) = if [
+            "android", "ios", "iphone", "ipad", "pixel", "phone", "mobile",
+        ]
+        .iter()
+        .any(|k| lower.contains(k))
+        {
+            ("folder", "phone")
+        } else {
+            ("doc", "laptop")
+        };
+        rows.push_str(&format!(
+            "<li class=\"row\"><span class=\"tile {tile}\">{}</span><div class=\"row-text\"><b>{}</b>\
+             <span class=\"muted\">App password · created {}</span></div>\
+             <span class=\"row-meta\">{}</span>\
+             <form class=\"row-actions\" method=\"post\" action=\"/devices/revoke\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+             <input type=\"hidden\" name=\"id\" value=\"{}\"><button class=\"danger\" type=\"submit\" aria-label=\"Revoke {}\">Revoke</button></form></li>",
+            ui::svg(icon),
             esc(&d.name),
-            date(d.created_at),
-            d.last_used_at.map_or_else(|| "never".to_owned(), date),
-            d.id
+            ui::friendly(d.created_at),
+            d.last_used_at.map_or_else(|| "Never used".to_owned(), ui::friendly),
+            d.id,
+            esc(&d.name),
         ));
     }
-    let devices = if pw.is_empty() {
+    // this session first, then the most recently active others
+    let mut sessions = sessions;
+    sessions.sort_by_key(|s| (s.id != a.session.id, std::cmp::Reverse(s.last_seen)));
+    let hidden_sessions = sessions.len().saturating_sub(8);
+    sessions.truncate(8);
+    for s in &sessions {
+        let this = s.id == a.session.id;
+        rows.push_str(&format!(
+            "<li class=\"row session\"><span class=\"tile doc\">{}</span><div class=\"row-text\"><b>{}{}</b>\
+             <span class=\"muted\">Browser session{}</span></div><span class=\"row-meta\">{}</span></li>",
+            ui::svg("laptop"),
+            esc(&ui::ua_summary(&s.user_agent)),
+            if this { " <span class=\"chip ok\">This session</span>" } else { "" },
+            if s.ip.is_empty() { String::new() } else { format!(" · {}", esc(&s.ip)) },
+            if this { "Now".to_owned() } else { ui::friendly(s.last_seen) },
+        ));
+    }
+    if hidden_sessions > 0 {
+        rows.push_str(&format!(
+            "<li class=\"row session\"><div class=\"row-text\"><span class=\"muted\">… and {hidden_sessions} older browser session(s). “Sign out all other browsers” ends them.</span></div></li>"
+        ));
+    }
+    let chip = format!(
+        "<span class=\"chip\">{} active</span>",
+        pw.len() + sessions.len() + hidden_sessions
+    );
+    let list = if rows.is_empty() {
         "<div class=\"empty\">No devices are connected.</div>".to_owned()
     } else {
-        format!(
-            "<table><thead><tr><th>Device</th><th class=\"hide\">Created</th><th class=\"hide\">Last used</th><th></th></tr></thead><tbody>{dev}</tbody></table>"
-        )
+        format!("<ul class=\"rows\">{rows}</ul>")
     };
-    let mut ses = String::new();
-    for s in &sessions {
-        let this = if s.id == a.session.id {
-            " (this browser)"
-        } else {
-            ""
-        };
-        ses.push_str(&format!(
-            "<tr><td>{}{}</td><td class=\"hide\">{}</td><td>{}</td></tr>",
-            esc(&s.user_agent.chars().take(80).collect::<String>()),
-            this,
-            esc(&s.ip),
-            date(s.last_seen)
-        ));
-    }
-    let body = format!(
-        "<h1>Devices</h1>{notice}\
-         <p class=\"muted\">Each app or program gets its own app password. Revoke it here if a device is lost.</p>\
-         <form class=\"inline\" method=\"post\" action=\"/devices/create\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-         <input type=\"text\" name=\"name\" placeholder=\"Device name\" aria-label=\"Device name\" required maxlength=\"128\">\
-         <button class=\"primary\" type=\"submit\">Create app password</button></form><br>{devices}\
-         <h1>Browser sessions</h1>\
-         <table><thead><tr><th>Browser</th><th class=\"hide\">Address</th><th>Last active</th></tr></thead><tbody>{ses}</tbody></table>\
-         <form class=\"inline\" method=\"post\" action=\"/devices/sign-out-others\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-         <br><button type=\"submit\">Sign out all other browsers</button></form>"
+    let create = format!(
+        "<form class=\"createrow\" method=\"post\" action=\"/devices/create\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+         <label>Device name<input type=\"text\" name=\"name\" placeholder=\"e.g. Backup server\" required maxlength=\"128\"></label>\
+         <button class=\"primary\" type=\"submit\">Create</button></form>"
     );
-    layout::app(status, "Devices", &a.chrome(), "devices", &a.csrf, &body)
+    let account = format!(
+        "<dl class=\"facts\"><dt>Username</dt><dd class=\"mono\">{}</dd><dt>Password hash</dt><dd>Argon2id</dd></dl>\
+         <form method=\"post\" action=\"/devices/sign-out-others\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+         <button class=\"danger wide\" type=\"submit\">Sign out all other browsers</button></form>",
+        esc(&p.name)
+    );
+    let body = format!(
+        "{}{notice}{}<div class=\"cols\">{}{}</div>",
+        ui::page_head(
+            "Devices & security",
+            "Every device signs in with its own app password. Revoking it signs the device out immediately – your account password stays the same.",
+            ""
+        ),
+        ui::card("Connected devices", &chip, &list),
+        ui::card(
+            "Create app password",
+            "",
+            &format!(
+                "<p class=\"muted\">For clients without browser sign-in, such as rclone, davfs2 or scripts. The Nextcloud app does not need this – it connects through the sign-in page.</p>{create}"
+            )
+        ),
+        ui::card("Account", "", &account),
+    );
+    ui::page(a, status, "Devices", "devices", &body)
 }
 
 pub async fn devices(State(state): State<AppState>, a: Authed) -> Response {
@@ -239,7 +294,7 @@ pub async fn device_create(
     match state.device_create(&a.session.principal, &f.name).await {
         Ok(token) => {
             let notice = format!(
-                "<div class=\"notice\" role=\"status\"><b>App password for “{}”. It is shown only once; copy it now.</b><br>\
+                "<div class=\"notice token\" role=\"status\"><b>App password for “{}”. It is shown only once; copy it now.</b><br>\
                  <code>{}</code></div>",
                 esc(f.name.trim()),
                 esc(&token)
@@ -324,38 +379,98 @@ async fn settings_page(
         host,
         crate::layout::enc(&p.name)
     );
-    let quota = u.quota.map_or_else(|| "unlimited".to_owned(), bytes);
-    let opt = |v: &str, label: &str| {
-        let sel = if a.theme == v || (a.theme.is_empty() && v == "system") {
-            " selected"
-        } else {
-            ""
-        };
-        format!("<option value=\"{v}\"{sel}>{label}</option>")
+    let csrf = esc(&a.csrf);
+    let seg = |v: &str, label: &str| {
+        let on = a.theme == v || (a.theme.is_empty() && v == "system");
+        format!(
+            "<button type=\"submit\" name=\"theme\" value=\"{v}\" aria-pressed=\"{on}\"{}>{label}</button>",
+            if on { " class=\"on\"" } else { "" }
+        )
     };
-    let body = format!(
-        "<h1>Settings</h1>{notice}\
-         <h2>Appearance</h2>\
-         <form class=\"inline\" method=\"post\" action=\"/settings/theme\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
-         <label>Theme<select name=\"theme\">{}{}{}</select></label><button type=\"submit\">Save</button></form>\
-         <h2>WebDAV address</h2><p class=\"muted\">Use this address in a WebDAV client, with an app password from Devices.</p>\
-         <p><code>{}</code></p>\
-         <h2>Storage</h2>\
-         <table><tbody><tr><td>Files</td><td class=\"num\">{}</td></tr><tr><td>Older versions</td><td class=\"num\">{}</td></tr>\
-         <tr><td>Trash</td><td class=\"num\">{}</td></tr><tr><th>Used</th><th class=\"num\">{}</th></tr>\
-         <tr><td>Quota</td><td class=\"num\">{}</td></tr></tbody></table>",
-        esc(&a.csrf),
-        opt("system", "Follow system"),
-        opt("light", "Light"),
-        opt("dark", "Dark"),
-        esc(&url),
-        bytes(u.files),
-        bytes(u.versions),
-        bytes(u.trash),
-        bytes(u.used),
-        quota
+    let appearance = ui::card(
+        "Appearance",
+        &format!(
+            "<form class=\"segform\" method=\"post\" action=\"/settings/theme\">\
+             <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><div class=\"seg\" role=\"group\" aria-label=\"Theme\">{}{}{}</div></form>",
+            seg("light", "Light"),
+            seg("dark", "Dark"),
+            seg("system", "Same as system")
+        ),
+        "<p class=\"muted\">The whole page switches when you choose.</p>",
     );
-    layout::app(status, "Settings", &a.chrome(), "settings", &a.csrf, &body)
+    let webdav = ui::card(
+        "WebDAV address",
+        "",
+        &format!(
+            "<p class=\"muted\">For rclone, davfs2, Finder or Explorer. Sign in there with an app password.</p>\
+             <div class=\"codebox\"><code id=\"webdav-url\">{}</code>\
+             <button type=\"button\" data-copy=\"webdav-url\" hidden>Copy</button></div>\
+             <p><a href=\"/devices\">Create an app password</a></p>",
+            esc(&url)
+        ),
+    );
+    // stacked usage bar: files, versions, trash
+    let total = u.files + u.versions + u.trash;
+    let scale = u
+        .quota
+        .filter(|q| *q > 0)
+        .map_or(total.max(1), |q| q.max(total).max(1)) as f64;
+    let mut x = 0.0;
+    let mut rects = String::new();
+    for (cls, v) in [
+        ("s-files", u.files),
+        ("s-versions", u.versions),
+        ("s-trash", u.trash),
+    ] {
+        let w = v as f64 / scale * 100.0;
+        if w > 0.0 {
+            rects.push_str(&format!(
+                "<rect class=\"{cls}\" x=\"{x:.2}\" y=\"0\" width=\"{w:.2}\" height=\"1\"/>"
+            ));
+            x += w;
+        }
+    }
+    let quota = u.quota.map_or_else(|| "unlimited".to_owned(), bytes);
+    let storage = ui::card(
+        "Storage",
+        "",
+        &format!(
+            "<svg class=\"stack\" viewBox=\"0 0 100 1\" preserveAspectRatio=\"none\" role=\"img\" \
+             aria-label=\"{} used of {}\"><rect class=\"s-bg\" x=\"0\" y=\"0\" width=\"100\" height=\"1\"/>{rects}</svg>\
+             <ul class=\"legend\"><li><span class=\"dot s-files\" aria-hidden=\"true\"></span>Files<span>{}</span></li>\
+             <li><span class=\"dot s-versions\" aria-hidden=\"true\"></span>Versions<span>{}</span></li>\
+             <li><span class=\"dot s-trash\" aria-hidden=\"true\"></span>Trash bin<span>{}</span></li></ul>\
+             <p class=\"muted\">Quota: {} · set by the administrator</p>",
+            bytes(u.used),
+            esc(&quota),
+            bytes(u.files),
+            bytes(u.versions),
+            bytes(u.trash),
+            esc(&quota)
+        ),
+    );
+    let body = format!(
+        "{}{notice}{appearance}<div class=\"cols\">{webdav}{storage}</div>",
+        ui::page_head(
+            "Settings",
+            "Personal settings for your account. Changes are saved immediately.",
+            ""
+        )
+    );
+    let opts = crate::layout::Opts {
+        bare_main: true,
+        script: Some("copy.js"),
+        ..crate::layout::Opts::default()
+    };
+    crate::layout::app_opts(
+        status,
+        "Settings",
+        &a.chrome(),
+        "settings",
+        &a.csrf,
+        &body,
+        &opts,
+    )
 }
 
 #[derive(Deserialize)]

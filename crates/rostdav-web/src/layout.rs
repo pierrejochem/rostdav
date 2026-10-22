@@ -6,6 +6,7 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 
 const APP_CSS: &str = include_str!("../static/app.css");
 const UPLOAD_JS: &str = include_str!("../static/upload.js");
+const COPY_JS: &str = include_str!("../static/copy.js");
 const PASSWORD_JS: &str = include_str!("../static/password.js");
 
 const PASSWORD_SCRIPT: &str = "<script src=\"/static/password.js\"></script>";
@@ -223,6 +224,11 @@ pub fn app_opts(
         .unwrap_or_default();
     let toolbar = opts.toolbar.unwrap_or_default();
     let main_class = if opts.bare_main { "bare" } else { "panel" };
+    let head_class = if opts.bare_main && opts.toolbar.is_none() {
+        "top flat"
+    } else {
+        "top"
+    };
     let storage = storage_widget(chrome.storage);
     let main_nav = format!(
         "{}{}",
@@ -262,7 +268,7 @@ pub fn app_opts(
              <a class=\"logo\" href=\"/files\">{LOGO}<span class=\"wordmark\">rost<b>dav</b></span></a>\
              <div class=\"navgroup\">{main_nav}</div>\
              <div class=\"navgroup\"><div class=\"eyebrow\">Account</div>{account_nav}</div>{server_nav}{storage}</nav>\
-             <div class=\"wrap\"><header class=\"top\"><div class=\"toolbar\">{toolbar}</div><span class=\"who\">{}</span><span class=\"avatar\" aria-hidden=\"true\">{}</span>\
+             <div class=\"wrap\"><header class=\"{head_class}\"><div class=\"toolbar\">{toolbar}</div><span class=\"who\">{}</span><span class=\"avatar\" aria-hidden=\"true\">{}</span>\
              <form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
              <button type=\"submit\">Sign out</button></form></header>\
              <main class=\"{main_class}\">{}</main></div></div>{PASSWORD_SCRIPT}{script}</body></html>",
@@ -281,6 +287,7 @@ pub async fn static_file(axum::extract::Path(name): axum::extract::Path<String>)
         "app.css" => (APP_CSS, "text/css; charset=utf-8"),
         "upload.js" => (UPLOAD_JS, "text/javascript; charset=utf-8"),
         "favicon.svg" => (favicon.as_str(), "image/svg+xml"),
+        "copy.js" => (COPY_JS, "text/javascript; charset=utf-8"),
         "password.js" => (PASSWORD_JS, "text/javascript; charset=utf-8"),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };
