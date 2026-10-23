@@ -56,7 +56,7 @@ struct Row {
 }
 
 use crate::i18n::{t, tf};
-use crate::ui::friendly;
+use crate::ui::{self, friendly};
 
 fn tile_class(node: &Node) -> &'static str {
     if node.kind == NodeKind::Dir {
@@ -436,5 +436,66 @@ async fn details_panel(
         esc(&t(lang, "File ID")),
         node.id,
         esc(node.etag.trim_matches('"')),
+    )
+}
+
+/// The files that changed last (own tree, newest first).
+pub async fn recent(State(state): State<AppState>, a: Authed) -> Response {
+    const LIMIT: i64 = 100;
+    let lang = a.lang;
+    let list = match state.list_recent(&a.session.principal, LIMIT).await {
+        Ok(l) => l,
+        Err(e) => return error_response_to(&a, &e, "/files", "recent"),
+    };
+    let body = if list.is_empty() {
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(lang, "No files yet."))
+        )
+    } else {
+        let rows: String = list
+            .iter()
+            .filter_map(|(path, n)| {
+                // a file always has a parent folder
+                let (parent, _) = path.split_last()?;
+                let mut link = url_of("/files", &parent);
+                link.push_str(&format!("?sel={}", enc(&n.name)));
+                let folder = if parent.is_root() {
+                    t(lang, "Files")
+                } else {
+                    plain(&parent)
+                };
+                Some(format!(
+                    "<tr><td><a class=\"name\" href=\"{}\">{}<span>{}</span></a></td><td>{}</td><td>{}</td><td>{}</td></tr>",
+                    esc(&link),
+                    tile(n),
+                    esc(&n.name),
+                    esc(&folder),
+                    human(n.size),
+                    esc(&friendly(lang, n.mtime)),
+                ))
+            })
+            .collect();
+        format!(
+            "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{rows}</tbody></table>",
+            esc(&t(lang, "Name")),
+            esc(&t(lang, "Folder")),
+            esc(&t(lang, "Size")),
+            esc(&t(lang, "Modified")),
+        )
+    };
+    let head = ui::page_head(
+        lang,
+        "Recent",
+        "The files you changed last, newest first.",
+        "",
+    );
+    let card = ui::card(lang, "Recent files", "", &body);
+    ui::page(
+        &a,
+        StatusCode::OK,
+        "Recent",
+        "recent",
+        &format!("{head}{card}"),
     )
 }

@@ -2619,6 +2619,7 @@ async fn german_interface_is_complete() {
         "/admin/server",
         "/admin/security",
         "/shares",
+        "/recent",
         "/files?sort=size&dir=desc",
         "/action/delete?path=Docs",
     ];
@@ -3986,4 +3987,63 @@ async fn files_sort_by_column_with_folders_first() {
     assert!(html.contains("sort=size&amp;dir=asc&amp;q=txt"));
     assert_eq!(order(&html), ["a.txt", "b.txt", "c.txt"]);
     assert!(!html.contains("bogus"));
+}
+
+#[tokio::test]
+async fn recent_lists_own_files_newest_first_without_trash() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let cb = login(&e, "bob").await;
+    let csrf = page_csrf(&e, &ca).await;
+    assert!(
+        get(&e, "/recent", &ca)
+            .await
+            .text()
+            .contains("No files yet.")
+    );
+    assert_eq!(
+        send(&e, "GET", "/recent", &[], Body::empty()).await.status,
+        StatusCode::SEE_OTHER
+    );
+    post_form(
+        &e,
+        "/action/mkdir",
+        &ca,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Docs")],
+    )
+    .await;
+    for (dir, n) in [("", "first.txt"), ("Docs", "second.txt"), ("", "gone.txt")] {
+        upload(
+            &e,
+            &ca,
+            &[
+                ("csrf", None, &csrf),
+                ("dir", None, dir),
+                ("file", Some(n), "x"),
+            ],
+        )
+        .await;
+    }
+    // the same second for all: the later upload counts as newer
+    post_form(
+        &e,
+        "/action/delete",
+        &ca,
+        &[("csrf", &csrf), ("path", "gone.txt")],
+    )
+    .await;
+
+    let html = get(&e, "/recent", &ca).await.text();
+    let first = html.find("<span>first.txt</span>").expect("first");
+    let second = html.find("<span>second.txt</span>").expect("second");
+    assert!(second < first, "newest first");
+    assert!(!html.contains("gone.txt"), "trash is not listed");
+    assert!(
+        html.contains("href=\"/files/Docs?sel=second.txt\""),
+        "{html}"
+    );
+    assert!(html.contains("href=\"/files?sel=first.txt\""));
+    // other users see nothing of it
+    let html = get(&e, "/recent", &cb).await.text();
+    assert!(html.contains("No files yet.") && !html.contains("first.txt"));
 }

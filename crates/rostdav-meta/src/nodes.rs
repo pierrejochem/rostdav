@@ -283,6 +283,20 @@ impl Db {
         Ok(quota.map(|q| (q - used).max(0)))
     }
 
+    /// The owner's files that changed last (trash excluded), newest first.
+    pub async fn recent_files(&self, owner_id: i64, limit: i64) -> Result<Vec<Node>> {
+        let rows: Vec<Row> = sqlx::query_as(&format!(
+            "SELECT {COLS} FROM nodes WHERE owner_id = ? AND kind = 'file' AND trash_id IS NULL
+             ORDER BY mtime DESC, id DESC LIMIT ?"
+        ))
+        .bind(owner_id)
+        .bind(limit)
+        .fetch_all(self.pool())
+        .await
+        .map_err(db_err)?;
+        rows.into_iter().map(to_node).collect()
+    }
+
     pub async fn node_by_id(&self, id: i64) -> Result<Option<Node>> {
         let mut conn = self.pool().acquire().await.map_err(Error::internal)?;
         fetch(&mut conn, id).await
@@ -764,6 +778,33 @@ mod tests {
             .fetch_one(db.pool())
             .await
             .expect("used")
+    }
+
+    #[tokio::test]
+    async fn recent_files_are_own_files_newest_first_and_limited() {
+        let (_d, db) = test_db().await;
+        let (anna, root) = user(&db, "anna").await;
+        let (_bob, bob_root) = user(&db, "bob").await;
+        let dir = db.create_dir(root, &n("d")).await.expect("dir");
+        let old = put(&db, root, "old.txt", "1", 1).await;
+        let mid = put(&db, dir.id, "mid.txt", "2", 2).await;
+        let new = put(&db, root, "new.txt", "3", 3).await;
+        put(&db, bob_root, "bobs.txt", "4", 4).await;
+        for (id, t) in [(old.id, 100), (mid.id, 200), (new.id, 300)] {
+            sqlx::query("UPDATE nodes SET mtime = ? WHERE id = ?")
+                .bind(t)
+                .bind(id)
+                .execute(db.pool())
+                .await
+                .expect("mtime");
+        }
+        let names = |v: Vec<Node>| v.into_iter().map(|n| n.name).collect::<Vec<_>>();
+        assert_eq!(
+            names(db.recent_files(anna, 10).await.expect("recent")),
+            ["new.txt", "mid.txt", "old.txt"],
+            "own files only, no folders"
+        );
+        assert_eq!(db.recent_files(anna, 2).await.expect("limit").len(), 2);
     }
 
     #[tokio::test]

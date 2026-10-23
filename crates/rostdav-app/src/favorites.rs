@@ -25,6 +25,31 @@ impl AppState {
         self.inner.db.favorites_among(p.user_id, node_ids).await
     }
 
+    /// The caller's own files that changed last, with their paths, newest first. Files that
+    /// others shared with the caller are not included.
+    pub async fn list_recent(
+        &self,
+        p: &Principal,
+        limit: i64,
+    ) -> Result<Vec<(LogicalPath, rostdav_meta::Node)>> {
+        Self::require_full(p)?;
+        let mut out = Vec::new();
+        for node in self.inner.db.recent_files(p.user_id, limit).await? {
+            let node_path = self.inner.db.node_path(node.id).await?;
+            // Names are joined one by one: a name may contain `%`, which a URL decoder would eat.
+            if let Ok(path) = node_path
+                .split('/')
+                .filter(|s| !s.is_empty())
+                .try_fold(LogicalPath::root(), |acc, seg| {
+                    Ok::<_, rostdav_core::Error>(acc.join(&Name::parse(seg)?))
+                })
+            {
+                out.push((path, node));
+            }
+        }
+        Ok(out)
+    }
+
     /// Favorites in the caller's own tree with their paths, in file ID order.
     pub async fn list_favorites(&self, p: &Principal) -> Result<Vec<(LogicalPath, Access)>> {
         Self::require_full(p)?;

@@ -37,6 +37,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/devices`, `/devices/{create,revoke,sign-out-others}` | App passwords (shown once), browser sessions |
 | `/settings`, `POST /settings/{theme,profile,export}`, `/settings/password` | Profile (display name, e-mail), change password (ends other browser sessions), theme, WebDAV address, storage overview, data export (tar of own files; no shares received, versions or trash) |
 | `/s/<token>`, `/s/<token>/{unlock,dl,upload}` | Public link page: list, download, password form, upload |
+| `/recent` | Recent: the 100 own files that changed last (not trash, not files shared with me), each linking to its folder with the file selected |
 | `/shares`, `POST /shares/delete` | Overview of all shares: shared by me (with recipient or link address, access, expiry, "Stop sharing") and shared with me (owner, access) |
 | `/share?path=`, `/share/{user,link,delete}` | Sharing dialog: share with a user, create/stop public links (password, expiry, view/edit/upload-only) |
 | `/versions?path=`, `/versions/{restore,delete}` | Versions panel of a file |
