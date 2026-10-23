@@ -764,7 +764,8 @@ mod tests {
                 .is_none()
         );
         assert_eq!(
-            db.upload_sessions_older_than(s.created_at + 1)
+            // both sessions: the second may have been made in the next second
+            db.upload_sessions_older_than(s.created_at + 60)
                 .await
                 .expect("old")
                 .len(),

@@ -421,3 +421,44 @@ fn check_config_never_prints_the_two_factor_key() {
     let out = String::from_utf8_lossy(&o.stdout);
     assert!(!out.contains(key) && out.contains("<set>"), "{out}");
 }
+
+/// The container image sets its environment in the Dockerfile. Every `ROSTDAV_*` variable there
+/// is read as configuration, and an unknown one stops the server at start (this happened once
+/// with a variable that was meant for the updater). So: start the program with exactly that
+/// environment.
+#[test]
+fn the_dockerfile_environment_is_valid_configuration() {
+    let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../Dockerfile"))
+        .expect("Dockerfile");
+    let mut vars: Vec<(String, String)> = Vec::new();
+    let mut in_env = false;
+    for line in text.lines() {
+        let l = line.trim();
+        if l.starts_with("ENV ") {
+            in_env = true;
+        } else if !in_env {
+            continue;
+        }
+        let l = l.trim_start_matches("ENV ").trim_end_matches('\\').trim();
+        if let Some((k, v)) = l.split_once('=') {
+            vars.push((k.trim().to_owned(), v.trim().to_owned()));
+        }
+        if !line.trim_end().ends_with('\\') {
+            in_env = false;
+        }
+    }
+    assert!(
+        vars.iter().any(|(k, _)| k == "ROSTDAV_SERVER__LISTEN"),
+        "the parser found the ENV block: {vars:?}"
+    );
+    let c = Cli::new();
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_rostdav"));
+    cmd.arg("check-config").current_dir(c.dir.path());
+    for (k, v) in &vars {
+        cmd.env(k, v);
+    }
+    // /data does not exist here
+    cmd.env("ROSTDAV_STORAGE__DATA_DIR", c.dir.path().join("data"));
+    let o = cmd.output().expect("run");
+    assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+}

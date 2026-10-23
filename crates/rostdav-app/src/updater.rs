@@ -51,7 +51,7 @@ impl Default for UpdaterEnv {
             key: Some(PUBLIC_KEY.to_owned()),
             exe: std::env::current_exe().ok(),
             base: RELEASE_DOWNLOADS.to_owned(),
-            container: std::env::var("ROSTDAV_INSTALL").is_ok_and(|v| v == "container"),
+            container: std::env::var("RD_INSTALL").is_ok_and(|v| v == "container"),
             relaxed: false,
         }
     }

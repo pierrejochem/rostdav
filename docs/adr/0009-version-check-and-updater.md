@@ -26,7 +26,7 @@ New dependency: a small HTTPS client, **`ureq` 3** (blocking, run on `spawn_bloc
 
 The updater never runs by itself and never runs in a container.
 
-- **Container image** (`ROSTDAV_INSTALL=container`, set in the Dockerfile): notify only. The page shows the new version, its notes and the steps (`docker compose pull && docker compose up -d`, back up first). The image is replaced, never patched.
+- **Container image** (`RD_INSTALL=container`, set in the Dockerfile): notify only. The page shows the new version, its notes and the steps (`docker compose pull && docker compose up -d`, back up first). The image is replaced, never patched.
 - **Plain binary**: "Install update" appears when the binary's directory is writable by the server's user. Without it, the page shows the manual steps.
 
 An update is accepted only if all of these hold:
