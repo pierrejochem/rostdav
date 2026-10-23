@@ -57,7 +57,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 - Manual or automated test with the unmodified app (emulator)
 - Capture deviations as reproducible tests and fix them
 - **Acceptance:** acceptance list from section 6 of the instructions complete, test status in `docs/compatibility.md`
-- **Status (2026-10-23, Android 35.0.1 on an Android 15 emulator):** sign-in (also with 2FA), file list, create folder, upload, chunked upload (30 MB), download, rename, delete, favorites, share with a user and public link, versions (list, restore) and offline/reconnect verified; five bugs found and fixed (`/remote.php/dav` root, GET/HEAD on collections, `/index.php/204`, `bigfilechunking`, version restore destination) plus favorites implemented. Open: trash from the app (no "Deleted files" entry found), iOS/desktop clients.
+- **Status (2026-10-23, Android 35.0.1 on an Android 15 emulator):** sign-in (also with 2FA), file list, create folder, upload, chunked upload (30 MB), download, rename, delete, favorites, share with a user and public link, versions (list, restore) and offline/reconnect verified; five bugs found and fixed (`/remote.php/dav` root, GET/HEAD on collections, `/index.php/204`, `bigfilechunking`, version restore destination) plus favorites implemented. trash (list, restore) verified. Open: iOS/desktop clients.
 
 ## Phase 4: Extensions (P2)
 
