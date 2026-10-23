@@ -13,7 +13,18 @@ fn err(e: sql::Error) -> Error {
     Error::internal(e)
 }
 
-type SummaryRow = (i64, String, bool, bool, Option<i64>, i64, i64, i64, bool);
+type SummaryRow = (
+    i64,
+    String,
+    bool,
+    bool,
+    Option<i64>,
+    i64,
+    i64,
+    i64,
+    bool,
+    Option<String>,
+);
 type EventRow = (i64, i64, String, String, String, String, String);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -28,6 +39,8 @@ pub struct UserSummary {
     pub devices: i64,
     /// Two-factor authentication is on.
     pub two_factor: bool,
+    /// Version of the profile picture, if the user has one.
+    pub avatar: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -56,7 +69,8 @@ impl Db {
         let rows: Vec<SummaryRow> = sql::query_as(
             "SELECT u.id, u.name, u.is_admin, u.disabled, u.quota_bytes, u.used_bytes, u.created_at,
                     (SELECT count(*) FROM app_passwords a WHERE a.user_id = u.id),
-                    EXISTS (SELECT 1 FROM totp t WHERE t.user_id = u.id AND t.enabled_at IS NOT NULL)
+                    EXISTS (SELECT 1 FROM totp t WHERE t.user_id = u.id AND t.enabled_at IS NOT NULL),
+                    (SELECT etag FROM avatars av WHERE av.user_id = u.id)
              FROM users u ORDER BY u.name_key",
         )
         .fetch_all(self.pool())
@@ -75,6 +89,7 @@ impl Db {
                     created_at,
                     devices,
                     two_factor,
+                    avatar,
                 )| {
                     UserSummary {
                         id,
@@ -86,6 +101,7 @@ impl Db {
                         created_at,
                         devices,
                         two_factor,
+                        avatar,
                     }
                 },
             )

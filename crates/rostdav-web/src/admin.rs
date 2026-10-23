@@ -184,7 +184,7 @@ pub async fn users(
              {twofa}<span class=\"chip {}\">{}</span>\
              <div class=\"row-actions\"><a class=\"button\" href=\"/admin/users/manage?name={}\" aria-label=\"{}\">{}</a>{toggle}</div></li>",
             if u.disabled { " off" } else { "" },
-            ui::avatar(&u.name),
+            ui::avatar_of(&u.name, u.avatar.as_deref()),
             esc(&u.name),
             esc(&t(lang, if u.is_admin { "Administrator" } else { "User" })),
             if u.disabled { "" } else { "ok" },
@@ -363,7 +363,7 @@ pub async fn manage(
     );
     let head = format!(
         "{}<div class=\"row-text\"><b>{name}</b><span class=\"muted\">{}</span></div>",
-        ui::avatar(&u.name),
+        ui::avatar_of(&u.name, u.avatar.as_deref()),
         esc(&tf(
             lang,
             "{0} · {1} · {2} used · {3} device(s) · created {4}",

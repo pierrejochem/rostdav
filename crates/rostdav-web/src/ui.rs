@@ -121,6 +121,28 @@ pub fn svg(name: &str) -> String {
 }
 
 /// A round avatar with the first letter, in one of four colours chosen by the name.
+/// The round picture of a user: the profile picture when there is one (`version` is its ETag,
+/// which makes a new picture a new address), else the first letter on a colour.
+pub fn avatar_of(name: &str, version: Option<&str>) -> String {
+    let Some(v) = version else {
+        return avatar(name);
+    };
+    let n = name.bytes().fold(0u32, |a, b| a.wrapping_add(u32::from(b))) % 3;
+    format!(
+        "<span class=\"avatar-sm c{n}\" aria-hidden=\"true\"><img src=\"{}\" alt=\"\" width=\"38\" height=\"38\" loading=\"lazy\"></span>",
+        esc(&avatar_url(name, v))
+    )
+}
+
+/// Address of a user's profile picture (64 pixels is a hint only: the picture is sent as it is).
+pub fn avatar_url(name: &str, version: &str) -> String {
+    format!(
+        "/avatar/{}/64?v={}",
+        crate::layout::enc(name),
+        crate::layout::enc(version)
+    )
+}
+
 pub fn avatar(name: &str) -> String {
     let initial: String = name.chars().take(1).flat_map(char::to_uppercase).collect();
     let n = name.bytes().fold(0u32, |a, b| a.wrapping_add(u32::from(b))) % 3;

@@ -91,6 +91,8 @@ pub struct Authed {
     pub admin: bool,
     /// Name shown in the page header: the display name, else the user name.
     pub display: String,
+    /// Version of the user's profile picture, if there is one.
+    pub avatar: Option<String>,
     pub theme: String,
     pub lang: Lang,
     pub csrf: String,
@@ -133,12 +135,14 @@ impl FromRequestParts<AppState> for Authed {
             None => accept_lang(&parts.headers),
         };
         let csrf = state.web_csrf(session.id);
+        let avatar = state.avatar_version(&session.principal).await;
         let storage = state
             .storage_summary(&session.principal)
             .await
             .unwrap_or((0, None));
         Ok(Self {
             display,
+            avatar,
             lang,
             storage,
             admin: session.principal.is_admin,
@@ -152,6 +156,8 @@ impl FromRequestParts<AppState> for Authed {
 impl Authed {
     pub fn chrome(&self) -> crate::layout::Chrome<'_> {
         crate::layout::Chrome {
+            user: &self.session.principal.name,
+            avatar: self.avatar.as_deref(),
             theme: &self.theme,
             admin: self.admin,
             name: &self.display,

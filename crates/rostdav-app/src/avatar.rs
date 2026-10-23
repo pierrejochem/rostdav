@@ -161,12 +161,10 @@ impl AppState {
         }))
     }
 
-    pub async fn has_avatar(&self, p: &Principal) -> bool {
-        self.inner
-            .db
-            .avatar_exists(p.user_id)
-            .await
-            .unwrap_or(false)
+    /// The version of the caller's profile picture, for the address of the image in a page
+    /// (`/avatar/<user>/64?v=<version>`: a new picture is a new address, so it shows at once).
+    pub async fn avatar_version(&self, p: &Principal) -> Option<String> {
+        self.inner.db.avatar_etag(p.user_id).await.ok().flatten()
     }
 }
 

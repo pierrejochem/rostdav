@@ -50,14 +50,13 @@ impl Db {
         Ok(row.map(|(mime, data, etag)| StoredAvatar { mime, data, etag }))
     }
 
-    /// Whether the user has a picture, without reading it.
-    pub async fn avatar_exists(&self, user_id: i64) -> Result<bool> {
-        let n: i64 = sql::query_scalar("SELECT COUNT(*) FROM avatars WHERE user_id = ?")
+    /// The version (ETag) of the user's picture, if there is one, without reading the picture.
+    pub async fn avatar_etag(&self, user_id: i64) -> Result<Option<String>> {
+        sql::query_scalar::<String>("SELECT etag FROM avatars WHERE user_id = ?")
             .bind(user_id)
-            .fetch_one(self.pool())
+            .fetch_optional(self.pool())
             .await
-            .map_err(err)?;
-        Ok(n > 0)
+            .map_err(err)
     }
 
     pub async fn avatar_delete(&self, user_id: i64) -> Result<bool> {
@@ -98,7 +97,10 @@ mod tests {
             (a.mime.as_str(), a.data.as_slice(), a.etag.as_str()),
             ("image/jpeg", &b"two"[..], "e2")
         );
-        assert!(db.avatar_exists(u.id).await.expect("exists"));
+        assert_eq!(
+            db.avatar_etag(u.id).await.expect("etag").as_deref(),
+            Some("e2")
+        );
         // the database refuses other types and big blobs even if the application did not
         assert!(
             db.avatar_set(u.id, "image/svg+xml", b"x", "e")

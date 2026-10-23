@@ -4833,3 +4833,85 @@ async fn sign_in_pages_show_the_full_logo_beside_the_form() {
         .text();
     assert!(css.contains("Space Grotesk") && css.contains(".auth-brand{"));
 }
+
+#[tokio::test]
+async fn the_profile_picture_shows_in_the_header_and_in_the_user_list() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let header = |html: &str| -> String {
+        let i = html
+            .find("<summary class=\"avatar\"")
+            .expect("account icon");
+        html[i..html[i..].find("</summary>").map_or(html.len(), |j| i + j)].to_owned()
+    };
+
+    // no picture: the first letter, in the header and in the list
+    let icon = header(&get(&e, "/files", &ca).await.text());
+    assert!(icon.contains(">A") && !icon.contains("<img"), "{icon}");
+    let list = get(&e, "/admin/users", &root).await.text();
+    assert!(!list.contains("/avatar/"), "nobody has a picture yet");
+
+    // with a picture: an image of the version, in the header, in the list and in the details
+    upload_avatar(&e, &ca, &csrf, &png_header(64, 64), true).await;
+    let icon = header(&get(&e, "/files", &ca).await.text());
+    assert!(icon.contains("<img src=\"/avatar/anna/64?v="), "{icon}");
+    let v1 = icon
+        .split("?v=")
+        .nth(1)
+        .and_then(|r| r.split('"').next())
+        .expect("version")
+        .to_owned();
+    assert!(!v1.is_empty());
+    let list = get(&e, "/admin/users", &root).await.text();
+    assert!(
+        list.contains(&format!("/avatar/anna/64?v={v1}")),
+        "anna has her picture in the list"
+    );
+    assert_eq!(
+        list.matches("/avatar/").count(),
+        1,
+        "bob and root still show a letter"
+    );
+    let detail = get(&e, "/admin/users/manage?name=anna", &root).await.text();
+    assert!(detail.contains(&format!("/avatar/anna/64?v={v1}")));
+    // the settings page uses the same address, so a new picture is not hidden by the cache
+    assert!(
+        get(&e, "/settings", &ca)
+            .await
+            .text()
+            .contains(&format!("avatar-big\" src=\"/avatar/anna/64?v={v1}\""))
+    );
+
+    // another picture is another address
+    let mut other = png_header(32, 48);
+    other.extend_from_slice(b"different bytes");
+    upload_avatar(&e, &ca, &csrf, &other, true).await;
+    let icon = header(&get(&e, "/files", &ca).await.text());
+    let v2 = icon
+        .split("?v=")
+        .nth(1)
+        .and_then(|r| r.split('"').next())
+        .expect("version")
+        .to_owned();
+    assert_ne!(v1, v2);
+    // the address with the version serves that picture
+    assert_eq!(
+        get(&e, &format!("/avatar/anna/64?v={v2}"), &ca)
+            .await
+            .status,
+        StatusCode::OK
+    );
+
+    // removed: the letter again
+    post_form(&e, "/settings/avatar/delete", &ca, &[("csrf", &csrf)]).await;
+    let icon = header(&get(&e, "/files", &ca).await.text());
+    assert!(icon.contains(">A") && !icon.contains("<img"), "{icon}");
+    assert!(
+        !get(&e, "/admin/users", &root)
+            .await
+            .text()
+            .contains("/avatar/")
+    );
+}

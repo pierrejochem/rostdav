@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- The profile picture is now shown where a user appears as a round icon: the icon at the top right of every page, and the user list and user details in the administration (before, only the first letter was shown). The picture's address carries its version, so a new picture shows at once and not after the browser's cache has expired.
+
 ### Changed
 
 - Sign-in pages (sign-in, second factor, device connection): the full Rostdav logo from `assets/brand` (mark and wordmark, set in the page's own font) beside the form on a dark brand panel, with a short tagline; on phones the panel becomes a band above the form.

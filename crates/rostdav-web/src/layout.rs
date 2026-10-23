@@ -178,6 +178,10 @@ pub fn bare(lang: Lang, status: StatusCode, title: &str, body: &str) -> Response
 
 /// What the navigation bar needs to know about the viewer.
 pub struct Chrome<'a> {
+    /// The account name (the one in addresses), not the display name.
+    pub user: &'a str,
+    /// Version of the profile picture, if the user has one.
+    pub avatar: Option<&'a str>,
     pub theme: &'a str,
     pub admin: bool,
     pub name: &'a str,
@@ -325,6 +329,14 @@ pub fn app_opts(
         .take(1)
         .flat_map(char::to_uppercase)
         .collect();
+    // the profile picture when there is one, else the first letter
+    let initial = match chrome.avatar {
+        Some(v) => format!(
+            "<img src=\"{}\" alt=\"\" width=\"42\" height=\"42\">",
+            esc(&crate::ui::avatar_url(chrome.user, v))
+        ),
+        None => esc(&initial),
+    };
     html(
         status,
         format!(
@@ -345,7 +357,7 @@ pub fn app_opts(
             esc(&t(lang, "Main navigation")),
             esc(&t(lang, "Account")),
             esc(&tf(lang, "Account of {0}", &[chrome.name])),
-            esc(&initial),
+            initial,
             esc(chrome.name),
             esc(csrf),
             esc(&t(lang, "Sign out")),

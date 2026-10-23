@@ -495,7 +495,8 @@ async fn settings_page(
             esc(label)
         )
     };
-    let has_avatar = state.has_avatar(p).await;
+    let avatar_version = state.avatar_version(p).await;
+    let has_avatar = avatar_version.is_some();
     let picture = ui::card(
         lang,
         "Profile picture",
@@ -509,10 +510,10 @@ async fn settings_page(
              <span class=\"dz-title\">{}</span><span class=\"dz-hint\">{}</span></label>\
              <p id=\"avatar-msg\" class=\"muted\" role=\"status\">{}</p>\
              <div class=\"actions\"><button id=\"avatar-save\" class=\"primary\" type=\"submit\">{}</button></div></form>{}</div></div>",
-            if has_avatar {
+            if let Some(v) = &avatar_version {
                 format!(
-                    "<img class=\"avatar-big\" src=\"/avatar/{}/128\" alt=\"\" width=\"96\" height=\"96\">",
-                    crate::layout::enc(&p.name)
+                    "<img class=\"avatar-big\" src=\"{}\" alt=\"\" width=\"96\" height=\"96\">",
+                    esc(&ui::avatar_url(&p.name, v))
                 )
             } else {
                 ui::avatar(&p.name)
