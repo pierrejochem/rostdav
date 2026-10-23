@@ -21,7 +21,7 @@ curl http://127.0.0.1:8080/readyz       # {"status":"ok"}
 
 Live development in Docker (rebuilds and restarts on every code change): `docker compose up --build`, then open <http://localhost:8080> (user `demo`, password `korrekt-pferd-batterie`; development only).
 
-Production: [docs/deployment.md](docs/deployment.md) (container image, Compose with HTTPS proxy, backup/restore, upgrade).
+Production: [docs/deployment.md](docs/deployment.md) (released binary and container image, Compose with HTTPS proxy, backup/restore, upgrade). Releases: <https://github.com/pierrejochem/rostdav/releases>.
 
 With [`just`](https://github.com/casey/just): `just run`, `just check`, `just smoke`. IDE setup and workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
 

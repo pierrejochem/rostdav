@@ -22,6 +22,14 @@ The stack was tried end to end on 2026-10-23 (Docker Desktop): health through th
 
 Image only: `docker build -t rostdav .`, then `docker run -d -p 127.0.0.1:8080:8080 -v rostdav-data:/data rostdav`. The container runs as user 10001, data in the volume `/data` (mode 0700), health check `rostdav healthcheck`, logs as JSON on stdout.
 
+## Released builds
+
+Each version tag (`v0.1.0`, …) is built by the [Release workflow](../.github/workflows/release.yml) after the tests pass:
+
+- **Linux x86_64 binary:** `rostdav-<version>-x86_64-unknown-linux-gnu.tar.gz` and its `.sha256` on the GitHub release page. Check it with `sha256sum -c rostdav-<version>-x86_64-unknown-linux-gnu.tar.gz.sha256`. The archive holds the binary, both licences, the README, the changelog and `rostdav.example.toml`.
+- **Container image:** `ghcr.io/pierrejochem/rostdav:<version>` (also `:<major>.<minor>`, `:<major>` and `:latest` for final releases). The workflow starts the image and checks health, user 10001 and the data directory mode before it pushes. A new ghcr.io package is private until its owner makes it public; a private one needs `docker login ghcr.io`.
+- There is no arm64 build yet; build from source or with `docker build` on the target machine.
+
 ## Building from source
 
 ```sh
