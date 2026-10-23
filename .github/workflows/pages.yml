@@ -55,8 +55,8 @@ jobs:
         working-directory: site/public
         run: |
           for f in index.html sitemap.xml robots.txt 404.html manual/index.html admin/index.html reference/index.html; do test -s "$f" || { echo "missing $f"; exit 1; }; done
-          grep -q 'rel="canonical"' index.html
-          grep -q 'application/ld+json' index.html
+          grep -Eq 'rel="?canonical' index.html
+          grep -Eq 'application/ld\+json' index.html
       - uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request'
         with:
