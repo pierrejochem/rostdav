@@ -1308,7 +1308,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "argon2",
  "base64",
@@ -1327,7 +1327,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "percent-encoding",
  "thiserror",
@@ -1336,7 +1336,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-dav"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "axum",
  "blake3",
@@ -1365,7 +1365,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-meta"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "rostdav-core",
  "sqlx",
@@ -1375,7 +1375,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-storage"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "blake3",
  "rostdav-core",

@@ -2,13 +2,20 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). What was tested with which client version is in [docs/compatibility.md](docs/compatibility.md); the design decisions are in [docs/adr/](docs/adr/).
 
-## [Unreleased]
+## [0.2.0] - 2026-10-23
 
 ### Added
 
 - Linux arm64: a `aarch64-unknown-linux-gnu` tarball and a multi-architecture container image (amd64 and arm64 under one tag). Both architectures are built on runners of their own kind; the tarball holds the binary from the image (built on Debian bookworm), so it runs wherever the image does.
 - Profile pictures: upload a PNG or JPEG in Settings; the Nextcloud apps show it (`/index.php/avatar/<user>/<size>`, sign-in required, sent unscaled, 404 without a picture).
 - Administrators can adjust the quota for new users, the expiry of unfinished uploads and the retention of versions, trash and event log in the web interface (Administration, Server). Settings given in the configuration file or an environment variable stay locked there ("set by configuration").
+- Maintenance mode and sign-in lockouts: administrators can switch maintenance mode on (WebDAV and OCS answer 503 as Nextcloud does, `status.php` reports it) and lift sign-in blocks in Administration, Sign-in and maintenance.
+- Web interface: a shares overview, a recent-files page, sortable file columns, and a "2FA" mark in the user list.
+
+### Changed
+
+- Login Flow: the app password is encrypted while it waits for the app to collect it, and at most 1000 flows can be open at once (ADR 0003, now accepted).
+- Version 0.2.0 also updates `tokio` (1.54.1, fixes a yanked release and RUSTSEC-2026-0384) and `quick-xml` (0.42, fixes RUSTSEC-2026-0194 and 0195, both denial of service on XML input).
 
 ## [0.1.0] - 2026-10-23
 
