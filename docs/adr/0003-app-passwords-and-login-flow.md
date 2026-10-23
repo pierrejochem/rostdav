@@ -1,7 +1,7 @@
 # ADR 0003: App passwords, Login Flow v2 and brute-force protection
 
-- Status: **Proposed** — implemented in M4 on the project owner's "go"; approval point 3 (authentication, token format) asks for review. Changing it later needs a new approval.
-- Date: 2026-10-21
+- Status: **Accepted** by the project owner on 2026-10-23 (approval point 3), after the Phase 5 amendment and the review changes below. Changing it later needs a new approval.
+- Date: 2026-10-21 (implemented in M4; amended in Phase 5 and on review)
 
 ## Context
 

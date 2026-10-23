@@ -39,11 +39,11 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 - **Result so far:** Nextcloud 35.0.2 in Docker recorded with synthetic requests (`scripts/record_nextcloud.py`, ~110 fixtures, findings in `docs/compatibility.md`). Not done: capture of the real Android app via emulator + mitmproxy.
 - **Acceptance:** every flow present as a fixture, open questions documented
 
-### M4 – Sign-in like Nextcloud ✅ (2026-10-21; ADR 0003 awaits review)
+### M4 – Sign-in like Nextcloud ✅ (2026-10-21; ADR 0003 accepted 2026-10-23)
 - `status.php`, capabilities (implemented features only), OCS user endpoints
 - Login Flow v2 incl. HTML sign-in page, app passwords (create, hash, revoke, last use)
 - Rate limiting for all sign-in paths
-- **Result:** implemented with contract tests against the fixtures (`crates/rostdav/tests/signin.rs`); design in [ADR 0003](adr/0003-app-passwords-and-login-flow.md), which still needs review (approval point 3). Real-app verification is part of M6.
+- **Result:** implemented with contract tests against the fixtures (`crates/rostdav/tests/signin.rs`); design in [ADR 0003](adr/0003-app-passwords-and-login-flow.md), accepted on 2026-10-23 (approval point 3). Real-app verification is part of M6.
 - **Acceptance:** contract tests against fixtures green; revoking an app password results in 401
 
 ### M5 – Nextcloud WebDAV extensions ✅ (2026-10-22)
