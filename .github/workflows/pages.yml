@@ -39,7 +39,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Install Zola
         run: |
           curl -sSfL -o zola.tar.gz "https://github.com/getzola/zola/releases/download/v${ZOLA_VERSION}/zola-v${ZOLA_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
@@ -57,7 +57,7 @@ jobs:
           for f in index.html sitemap.xml robots.txt 404.html manual/index.html admin/index.html reference/index.html; do test -s "$f" || { echo "missing $f"; exit 1; }; done
           grep -Eq 'rel="?canonical' index.html
           grep -Eq 'application/ld\+json' index.html
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
           path: site/public
@@ -74,4 +74,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
