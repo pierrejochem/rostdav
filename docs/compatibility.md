@@ -249,6 +249,19 @@ Source: Nextcloud 35.0.2 reference, 2026-10-23, and the Android app (M6).
 - `REPORT` on a folder of the user with `oc:filter-files` and the rule `oc:favorite` = `1`: the caller's favorites below that folder, with the requested properties. Other filter rules answer 400.
 - **Deviations:** the reference also stores arbitrary dead properties in `PROPPATCH`; Rostdav answers 403 for every property except `oc:favorite` rather than pretend. The `REPORT` lists favorites in the user's own tree only (not nodes received through shares).
 
+## Maintenance mode
+
+An administrator switches it on in the web interface (`/admin/security`; stored in `settings`, so it survives a restart; events `admin.maintenance_on` / `_off`). Source: the reference (Nextcloud 35.0.2) with `occ maintenance:mode --on`.
+
+| Request | Reference | Rostdav |
+|---|---|---|
+| `GET /status.php` | 200, `"maintenance":true` | same |
+| `/remote.php/…`, `/public.php/…` | 503, `application/xml`, Sabre error `OCA\DAV\Exception\ServerMaintenanceMode` / "System is in maintenance mode." | same body |
+| `/ocs/v1.php/…` (XML), `/ocs/v2.php/…?format=json` | 503, OCS failure "Service unavailable" | same bodies |
+| `/ocs/v1.php/…?format=json`, `/ocs/v2.php/…` as XML | not recorded | assumption: v1 JSON carries the empty paging fields, v2 XML equals v1 XML |
+
+The web interface, the sign-in pages (including Login Flow), `/healthz` and `/readyz` stay available, so an administrator can switch it off. The reference sends no `Retry-After`; neither do we. Not tested with the real apps: the apps pause when `status.php` reports maintenance, per the Nextcloud client behaviour.
+
 ## Not supported
 
 | Feature | App behavior without support | Source |

@@ -30,7 +30,8 @@ mod web;
 pub use access::{Access, MountView, Need, Origin, authorize_access};
 pub use admin::parse_quota;
 pub use admin::{
-    Actor, BackupReport, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport,
+    Actor, BackupReport, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport, Lockout,
+    LockoutKind,
 };
 pub use audit::AuditOptions;
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, Scope, UserInfo, Via, authorize};
@@ -68,6 +69,8 @@ struct Inner {
     instance_id: String,
     /// 32-byte key for stateless tickets and CSRF values (stored in `settings`).
     server_key: [u8; 32],
+    /// Maintenance mode: WebDAV and OCS answer 503, `status.php` says so (stored in `settings`).
+    maintenance: std::sync::atomic::AtomicBool,
 }
 
 pub fn now_secs() -> i64 {
@@ -134,6 +137,7 @@ impl AppState {
         let server_key: [u8; 32] = key.try_into().map_err(|_| {
             rostdav_core::Error::BadRequest("stored server key has the wrong length")
         })?;
+        let maintenance = db.setting("maintenance").await?.as_deref() == Some(b"1");
         Ok(Self {
             inner: Arc::new(Inner {
                 db,
@@ -146,6 +150,7 @@ impl AppState {
                 ),
                 instance_id,
                 server_key,
+                maintenance: maintenance.into(),
             }),
         })
     }
@@ -165,6 +170,10 @@ impl AppState {
                 ),
                 instance_id: old.instance_id.clone(),
                 server_key: old.server_key,
+                maintenance: old
+                    .maintenance
+                    .load(std::sync::atomic::Ordering::Relaxed)
+                    .into(),
             }),
         }
     }

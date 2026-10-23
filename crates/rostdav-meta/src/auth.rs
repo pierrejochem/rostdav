@@ -85,6 +85,28 @@ impl Db {
             .map_err(err)
     }
 
+    /// The stored value of a setting, if any.
+    pub async fn setting(&self, key: &str) -> Result<Option<Vec<u8>>> {
+        sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
+            .bind(key)
+            .fetch_optional(self.pool())
+            .await
+            .map_err(err)
+    }
+
+    /// Stores a setting, replacing an earlier value.
+    pub async fn set_setting(&self, key: &str, value: &[u8]) -> Result<()> {
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )
+        .bind(key)
+        .bind(value)
+        .execute(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(())
+    }
+
     // ---- app passwords -----------------------------------------------------
 
     pub async fn create_app_password(
@@ -567,6 +589,15 @@ mod tests {
         .await
         .expect("user")
         .id
+    }
+
+    #[tokio::test]
+    async fn settings_get_and_replace() {
+        let (_d, db) = test_db().await;
+        assert_eq!(db.setting("k").await.expect("get"), None);
+        db.set_setting("k", b"1").await.expect("set");
+        db.set_setting("k", b"2").await.expect("replace");
+        assert_eq!(db.setting("k").await.expect("get"), Some(b"2".to_vec()));
     }
 
     #[tokio::test]

@@ -7,7 +7,7 @@ use axum::extract::{FromRequestParts, Query, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::response::{IntoResponse, Redirect, Response};
-use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, parse_quota};
+use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, LockoutKind, parse_quota};
 use rostdav_core::Error;
 use serde::Deserialize;
 
@@ -78,11 +78,12 @@ fn page(a: &Authed, title: &str, section: &str, body: &str) -> Response {
         format!("<a href=\"{href}\"{cur}>{}</a>", esc(&t(lang, label)))
     };
     let tabs = format!(
-        "<nav class=\"seg tabs\" aria-label=\"{}\">{}{}{}{}</nav>",
+        "<nav class=\"seg tabs\" aria-label=\"{}\">{}{}{}{}{}</nav>",
         esc(&t(lang, "Administration sections")),
         tab("users", "Users", "/admin/users"),
         tab("events", "Event log", "/admin/events"),
         tab("status", "Status", "/admin/status"),
+        tab("security", "Sign-in and maintenance", "/admin/security"),
         tab("server", "Server", "/admin/server"),
     );
     let pill = format!(
@@ -832,5 +833,140 @@ pub async fn twofa_reset(
     {
         Ok(_) => Redirect::to(&back).into_response(),
         Err(e) => error_page(&a, &e, &back),
+    }
+}
+
+pub async fn security(State(state): State<AppState>, Admin(a): Admin) -> Response {
+    security_page(&state, &a).await
+}
+
+async fn security_page(state: &AppState, a: &Authed) -> Response {
+    let actor = Actor::User(&a.session.principal);
+    let locks = match state.active_lockouts(&actor).await {
+        Ok(l) => l,
+        Err(e) => return error_page(a, &e, "/files"),
+    };
+    let lang = a.lang;
+    let csrf = esc(&a.csrf);
+    let on = state.maintenance();
+    let maintenance = format!(
+        "<p class=\"muted\">{}</p>\
+         <p><strong>{}</strong></p>\
+         <form method=\"post\" action=\"/admin/security/maintenance\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+         <input type=\"hidden\" name=\"on\" value=\"{}\"><button type=\"submit\"{}>{}</button></form>",
+        esc(&t(
+            lang,
+            "While maintenance mode is on, the Nextcloud apps and WebDAV clients get \u{201c}service unavailable\u{201d} and pause. This web interface and the sign-in pages keep working."
+        )),
+        esc(&t(
+            lang,
+            if on {
+                "Maintenance mode is on."
+            } else {
+                "Maintenance mode is off."
+            }
+        )),
+        if on { "0" } else { "1" },
+        if on { "" } else { " class=\"danger\"" },
+        esc(&t(lang, if on { "Turn off" } else { "Turn on" })),
+    );
+    let rows: String = locks
+        .iter()
+        .map(|l| {
+            let (what, kind) = match (l.by_address, l.kind) {
+                (true, _) => (t(lang, "Address"), "password"),
+                (false, LockoutKind::Password) => (t(lang, "User"), "password"),
+                (false, LockoutKind::SecondFactor) => (t(lang, "User (two-factor code)"), "2fa"),
+            };
+            format!(
+                "<tr><td>{}</td><td>{}</td><td class=\"num\">{}</td><td>\
+                 <form class=\"inline\" method=\"post\" action=\"/admin/security/unlock\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+                 <input type=\"hidden\" name=\"key\" value=\"{}\"><input type=\"hidden\" name=\"kind\" value=\"{kind}\">\
+                 <button type=\"submit\">{}</button></form></td></tr>",
+                esc(&what),
+                esc(&l.who),
+                esc(&tf(lang, "{0} min", &[&l.secs_left.div_ceil(60).to_string()])),
+                esc(&l.key),
+                esc(&t(lang, "Unlock")),
+            )
+        })
+        .collect();
+    let locks_html = if locks.is_empty() {
+        format!(
+            "<p class=\"muted\">{}</p>",
+            esc(&t(lang, "Nobody is locked out."))
+        )
+    } else {
+        format!(
+            "<table><thead><tr><th>{}</th><th>{}</th><th class=\"num\">{}</th><th></th></tr></thead><tbody>{rows}</tbody></table>",
+            esc(&t(lang, "Kind")),
+            esc(&t(lang, "Who")),
+            esc(&t(lang, "Locked for")),
+        )
+    };
+    let locks_card = format!(
+        "<p class=\"muted\">{}</p>{locks_html}",
+        esc(&t(
+            lang,
+            "After ten wrong passwords (five wrong two-factor codes) within 15 minutes, the address or user is blocked until the time is up. Unlock lifts a block at once. Blocks are kept in memory and end when the server restarts."
+        )),
+    );
+    let body = format!(
+        "{}{}",
+        ui::card(lang, "Maintenance mode", "", &maintenance),
+        ui::card(lang, "Active lockouts", "", &locks_card),
+    );
+    page(a, "Sign-in and maintenance", "security", &body)
+}
+
+#[derive(Deserialize)]
+pub struct MaintenanceForm {
+    csrf: String,
+    on: String,
+}
+
+pub async fn set_maintenance(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    Form(f): Form<MaintenanceForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state
+        .set_maintenance(&Actor::User(&a.session.principal), f.on == "1")
+        .await
+    {
+        Ok(()) => Redirect::to("/admin/security").into_response(),
+        Err(e) => error_page(&a, &e, "/admin/security"),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct UnlockForm {
+    csrf: String,
+    key: String,
+    kind: String,
+}
+
+pub async fn unlock(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    Form(f): Form<UnlockForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    let kind = if f.kind == "2fa" {
+        LockoutKind::SecondFactor
+    } else {
+        LockoutKind::Password
+    };
+    match state
+        .unlock(&Actor::User(&a.session.principal), &f.key, kind)
+        .await
+    {
+        Ok(()) => Redirect::to("/admin/security").into_response(),
+        Err(e) => error_page(&a, &e, "/admin/security"),
     }
 }

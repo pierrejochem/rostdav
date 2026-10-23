@@ -5,9 +5,10 @@ use std::sync::Arc;
 
 use axum::Json;
 use axum::Router;
+use axum::body::Body;
 use axum::extract::State;
 use axum::http::{HeaderName, HeaderValue, Request, StatusCode, header};
-use axum::response::IntoResponse;
+use axum::response::{IntoResponse, Response};
 use axum::routing::get;
 use rostdav_app::AppState;
 use serde_json::json;
@@ -95,8 +96,64 @@ pub fn router_with(state: AppState, opts: &HttpOptions) -> Router {
         .merge(rostdav_compat::router(compat))
         .merge(rostdav_web::router())
         .layer(middleware)
+        .layer(axum::middleware::from_fn_with_state(
+            state.clone(),
+            maintenance_gate,
+        ))
         .layer(axum::middleware::from_fn_with_state(proxies, client_ip))
         .with_state(state)
+}
+
+/// Maintenance mode (set by an administrator): the interfaces the Nextcloud apps use answer 503
+/// in the reference's formats (Nextcloud 35.0.2, recorded with `occ maintenance:mode --on`):
+/// Sabre XML for WebDAV, an OCS failure for OCS. `status.php` (reports `maintenance: true`), the
+/// web interface, the sign-in pages and the health checks stay reachable, so an administrator can
+/// switch it off again.
+async fn maintenance_gate(
+    State(state): State<AppState>,
+    req: Request<Body>,
+    next: axum::middleware::Next,
+) -> Response {
+    let path = req.uri().path();
+    let dav = path.starts_with("/remote.php/") || path.starts_with("/public.php/");
+    let ocs = path.starts_with("/ocs/") || path.starts_with("/index.php/ocs/");
+    if !state.maintenance() || !(dav || ocs) {
+        return next.run(req).await;
+    }
+    let (ctype, body) = if dav {
+        (
+            "application/xml; charset=utf-8",
+            "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n\
+             <d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  \
+             <s:exception>OCA\\DAV\\Exception\\ServerMaintenanceMode</s:exception>\n  \
+             <s:message>System is in maintenance mode.</s:message>\n</d:error>\n"
+                .to_owned(),
+        )
+    } else if req.uri().query().is_some_and(|q| q.contains("format=json")) {
+        // v1 also carries the (empty) paging fields; only recorded for v2 (an assumption for v1).
+        let paging = if path.contains("/v1.php/") {
+            ",\"totalitems\":\"\",\"itemsperpage\":\"\""
+        } else {
+            ""
+        };
+        (
+            "application/json; charset=utf-8",
+            format!(
+                "{{\"ocs\":{{\"meta\":{{\"status\":\"failure\",\"statuscode\":503,\"message\":\"Service unavailable\"{paging}}},\"data\":[]}}}}"
+            ),
+        )
+    } else {
+        (
+            "text/xml; charset=UTF-8",
+            "<?xml version=\"1.0\"?>\n<ocs>\n <meta>\n  <status>failure</status>\n  <statuscode>503</statuscode>\n  \
+             <message>Service unavailable</message>\n  <totalitems></totalitems>\n  <itemsperpage></itemsperpage>\n </meta>\n <data/>\n</ocs>\n"
+                .to_owned(),
+        )
+    };
+    let mut r = (StatusCode::SERVICE_UNAVAILABLE, body).into_response();
+    r.headers_mut()
+        .insert(header::CONTENT_TYPE, HeaderValue::from_static(ctype));
+    r
 }
 
 /// Masks tokens that are part of a URL path before it is logged.

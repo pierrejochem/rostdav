@@ -1737,6 +1737,7 @@ async fn admin_pages_are_for_administrators_only() {
         "/admin/events",
         "/admin/status",
         "/admin/server",
+        "/admin/security",
     ] {
         assert_eq!(
             get(&e, uri, &ca).await.status,
@@ -1771,6 +1772,11 @@ async fn admin_pages_are_for_administrators_only() {
             vec![("name", "bob"), ("mode", "delete")],
         ),
         ("/admin/status/check", vec![]),
+        ("/admin/security/maintenance", vec![("on", "1")]),
+        (
+            "/admin/security/unlock",
+            vec![("key", "user:bob"), ("kind", "password")],
+        ),
     ] {
         let mut f = fields.clone();
         f.push(("csrf", &csrf));
@@ -2611,6 +2617,7 @@ async fn german_interface_is_complete() {
         "/admin/events",
         "/admin/status",
         "/admin/server",
+        "/admin/security",
         "/action/delete?path=Docs",
     ];
     for u in pages {
@@ -3653,4 +3660,166 @@ async fn login_flow_page_asks_for_the_code() {
         .expect("poll")
         .expect("credentials");
     assert_eq!(granted.login_name, "anna");
+}
+
+fn dav_basic(user: &str, pw: &str) -> String {
+    use base64::Engine;
+    format!(
+        "Basic {}",
+        base64::engine::general_purpose::STANDARD.encode(format!("{user}:{pw}"))
+    )
+}
+
+async fn dav_status(e: &Env, user: &str, pw: &str) -> StatusCode {
+    send(
+        e,
+        "PROPFIND",
+        &format!("/remote.php/dav/files/{user}/"),
+        &[("authorization", &dav_basic(user, pw)), ("depth", "0")],
+        Body::empty(),
+    )
+    .await
+    .status
+}
+
+#[tokio::test]
+async fn admin_sees_and_lifts_lockouts() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    assert!(
+        get(&e, "/admin/security", &root)
+            .await
+            .text()
+            .contains("Nobody is locked out.")
+    );
+
+    for _ in 0..10 {
+        assert_eq!(
+            dav_status(&e, "bob", "wrong-wrong-wrong").await,
+            StatusCode::UNAUTHORIZED
+        );
+    }
+    // blocked now, even with the right password
+    assert_eq!(
+        dav_status(&e, "bob", PW).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+    let page = get(&e, "/admin/security", &root).await.text();
+    assert!(page.contains("<td>bob</td>"), "{page}");
+    assert!(!page.contains("Nobody is locked out."));
+    assert!(page.contains("name=\"key\" value=\"user:bob\""));
+
+    // forged token: nothing happens
+    let r = post_form(
+        &e,
+        "/admin/security/unlock",
+        &root,
+        &[
+            ("csrf", "forged"),
+            ("key", "user:bob"),
+            ("kind", "password"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        dav_status(&e, "bob", PW).await,
+        StatusCode::TOO_MANY_REQUESTS
+    );
+
+    let r = post_form(
+        &e,
+        "/admin/security/unlock",
+        &root,
+        &[("csrf", &csrf), ("key", "user:bob"), ("kind", "password")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    let page = get(&e, "/admin/security", &root).await.text();
+    assert!(!page.contains("name=\"key\" value=\"user:bob\""));
+    let ev = get(&e, "/admin/events", &root).await.text();
+    assert!(ev.contains("admin.unlocked") && ev.contains("user:bob"));
+}
+
+#[tokio::test]
+async fn maintenance_mode_pauses_the_apps_but_not_the_admin() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    let status = || async {
+        send(&e, "GET", "/status.php", &[], Body::empty())
+            .await
+            .text()
+    };
+    assert!(status().await.contains("\"maintenance\":false"));
+    assert_eq!(dav_status(&e, "anna", PW).await, StatusCode::MULTI_STATUS);
+
+    let r = post_form(
+        &e,
+        "/admin/security/maintenance",
+        &root,
+        &[("csrf", &csrf), ("on", "1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(status().await.contains("\"maintenance\":true"));
+    assert_eq!(
+        dav_status(&e, "anna", PW).await,
+        StatusCode::SERVICE_UNAVAILABLE
+    );
+    let r = send(
+        &e,
+        "GET",
+        "/ocs/v2.php/cloud/user?format=json",
+        &[
+            ("authorization", &dav_basic("anna", PW)),
+            ("ocs-apirequest", "true"),
+        ],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(r.text().contains("\"statuscode\":503"), "{}", r.text());
+    // WebDAV: the reference's Sabre error (fixture: occ maintenance:mode --on, Nextcloud 35.0.2)
+    let d = send(
+        &e,
+        "PROPFIND",
+        "/remote.php/dav/files/anna/",
+        &[("authorization", &dav_basic("anna", PW))],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(d.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(
+        d.text()
+            .contains("OCA\\DAV\\Exception\\ServerMaintenanceMode")
+            && d.text().contains("System is in maintenance mode."),
+        "{}",
+        d.text()
+    );
+    assert!(d.h("content-type").starts_with("application/xml"));
+    // the web interface and the health check stay up
+    assert_eq!(
+        get(&e, "/admin/security", &root).await.status,
+        StatusCode::OK
+    );
+    assert_eq!(
+        send(&e, "GET", "/healthz", &[], Body::empty()).await.status,
+        StatusCode::OK
+    );
+    assert!(e.state.maintenance());
+
+    let r = post_form(
+        &e,
+        "/admin/security/maintenance",
+        &root,
+        &[("csrf", &csrf), ("on", "0")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(status().await.contains("\"maintenance\":false"));
+    assert_eq!(dav_status(&e, "anna", PW).await, StatusCode::MULTI_STATUS);
+    let ev = get(&e, "/admin/events", &root).await.text();
+    assert!(ev.contains("admin.maintenance_on") && ev.contains("admin.maintenance_off"));
 }

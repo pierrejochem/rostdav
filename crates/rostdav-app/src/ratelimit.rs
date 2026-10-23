@@ -39,6 +39,25 @@ impl RateLimiter {
         self.record_failure_at(key, Instant::now())
     }
 
+    /// Keys that are blocked right now, with the seconds until they are free again.
+    pub fn blocked(&self) -> Vec<(String, u64)> {
+        let now = Instant::now();
+        let Ok(m) = self.entries.lock() else {
+            return Vec::new();
+        };
+        let mut out: Vec<(String, u64)> = m
+            .iter()
+            .filter(|(_, e)| e.failures >= self.max_failures)
+            .filter_map(|(k, e)| {
+                let elapsed = now.saturating_duration_since(e.window_start);
+                (elapsed < self.window)
+                    .then(|| (k.clone(), (self.window - elapsed).as_secs().max(1)))
+            })
+            .collect();
+        out.sort();
+        out
+    }
+
     pub fn clear(&self, key: &str) {
         if let Ok(mut m) = self.entries.lock() {
             m.remove(key);
@@ -108,6 +127,18 @@ mod tests {
         // a new window starts counting from zero
         l.record_failure_at("k", t0 + Duration::from_secs(61));
         assert!(l.check_at("k", t0 + Duration::from_secs(62)).is_ok());
+    }
+
+    #[test]
+    fn lists_only_blocked_keys() {
+        let l = RateLimiter::new(2, Duration::from_secs(60));
+        l.record_failure("a");
+        l.record_failure("b");
+        l.record_failure("b");
+        let blocked = l.blocked();
+        assert_eq!(blocked.len(), 1);
+        assert_eq!(blocked[0].0, "b");
+        assert!((59..=60).contains(&blocked[0].1));
     }
 
     #[test]

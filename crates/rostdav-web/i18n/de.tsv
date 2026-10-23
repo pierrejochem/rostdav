@@ -326,3 +326,17 @@ Use the authenticator app instead	Stattdessen die Authenticator-App verwenden
 {0} recovery codes left. Browser sign-in asks for a code; connected devices need nothing.	Noch {0} Wiederherstellungscodes. Die Anmeldung im Browser fragt nach einem Code; verbundene Geräte brauchen nichts.
 Unfinished uploads are removed after	Unfertige Uploads werden entfernt nach
 Quota for new users	Kontingent für neue Benutzer
+Sign-in and maintenance	Anmeldung und Wartung
+Maintenance mode	Wartungsmodus
+Maintenance mode is on.	Der Wartungsmodus ist an.
+Maintenance mode is off.	Der Wartungsmodus ist aus.
+While maintenance mode is on, the Nextcloud apps and WebDAV clients get “service unavailable” and pause. This web interface and the sign-in pages keep working.	Solange der Wartungsmodus an ist, erhalten die Nextcloud-Apps und WebDAV-Clients „Dienst nicht verfügbar“ und pausieren. Diese Weboberfläche und die Anmeldeseiten funktionieren weiter.
+Active lockouts	Aktive Sperren
+Nobody is locked out.	Niemand ist gesperrt.
+User (two-factor code)	Benutzer (Zwei-Faktor-Code)
+Kind	Art
+Who	Wer
+Locked for	Gesperrt für
+{0} min	{0} Min.
+Unlock	Entsperren
+After ten wrong passwords (five wrong two-factor codes) within 15 minutes, the address or user is blocked until the time is up. Unlock lifts a block at once. Blocks are kept in memory and end when the server restarts.	Nach zehn falschen Passwörtern (fünf falschen Zwei-Faktor-Codes) innerhalb von 15 Minuten ist die Adresse oder der Benutzer bis zum Ablauf der Zeit gesperrt. „Entsperren“ hebt eine Sperre sofort auf. Sperren liegen im Speicher und enden mit einem Neustart des Servers.

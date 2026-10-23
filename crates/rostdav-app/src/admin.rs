@@ -44,6 +44,25 @@ impl Actor<'_> {
     }
 }
 
+/// What a lockout counts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LockoutKind {
+    /// Failed password checks.
+    Password,
+    /// Wrong two-factor codes.
+    SecondFactor,
+}
+
+/// A client address or user that is blocked for now.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Lockout {
+    pub key: String,
+    pub by_address: bool,
+    pub who: String,
+    pub kind: LockoutKind,
+    pub secs_left: u64,
+}
+
 /// `10G`, `1.5T`, `500M`, `2048`, `unlimited` / `none` (no quota).
 pub fn parse_quota(s: &str) -> Result<Option<i64>> {
     let s = s.trim();
@@ -228,6 +247,78 @@ impl AppState {
             "admin.user_enabled"
         };
         self.audit(&actor.name(), action, &u.name, None, json!({}))
+            .await;
+        Ok(())
+    }
+
+    /// Whether the server is in maintenance mode.
+    pub fn maintenance(&self) -> bool {
+        self.inner
+            .maintenance
+            .load(std::sync::atomic::Ordering::Relaxed)
+    }
+
+    pub async fn set_maintenance(&self, actor: &Actor<'_>, on: bool) -> Result<()> {
+        actor.require_admin()?;
+        self.inner
+            .db
+            .set_setting("maintenance", if on { b"1" } else { b"0" })
+            .await?;
+        self.inner
+            .maintenance
+            .store(on, std::sync::atomic::Ordering::Relaxed);
+        let action = if on {
+            "admin.maintenance_on"
+        } else {
+            "admin.maintenance_off"
+        };
+        self.audit(&actor.name(), action, "", None, json!({})).await;
+        Ok(())
+    }
+
+    /// Sign-in blocks in force: `(who, seconds left)`. `who` is a client address or a user name.
+    pub async fn active_lockouts(&self, actor: &Actor<'_>) -> Result<Vec<Lockout>> {
+        actor.require_admin()?;
+        let mut out = Vec::new();
+        let names: std::collections::HashMap<String, String> = self
+            .inner
+            .db
+            .list_users()
+            .await?
+            .into_iter()
+            .map(|u| (u.id.to_string(), u.name))
+            .collect();
+        for (list, kind) in [
+            (self.inner.limiter.blocked(), LockoutKind::Password),
+            (self.inner.totp_limiter.blocked(), LockoutKind::SecondFactor),
+        ] {
+            for (key, secs_left) in list {
+                if let Some((scope, who)) = key.split_once(':') {
+                    out.push(Lockout {
+                        key: key.clone(),
+                        by_address: scope == "ip",
+                        // Second-factor keys hold the user ID, password keys the user name.
+                        who: match names.get(who) {
+                            Some(name) if scope == "totp" => name.clone(),
+                            _ => who.to_owned(),
+                        },
+                        kind,
+                        secs_left,
+                    });
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    /// Lifts one block (`key` and `kind` as listed by [`active_lockouts`](Self::active_lockouts)).
+    pub async fn unlock(&self, actor: &Actor<'_>, key: &str, kind: LockoutKind) -> Result<()> {
+        actor.require_admin()?;
+        match kind {
+            LockoutKind::Password => self.inner.limiter.clear(key),
+            LockoutKind::SecondFactor => self.inner.totp_limiter.clear(key),
+        }
+        self.audit(&actor.name(), "admin.unlocked", key, None, json!({}))
             .await;
         Ok(())
     }

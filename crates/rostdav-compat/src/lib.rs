@@ -109,13 +109,13 @@ async fn no_content() -> StatusCode {
 }
 
 async fn status(
-    State(_): State<AppState>,
+    State(state): State<AppState>,
     axum::Extension(cfg): axum::Extension<CompatConfig>,
 ) -> Response {
     let (_, _, _, short) = cfg.version_parts();
     let body = json!({
         "installed": true,
-        "maintenance": false,
+        "maintenance": state.maintenance(),
         "needsDbUpgrade": false,
         "version": cfg.version,
         "versionstring": short,
