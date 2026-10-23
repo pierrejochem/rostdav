@@ -218,7 +218,10 @@ ul.rows{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;ga
 .row.session{opacity:.95}
 .tile.phone{background:linear-gradient(145deg,#F59A5C,#C2491D)}
 .userrow.off{opacity:.65}
+.userrow>.row-text{flex:0 0 190px}
 .userrow .u-storage{flex:1 1 180px;display:flex;flex-direction:column;gap:6px;font-size:13px;min-width:0}
+.userrow>.chip{min-width:64px;text-align:center}
+.userrow>.row-actions{flex:0 0 172px;justify-content:flex-end}
 .cardbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
 .cardbar .search{flex:1 1 220px}
 .avatar-sm{width:38px;height:38px;border-radius:19px;display:inline-flex;align-items:center;justify-content:center;flex:none;color:#fff;font-weight:700;box-shadow:inset 0 1px 0 rgba(255,255,255,.45)}
