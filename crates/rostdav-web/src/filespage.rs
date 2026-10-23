@@ -23,6 +23,12 @@ pub struct FilesQuery {
     /// Name of the selected file in the current folder.
     #[serde(default)]
     sel: String,
+    /// Column to sort by: `name` (default), `size` or `modified`.
+    #[serde(default)]
+    sort: String,
+    /// `desc` reverses the order.
+    #[serde(default)]
+    dir: String,
 }
 
 pub async fn files_root(
@@ -131,9 +137,22 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
     if !needle.is_empty() {
         rows.retain(|r| r.name.to_lowercase().contains(&needle));
     }
+    // Folders stay first; the chosen column orders within them. Ties fall back to the name.
+    let sort = match q.sort.as_str() {
+        "size" | "modified" => q.sort.as_str(),
+        _ => "name",
+    };
+    let desc = q.dir == "desc";
     rows.sort_by(|x, y| {
-        (x.node.kind == NodeKind::File, x.name.to_lowercase())
-            .cmp(&(y.node.kind == NodeKind::File, y.name.to_lowercase()))
+        let by_name = x.name.to_lowercase().cmp(&y.name.to_lowercase());
+        let by_col = match sort {
+            "size" => x.node.size.cmp(&y.node.size).then(by_name),
+            "modified" => x.node.mtime.cmp(&y.node.mtime).then(by_name),
+            _ => by_name,
+        };
+        (x.node.kind == NodeKind::File)
+            .cmp(&(y.node.kind == NodeKind::File))
+            .then(if desc { by_col.reverse() } else { by_col })
     });
     let ids: Vec<i64> = rows.iter().map(|r| r.node.id).collect();
     let shared = state.share_kinds_of(p, &ids).await.unwrap_or_default();
@@ -188,11 +207,34 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
         };
         format!("<div class=\"empty\">{}</div>", esc(&t(lang, msg)))
     } else {
+        // A header link sorts by its column; the active one flips the direction.
+        let head = |key: &str, label: &str| {
+            let active = key == sort;
+            let next_desc = active && !desc;
+            let mut href = url_of("/files", &path);
+            href.push_str(&format!(
+                "?sort={key}&dir={}",
+                if next_desc { "desc" } else { "asc" }
+            ));
+            if !q.q.is_empty() {
+                href.push_str(&format!("&q={}", enc(&q.q)));
+            }
+            let (aria, arrow) = match (active, desc) {
+                (true, true) => (" aria-sort=\"descending\"", " \u{2193}"),
+                (true, false) => (" aria-sort=\"ascending\"", " \u{2191}"),
+                (false, _) => ("", ""),
+            };
+            format!(
+                "<th{aria}><a class=\"sortlink\" href=\"{}\">{}{arrow}</a></th>",
+                esc(&href),
+                esc(&t(lang, label))
+            )
+        };
         format!(
-            "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{body_rows}</tbody></table>",
-            esc(&t(lang, "Name")),
-            esc(&t(lang, "Size")),
-            esc(&t(lang, "Modified")),
+            "<table><thead><tr>{}{}{}<th>{}</th></tr></thead><tbody>{body_rows}</tbody></table>",
+            head("name", "Name"),
+            head("size", "Size"),
+            head("modified", "Modified"),
             esc(&t(lang, "Sharing"))
         )
     };

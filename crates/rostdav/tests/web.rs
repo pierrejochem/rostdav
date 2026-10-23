@@ -2618,6 +2618,8 @@ async fn german_interface_is_complete() {
         "/admin/status",
         "/admin/server",
         "/admin/security",
+        "/shares",
+        "/files?sort=size&dir=desc",
         "/action/delete?path=Docs",
     ];
     for u in pages {
@@ -3822,4 +3824,166 @@ async fn maintenance_mode_pauses_the_apps_but_not_the_admin() {
     assert_eq!(dav_status(&e, "anna", PW).await, StatusCode::MULTI_STATUS);
     let ev = get(&e, "/admin/events", &root).await.text();
     assert!(ev.contains("admin.maintenance_on") && ev.contains("admin.maintenance_off"));
+}
+
+#[tokio::test]
+async fn shares_overview_lists_and_stops() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let cb = login(&e, "bob").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let csrf_b = page_csrf(&e, &cb).await;
+    post_form(
+        &e,
+        "/action/mkdir",
+        &ca,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Team")],
+    )
+    .await;
+
+    // nothing yet, and the page needs a sign-in
+    let page = get(&e, "/shares", &ca).await.text();
+    assert!(page.contains("You share nothing yet.") && page.contains("Nobody shares anything"));
+    assert_eq!(
+        send(&e, "GET", "/shares", &[], Body::empty()).await.status,
+        StatusCode::SEE_OTHER
+    );
+
+    post_form(
+        &e,
+        "/share/user",
+        &ca,
+        &[
+            ("csrf", &csrf),
+            ("path", "Team"),
+            ("user", "bob"),
+            ("perms", "1"),
+        ],
+    )
+    .await;
+    post_form(
+        &e,
+        "/share/link",
+        &ca,
+        &[
+            ("csrf", &csrf),
+            ("path", "Team"),
+            ("perms", "1"),
+            ("password", ""),
+            ("expire", ""),
+        ],
+    )
+    .await;
+
+    let page = get(&e, "/shares", &ca).await.text();
+    assert!(page.contains("href=\"/share?path=Team\""), "{page}");
+    assert!(page.contains("<td>bob</td>") && page.contains("/s/"));
+    assert!(page.contains("View only") && page.contains("Stop sharing"));
+    assert!(
+        page.contains("Nobody shares anything"),
+        "anna receives nothing"
+    );
+
+    // bob sees it as received, with a link into his files and no stop button
+    let page = get(&e, "/shares", &cb).await.text();
+    assert!(page.contains("<td>anna</td>") && page.contains("href=\"/files/Team\""));
+    assert!(page.contains("You share nothing yet.") && !page.contains("Stop sharing"));
+
+    // ids are anna's: bob cannot stop them, a forged token does nothing
+    let id = between(
+        &get(&e, "/shares", &ca).await.text(),
+        "name=\"id\" value=\"",
+        "\"",
+    );
+    let r = post_form(&e, "/shares/delete", &cb, &[("csrf", &csrf_b), ("id", &id)]).await;
+    assert_ne!(
+        r.status,
+        StatusCode::SEE_OTHER,
+        "bob may not stop anna's share"
+    );
+    let r = post_form(
+        &e,
+        "/shares/delete",
+        &ca,
+        &[("csrf", "forged"), ("id", &id)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert!(
+        get(&e, "/shares", &ca)
+            .await
+            .text()
+            .contains("<td>bob</td>")
+    );
+
+    // anna stops the user share; the link stays
+    let r = post_form(&e, "/shares/delete", &ca, &[("csrf", &csrf), ("id", &id)]).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    let page = get(&e, "/shares", &ca).await.text();
+    assert!(!page.contains("<td>bob</td>") && page.contains("/s/"));
+    assert!(
+        get(&e, "/shares", &cb)
+            .await
+            .text()
+            .contains("Nobody shares anything")
+    );
+}
+
+#[tokio::test]
+async fn files_sort_by_column_with_folders_first() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    post_form(
+        &e,
+        "/action/mkdir",
+        &c,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Zeta")],
+    )
+    .await;
+    for (n, body) in [("a.txt", "xxxxx"), ("b.txt", "x"), ("c.txt", "xxx")] {
+        upload(
+            &e,
+            &c,
+            &[
+                ("csrf", None, &csrf),
+                ("dir", None, ""),
+                ("file", Some(n), body),
+            ],
+        )
+        .await;
+    }
+    let order = |html: &str| -> Vec<&'static str> {
+        let mut v: Vec<(usize, &'static str)> = ["Zeta", "a.txt", "b.txt", "c.txt"]
+            .into_iter()
+            .filter_map(|n| html.find(&format!("<span>{n}</span>")).map(|i| (i, n)))
+            .collect();
+        v.sort_unstable();
+        v.into_iter().map(|(_, n)| n).collect()
+    };
+    let html = get(&e, "/files", &c).await.text();
+    assert_eq!(order(&html), ["Zeta", "a.txt", "b.txt", "c.txt"]);
+    assert!(
+        html.contains("aria-sort=\"ascending\"")
+            && html.contains("href=\"/files?sort=size&amp;dir=asc\"")
+    );
+    // the active column offers the opposite direction
+    assert!(html.contains("href=\"/files?sort=name&amp;dir=desc\""));
+
+    let html = get(&e, "/files?sort=size&dir=asc", &c).await.text();
+    assert_eq!(order(&html), ["Zeta", "b.txt", "c.txt", "a.txt"]);
+    let html = get(&e, "/files?sort=size&dir=desc", &c).await.text();
+    assert_eq!(
+        order(&html),
+        ["Zeta", "a.txt", "c.txt", "b.txt"],
+        "folders stay first"
+    );
+    assert!(html.contains("aria-sort=\"descending\""));
+    let html = get(&e, "/files?sort=name&dir=desc", &c).await.text();
+    assert_eq!(order(&html), ["Zeta", "c.txt", "b.txt", "a.txt"]);
+    // the filter is kept in the header links; unknown columns fall back to the name
+    let html = get(&e, "/files?q=txt&sort=bogus%22%3E", &c).await.text();
+    assert!(html.contains("sort=size&amp;dir=asc&amp;q=txt"));
+    assert_eq!(order(&html), ["a.txt", "b.txt", "c.txt"]);
+    assert!(!html.contains("bogus"));
 }

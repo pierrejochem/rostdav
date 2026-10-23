@@ -340,3 +340,10 @@ Locked for	Gesperrt für
 {0} min	{0} Min.
 Unlock	Entsperren
 After ten wrong passwords (five wrong two-factor codes) within 15 minutes, the address or user is blocked until the time is up. Unlock lifts a block at once. Blocks are kept in memory and end when the server restarts.	Nach zehn falschen Passwörtern (fünf falschen Zwei-Faktor-Codes) innerhalb von 15 Minuten ist die Adresse oder der Benutzer bis zum Ablauf der Zeit gesperrt. „Entsperren“ hebt eine Sperre sofort auf. Sperren liegen im Speicher und enden mit einem Neustart des Servers.
+Item	Element
+Shared by	Geteilt von
+Shared by me	Von mir geteilt
+Shared with me	Mit mir geteilt
+You share nothing yet.	Du teilst noch nichts.
+Nobody shares anything with you yet.	Niemand teilt bisher etwas mit dir.
+Everything you share and everything shared with you.	Alles, was du teilst, und alles, was mit dir geteilt wird.

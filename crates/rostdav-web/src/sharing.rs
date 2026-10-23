@@ -6,13 +6,13 @@ use axum::http::StatusCode;
 use axum::http::header;
 use axum::response::{IntoResponse, Redirect, Response};
 use rostdav_app::{AppState, ShareCreate, ShareFilter, ShareView};
-use rostdav_core::Error;
+use rostdav_core::{Error, LogicalPath, Name};
 use rostdav_meta::{NodeKind, ShareKind};
 use serde::Deserialize;
 
 use crate::i18n::{Lang, t, tf};
 use crate::layout::{self, enc, esc};
-use crate::pages::{date, error_response_to, human, parse_plain, plain};
+use crate::pages::{date, error_response_to, human, parse_plain, plain, url_of};
 use crate::session::Authed;
 
 fn forbidden() -> Response {
@@ -286,6 +286,165 @@ pub async fn share_delete(
     match state.share_delete(&a.session.principal, f.id).await {
         Ok(()) => Redirect::to(&b).into_response(),
         Err(e) => share_error(&a, &e, &b),
+    }
+}
+
+// ---- overview of all shares ------------------------------------------------------------------
+
+/// A node path below its owner's root (`a/b`, no escaping) as a logical path.
+fn logical(path: &str) -> Option<LogicalPath> {
+    path.split('/')
+        .filter(|s| !s.is_empty())
+        .try_fold(LogicalPath::root(), |acc, s| {
+            Name::parse(s).ok().map(|n| acc.join(&n))
+        })
+}
+
+/// Everything I share, and everything shared with me.
+pub async fn shares_page(
+    State(state): State<AppState>,
+    a: Authed,
+    headers: axum::http::HeaderMap,
+) -> Response {
+    let p = &a.session.principal;
+    let lang = a.lang;
+    let mine = match state.shares_list(p, ShareFilter::default()).await {
+        Ok(s) => s,
+        Err(e) => return share_error(&a, &e, "/files"),
+    };
+    let received = match state
+        .shares_list(
+            p,
+            ShareFilter {
+                shared_with_me: true,
+                ..Default::default()
+            },
+        )
+        .await
+    {
+        Ok(s) => s,
+        Err(e) => return share_error(&a, &e, "/files"),
+    };
+    let origin = origin_of(&headers);
+    let csrf = esc(&a.csrf);
+
+    let mut rows = String::new();
+    for s in &mine {
+        let item = logical(&s.path).map_or_else(
+            || esc(&s.node.name),
+            |l| {
+                format!(
+                    "<a href=\"/share?path={}\">{}</a>",
+                    enc(&plain(&l)),
+                    esc(&s.node.name)
+                )
+            },
+        );
+        let who = if s.share.kind == ShareKind::Link {
+            let url = format!("{origin}/s/{}", s.share.token.as_deref().unwrap_or(""));
+            format!(
+                "{}{}<br><code>{}</code>",
+                esc(&t(lang, "Link")),
+                if s.share.password_hash.is_some() {
+                    esc(&t(lang, " (password)"))
+                } else {
+                    String::new()
+                },
+                esc(&url)
+            )
+        } else {
+            esc(s.recipient.as_deref().unwrap_or("?"))
+        };
+        rows.push_str(&format!(
+            "<tr><td>{item}</td><td>{who}</td><td>{}</td><td class=\"hide\">{}</td><td class=\"num\">\
+             <form class=\"inline\" method=\"post\" action=\"/shares/delete\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+             <input type=\"hidden\" name=\"id\" value=\"{}\"><button class=\"danger\" type=\"submit\">{}</button></form></td></tr>",
+            esc(&perm_label(lang, s.share.permissions)),
+            s.share.expires_at.map_or_else(|| t(lang, "never"), date),
+            s.share.id,
+            esc(&t(lang, "Stop sharing"))
+        ));
+    }
+    let mine_html = if mine.is_empty() {
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(lang, "You share nothing yet."))
+        )
+    } else {
+        format!(
+            "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th class=\"hide\">{}</th><th></th></tr></thead><tbody>{rows}</tbody></table>",
+            esc(&t(lang, "Item")),
+            esc(&t(lang, "Shared with")),
+            esc(&t(lang, "Access")),
+            esc(&t(lang, "Expires"))
+        )
+    };
+
+    let mut rows = String::new();
+    for s in &received {
+        let name = s.share.mount_name.as_deref().unwrap_or(&s.node.name);
+        let item = Name::parse(name).map_or_else(
+            |_| esc(name),
+            |n| {
+                format!(
+                    "<a href=\"{}\">{}</a>",
+                    esc(&url_of("/files", &LogicalPath::root().join(&n))),
+                    esc(name)
+                )
+            },
+        );
+        rows.push_str(&format!(
+            "<tr><td>{item}</td><td>{}</td><td>{}</td><td class=\"hide\">{}</td></tr>",
+            esc(&s.owner),
+            esc(&perm_label(lang, s.share.permissions)),
+            s.share.expires_at.map_or_else(|| t(lang, "never"), date),
+        ));
+    }
+    let received_html = if received.is_empty() {
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(lang, "Nobody shares anything with you yet."))
+        )
+    } else {
+        format!(
+            "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th class=\"hide\">{}</th></tr></thead><tbody>{rows}</tbody></table>",
+            esc(&t(lang, "Item")),
+            esc(&t(lang, "Shared by")),
+            esc(&t(lang, "Access")),
+            esc(&t(lang, "Expires"))
+        )
+    };
+    let body = format!(
+        "{}{}{}",
+        crate::ui::page_head(
+            lang,
+            "Shares",
+            "Everything you share and everything shared with you.",
+            ""
+        ),
+        crate::ui::card(lang, "Shared by me", "", &mine_html),
+        crate::ui::card(lang, "Shared with me", "", &received_html),
+    );
+    crate::ui::page(&a, StatusCode::OK, "Shares", "shares", &body)
+}
+
+#[derive(Deserialize)]
+pub struct StopForm {
+    csrf: String,
+    id: i64,
+}
+
+pub async fn shares_delete(
+    State(state): State<AppState>,
+    a: Authed,
+    Form(f): Form<StopForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state.share_delete(&a.session.principal, f.id).await {
+        Ok(()) => Redirect::to("/shares").into_response(),
+        Err(e) => share_error(&a, &e, "/shares"),
     }
 }
 

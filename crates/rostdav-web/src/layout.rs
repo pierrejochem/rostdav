@@ -251,8 +251,9 @@ pub fn app_opts(
     let lang = chrome.lang;
     let storage = storage_widget(chrome.storage, lang);
     let main_nav = format!(
-        "{}{}",
+        "{}{}{}",
         nav_entry("files", &t(lang, "All files"), "/files", current),
+        nav_entry("shares", &t(lang, "Shares"), "/shares", current),
         nav_entry("trash", &t(lang, "Trash bin"), "/trash", current)
     );
     let account_nav = format!(

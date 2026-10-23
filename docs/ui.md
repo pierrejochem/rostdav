@@ -37,9 +37,10 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/devices`, `/devices/{create,revoke,sign-out-others}` | App passwords (shown once), browser sessions |
 | `/settings`, `POST /settings/{theme,profile,export}`, `/settings/password` | Profile (display name, e-mail), change password (ends other browser sessions), theme, WebDAV address, storage overview, data export (tar of own files; no shares received, versions or trash) |
 | `/s/<token>`, `/s/<token>/{unlock,dl,upload}` | Public link page: list, download, password form, upload |
+| `/shares`, `POST /shares/delete` | Overview of all shares: shared by me (with recipient or link address, access, expiry, "Stop sharing") and shared with me (owner, access) |
 | `/share?path=`, `/share/{user,link,delete}` | Sharing dialog: share with a user, create/stop public links (password, expiry, view/edit/upload-only) |
 | `/versions?path=`, `/versions/{restore,delete}` | Versions panel of a file |
-| `/files[/<path>]?q=&sel=` | Files page as designed: search/filter box, tiles per type, "Shared" chip, details panel (selected file via `sel`, else the open folder: download, share, delete, versions with restore, shares, file ID and ETag), upload progress card, storage meter in the sidebar |
+| `/files[/<path>]?q=&sel=&sort=&dir=` | Files page as designed (column headers sort by name, size or modified, folders stay first): search/filter box, tiles per type, "Shared" chip, details panel (selected file via `sel`, else the open folder: download, share, delete, versions with restore, shares, file ID and ETag), upload progress card, storage meter in the sidebar |
 | `/web/upload/<id>[/<chunk>\|/finish]` | Chunked, resumable browser upload (used by `/static/upload.js`; session + `X-CSRF-Token` header) |
 | `/admin/users`, `/admin/users/{create,manage,disabled,role,quota,password,delete}` | Administration: users (add, block, role, quota, password reset, delete with transfer) |
 | `/admin/events` | Administration: event log (period filter, newest 500) |
