@@ -39,3 +39,8 @@ Unless explicitly stated otherwise, contributions are submitted under MIT OR Apa
 ## Documentation site
 
 The user manual is `site/content/manual/`; the other pages come from `docs/` and `CHANGELOG.md`. `just site` builds it (Zola 0.21), see [site/README.md](site/README.md). Link every compatibility statement in the manual to the [compatibility report](docs/compatibility.md) and describe only what the interface really shows.
+
+## Dependency updates
+
+Dependabot (`.github/dependabot.yml`) opens pull requests for Cargo, GitHub Actions and Docker updates; CI runs the tests, clippy and `cargo deny` on each. The `turso` crates are ignored on purpose: the version is pinned exactly ([ADR 0008](docs/adr/0008-metadata-database-turso.md)) and changed by hand.
+

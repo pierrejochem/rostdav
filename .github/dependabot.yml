@@ -1,0 +1,56 @@
+# Dependency updates as pull requests. Every one runs the CI (tests, clippy, cargo deny).
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # one pull request for the routine updates, security fixes stay separate
+      rust-minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Pinned on purpose (exact version in Cargo.toml, ADR 0008): the engine is beta software and
+      # a new version is adopted by hand after the upgrade and cascade tests were looked at.
+      - dependency-name: "turso*"
+    commit-message:
+      prefix: "deps"
+
+  # the fuzz targets have a workspace of their own
+  - package-ecosystem: cargo
+    directory: /fuzz
+    schedule:
+      interval: monthly
+    groups:
+      fuzz-dependencies:
+        patterns: ["*"]
+    ignore:
+      - dependency-name: "turso*"
+    commit-message:
+      prefix: "deps(fuzz)"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
+
+  # base images of the Dockerfile and the images in the Compose file
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "docker"
+  - package-ecosystem: docker-compose
+    directory: /deploy
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "docker"
