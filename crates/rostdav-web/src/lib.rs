@@ -108,6 +108,8 @@ pub fn router() -> Router<AppState> {
         .route("/admin/security/maintenance", post(admin::set_maintenance))
         .route("/admin/security/unlock", post(admin::unlock))
         .route("/settings", get(pages_more::settings))
+        .route("/settings/avatar", post(pages_more::avatar_upload))
+        .route("/settings/avatar/delete", post(pages_more::avatar_remove))
         .route("/settings/theme", post(pages_more::set_theme))
         .route("/settings/profile", post(pages_more::set_profile))
         .route(

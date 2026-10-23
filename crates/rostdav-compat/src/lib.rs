@@ -4,6 +4,7 @@
 //! `tests/fixtures/nextcloud/` (see `docs/compatibility.md`). Only features
 //! Rostdav really implements are advertised.
 
+mod avatar;
 mod login;
 mod ocs;
 mod sharing;
@@ -90,12 +91,12 @@ pub fn router(cfg: CompatConfig) -> Router<AppState> {
             "/ocs/{version}/apps/files_sharing/api/v1/sharees",
             get(sharing::sharees),
         )
-        // Previews and avatars are not provided; answer cleanly instead of failing.
+        // Previews are not provided; answer cleanly instead of failing.
         .route("/index.php/core/preview", get(not_found))
         .route("/index.php/core/preview.png", get(not_found))
         .route("/core/preview", get(not_found))
-        .route("/index.php/avatar/{user}/{size}", get(not_found))
-        .route("/avatar/{user}/{size}", get(not_found))
+        .route("/index.php/avatar/{user}/{size}", get(avatar::get))
+        .route("/avatar/{user}/{size}", get(avatar::get))
         .route("/index.php/login/v2", post(login::start))
         .route("/login/v2", post(login::start))
         .route("/index.php/login/v2/poll", post(login::poll))

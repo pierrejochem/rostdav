@@ -495,6 +495,41 @@ async fn settings_page(
             esc(label)
         )
     };
+    let has_avatar = state.has_avatar(p).await;
+    let picture = ui::card(
+        lang,
+        "Profile picture",
+        "",
+        &format!(
+            "<div class=\"avatarrow\">{}<div><form class=\"stack-form\" method=\"post\" action=\"/settings/avatar\" enctype=\"multipart/form-data\">\
+             <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+             <label>{}<input type=\"file\" name=\"file\" accept=\"image/png,image/jpeg\" required></label>\
+             <p class=\"muted\">{}</p>\
+             <div class=\"actions\"><button class=\"primary\" type=\"submit\">{}</button></div></form>{}</div></div>",
+            if has_avatar {
+                format!(
+                    "<img class=\"avatar-big\" src=\"/avatar/{}/128\" alt=\"\" width=\"96\" height=\"96\">",
+                    crate::layout::enc(&p.name)
+                )
+            } else {
+                ui::avatar(&p.name)
+            },
+            esc(&t(lang, "Choose a picture")),
+            esc(&t(
+                lang,
+                "PNG or JPEG, square works best, 16 to 1024 pixels on each side, at most 256 KiB."
+            )),
+            esc(&t(lang, "Upload")),
+            if has_avatar {
+                format!(
+                    "<form class=\"inline\" method=\"post\" action=\"/settings/avatar/delete\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><button type=\"submit\">{}</button></form>",
+                    esc(&t(lang, "Remove picture"))
+                )
+            } else {
+                String::new()
+            },
+        ),
+    );
     let profile = ui::card(
         lang,
         "Profile",
@@ -625,7 +660,7 @@ async fn settings_page(
         ),
     );
     let body = format!(
-        "{}{notice}{profile}{appearance}<div class=\"cols\">{webdav}{storage}</div>{export}",
+        "{}{notice}{profile}{picture}{appearance}<div class=\"cols\">{webdav}{storage}</div>{export}",
         ui::page_head(
             lang,
             "Settings",
@@ -873,4 +908,72 @@ pub async fn export(State(state): State<AppState>, a: Authed, Form(f): Form<Csrf
         h.insert(axum::http::header::CONTENT_DISPOSITION, v);
     }
     r
+}
+
+/// `POST /settings/avatar`: a new profile picture (multipart: `csrf`, then `file`).
+pub async fn avatar_upload(
+    State(state): State<AppState>,
+    a: Authed,
+    parts: axum::http::request::Parts,
+    mut mp: axum::extract::Multipart,
+) -> Response {
+    let fail = |status: StatusCode, msg: &str| {
+        let notice = format!(
+            "<div class=\"err\" role=\"alert\">{}</div>",
+            esc(&t(a.lang, msg))
+        );
+        let (state, a, headers) = (state.clone(), &a, parts.headers.clone());
+        async move { settings_page(&state, a, &headers, status, &notice).await }
+    };
+    let mut csrf = None;
+    loop {
+        let field = match mp.next_field().await {
+            Ok(Some(f)) => f,
+            Ok(None) => return fail(StatusCode::BAD_REQUEST, "No picture was sent.").await,
+            Err(_) => return fail(StatusCode::BAD_REQUEST, "The upload was malformed.").await,
+        };
+        match field.name() {
+            Some("csrf") => csrf = field.text().await.ok(),
+            Some("file") => {
+                if !csrf.as_deref().is_some_and(|c| csrf_ok(&state, &a, c)) {
+                    return StatusCode::FORBIDDEN.into_response();
+                }
+                let Ok(bytes) = field.bytes().await else {
+                    return fail(StatusCode::BAD_REQUEST, "The upload was malformed.").await;
+                };
+                return match state.avatar_set(&a.session.principal, &bytes).await {
+                    Ok(()) => Redirect::to("/settings").into_response(),
+                    Err(Error::Invalid(m)) => {
+                        let notice = format!(
+                            "<div class=\"err\" role=\"alert\">{}.</div>",
+                            esc(&t(a.lang, &m))
+                        );
+                        settings_page(&state, &a, &parts.headers, StatusCode::BAD_REQUEST, &notice)
+                            .await
+                    }
+                    Err(e) => error_response_to(&a, &e, "/settings", "settings"),
+                };
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Deserialize)]
+pub struct CsrfOnly {
+    csrf: String,
+}
+
+pub async fn avatar_remove(
+    State(state): State<AppState>,
+    a: Authed,
+    Form(f): Form<CsrfOnly>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return StatusCode::FORBIDDEN.into_response();
+    }
+    match state.avatar_remove(&a.session.principal).await {
+        Ok(()) => Redirect::to("/settings").into_response(),
+        Err(e) => error_response_to(&a, &e, "/settings", "settings"),
+    }
 }

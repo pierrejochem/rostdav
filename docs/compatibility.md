@@ -263,6 +263,20 @@ Source: Nextcloud 35.0.2 reference, 2026-10-23, and the Android app (M6).
 - `REPORT` on a folder of the user with `oc:filter-files` and the rule `oc:favorite` = `1`: the caller's favorites below that folder, with the requested properties. Other filter rules answer 400.
 - **Deviations:** the reference also stores arbitrary dead properties in `PROPPATCH`; Rostdav answers 403 for every property except `oc:favorite` rather than pretend. The `REPORT` lists favorites in the user's own tree only (not nodes received through shares).
 
+## Avatars
+
+Profile pictures are uploaded in the web interface (Settings). The Nextcloud Android app 35.0.1 requests `GET /index.php/avatar/<user>/512` (M6 server log); Rostdav answers it with the stored picture.
+
+| Request | Reference (Nextcloud 35.0.2, recorded) | Rostdav |
+|---|---|---|
+| `GET /index.php/avatar/<user>/<size>` for a user with a picture | 200 `image/png`, scaled to `size` | 200, the stored PNG or JPEG **as uploaded** (no scaling; the size is ignored) |
+| the same for a user without a picture | 200, a generated placeholder PNG | **404**; the app draws its own placeholder (the app tolerated the former 404 in M6) |
+| unknown user | 404 JSON | 404 |
+| without credentials | 200 (public) | **401**: Basic (app password) is required |
+| `GET /avatar/<user>/<size>` | 200, same as above | same as `/index.php/avatar/…`; the pages use it with the browser session cookie (Basic works too) |
+
+Any signed-in user can fetch any user's picture, as in the reference. Uploads accept PNG and JPEG only (checked by signature and image header), 16 to 1024 pixels on each side, at most 256 KiB; they are stored unchanged in the database (table `avatars`) and sent with `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; sandbox`. Pictures that other users or clients upload through the Nextcloud API (`POST /index.php/avatar/`) are not supported.
+
 ## Maintenance mode
 
 An administrator switches it on in the web interface (`/admin/security`; stored in `settings`, so it survives a restart; events `admin.maintenance_on` / `_off`). Source: the reference (Nextcloud 35.0.2) with `occ maintenance:mode --on`.

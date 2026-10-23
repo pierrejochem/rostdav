@@ -11,6 +11,7 @@ mod admin;
 mod admin_tests;
 mod audit;
 mod auth;
+mod avatar;
 mod export;
 mod favorites;
 mod files;
@@ -36,6 +37,7 @@ pub use admin::{
 };
 pub use audit::AuditOptions;
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, Scope, UserInfo, Via, authorize};
+pub use avatar::Avatar;
 pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, normalize_checksum};
 pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};

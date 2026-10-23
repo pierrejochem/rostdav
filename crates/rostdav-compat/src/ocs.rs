@@ -144,7 +144,7 @@ fn xml_children(out: &mut String, v: &Value, depth: usize) {
     }
 }
 
-fn client_ip(parts: &Parts) -> IpAddr {
+pub(crate) fn client_ip(parts: &Parts) -> IpAddr {
     parts
         .extensions
         .get::<ClientIp>()

@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- Profile pictures: upload a PNG or JPEG in Settings; the Nextcloud apps show it (`/index.php/avatar/<user>/<size>`, sign-in required, sent unscaled, 404 without a picture).
 - Administrators can adjust the quota for new users, the expiry of unfinished uploads and the retention of versions, trash and event log in the web interface (Administration, Server). Settings given in the configuration file or an environment variable stay locked there ("set by configuration").
 
 ## [0.1.0] - 2026-10-23

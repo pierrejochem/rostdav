@@ -366,3 +366,11 @@ These apply at once and are kept across restarts. "Back to default" returns to t
 Everything else comes from the configuration file and environment variables. Change it there and restart the server.	Alles andere stammt aus der Konfigurationsdatei und den Umgebungsvariablen. Dort ändern und den Server neu starten.
 Set by configuration	Von der Konfiguration gesetzt
 The configuration file or an environment variable sets this; change it there.	Die Konfigurationsdatei oder eine Umgebungsvariable setzt dies; dort ändern.
+Profile picture	Profilbild
+Choose a picture	Bild wählen
+PNG or JPEG, square works best, 16 to 1024 pixels on each side, at most 256 KiB.	PNG oder JPEG, quadratisch ist am besten, 16 bis 1024 Pixel pro Seite, höchstens 256 KiB.
+Remove picture	Bild entfernen
+No picture was sent.	Es wurde kein Bild gesendet.
+The file is not a PNG or JPEG picture	Die Datei ist kein PNG- oder JPEG-Bild
+The picture is larger than 256 KiB	Das Bild ist größer als 256 KiB
+The picture must be between 16 and 1024 pixels on each side	Das Bild muss auf jeder Seite zwischen 16 und 1024 Pixel groß sein

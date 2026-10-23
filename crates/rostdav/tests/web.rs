@@ -4301,3 +4301,244 @@ async fn limits_set_by_configuration_are_shown_but_not_editable() {
             .contains("value=\"12\" disabled")
     );
 }
+
+/// Header-only pictures: enough for the server's checks, not viewable.
+fn png_header(w: u32, h: u32) -> Vec<u8> {
+    let mut v = b"\x89PNG\r\n\x1a\n\0\0\0\x0dIHDR".to_vec();
+    v.extend(w.to_be_bytes());
+    v.extend(h.to_be_bytes());
+    v.extend([8, 6, 0, 0, 0]);
+    v
+}
+
+async fn upload_avatar(e: &Env, cookie: &str, csrf: &str, file: &[u8], csrf_first: bool) -> Res {
+    let b = "XB";
+    let field = |name: &str, filename: Option<&str>, content: &[u8]| {
+        let mut v =
+            format!("--{b}\r\nContent-Disposition: form-data; name=\"{name}\"").into_bytes();
+        if let Some(f) = filename {
+            v.extend(
+                format!("; filename=\"{f}\"\r\nContent-Type: application/octet-stream")
+                    .into_bytes(),
+            );
+        }
+        v.extend(b"\r\n\r\n");
+        v.extend(content);
+        v.extend(b"\r\n");
+        v
+    };
+    let (c, f) = (
+        field("csrf", None, csrf.as_bytes()),
+        field("file", Some("me.png"), file),
+    );
+    let mut body = if csrf_first {
+        [c, f].concat()
+    } else {
+        [f, c].concat()
+    };
+    body.extend(format!("--{b}--\r\n").into_bytes());
+    let o = origin();
+    send(
+        e,
+        "POST",
+        "/settings/avatar",
+        &[
+            (
+                "content-type",
+                &format!("multipart/form-data; boundary={b}"),
+            ),
+            ("cookie", cookie),
+            ("origin", &o),
+        ],
+        Body::from(body),
+    )
+    .await
+}
+
+#[tokio::test]
+async fn profile_picture_upload_show_and_remove() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let cb = login(&e, "bob").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let page = get(&e, "/settings", &ca).await.text();
+    assert!(page.contains("Profile picture") && !page.contains("avatar-big"));
+    assert_eq!(
+        get(&e, "/avatar/anna/128", &ca).await.status,
+        StatusCode::NOT_FOUND
+    );
+
+    let pic = png_header(64, 64);
+    let r = upload_avatar(&e, &ca, &csrf, &pic, true).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let r = get(&e, "/avatar/anna/128", &ca).await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert_eq!(r.body, pic);
+    assert_eq!(r.h("content-type"), "image/png");
+    assert_eq!(r.h("x-content-type-options"), "nosniff");
+    assert!(r.h("content-security-policy").contains("sandbox"));
+    let etag = r.h("etag").to_owned();
+    assert!(!etag.is_empty());
+    let o = origin();
+    let _ = o;
+    let r = send(
+        &e,
+        "GET",
+        "/avatar/anna/128",
+        &[("cookie", &ca), ("if-none-match", &etag)],
+        Body::empty(),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::NOT_MODIFIED);
+    assert!(
+        get(&e, "/settings", &ca)
+            .await
+            .text()
+            .contains("avatar-big")
+    );
+
+    // other signed-in users may see it (as in Nextcloud); strangers may not; no picture is a 404
+    assert_eq!(get(&e, "/avatar/anna/64", &cb).await.status, StatusCode::OK);
+    assert_eq!(
+        get(&e, "/avatar/bob/64", &cb).await.status,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        get(&e, "/avatar/nobody/64", &cb).await.status,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        send(&e, "GET", "/avatar/anna/64", &[], Body::empty())
+            .await
+            .status,
+        StatusCode::UNAUTHORIZED
+    );
+
+    // a JPEG replaces it
+    let mut jpeg = vec![0xFF, 0xD8, 0xFF, 0xC0, 0, 11, 8];
+    jpeg.extend(48u16.to_be_bytes());
+    jpeg.extend(48u16.to_be_bytes());
+    jpeg.extend([1, 1, 0x11, 0]);
+    assert_eq!(
+        upload_avatar(&e, &ca, &csrf, &jpeg, true).await.status,
+        StatusCode::SEE_OTHER
+    );
+    let r = get(&e, "/avatar/anna/64", &ca).await;
+    assert_eq!(
+        (r.h("content-type"), r.body.as_slice()),
+        ("image/jpeg", jpeg.as_slice())
+    );
+    assert_ne!(r.h("etag"), etag);
+
+    // remove: only with a token; bob cannot remove anna's
+    let r = post_form(&e, "/settings/avatar/delete", &ca, &[("csrf", "forged")]).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert_eq!(get(&e, "/avatar/anna/64", &ca).await.status, StatusCode::OK);
+    let r = post_form(&e, "/settings/avatar/delete", &ca, &[("csrf", &csrf)]).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(
+        get(&e, "/avatar/anna/64", &ca).await.status,
+        StatusCode::NOT_FOUND
+    );
+    let log = get(&e, "/admin/events", &login(&e, "root").await)
+        .await
+        .text();
+    assert!(log.contains("user.avatar_set") && log.contains("user.avatar_removed"));
+}
+
+#[tokio::test]
+async fn profile_picture_refuses_other_files() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let big = {
+        let mut v = png_header(64, 64);
+        v.resize(256 * 1024 + 1, 0);
+        v
+    };
+    for (what, file) in [
+        (
+            "svg",
+            b"<svg xmlns='http://www.w3.org/2000/svg'><script>alert(1)</script></svg>".to_vec(),
+        ),
+        ("gif", b"GIF89a\x40\0\x40\0".to_vec()),
+        ("text", b"just text".to_vec()),
+        ("empty", Vec::new()),
+        ("too small", png_header(8, 8)),
+        ("too wide", png_header(2000, 100)),
+        ("too big", big),
+    ] {
+        let r = upload_avatar(&e, &ca, &csrf, &file, true).await;
+        assert_eq!(r.status, StatusCode::BAD_REQUEST, "{what}: {}", r.text());
+        assert!(r.text().contains("class=\"err\""), "{what}");
+    }
+    // the token must come first and be right
+    let r = upload_avatar(&e, &ca, &csrf, &png_header(64, 64), false).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = upload_avatar(&e, &ca, "forged", &png_header(64, 64), true).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert_eq!(
+        get(&e, "/avatar/anna/64", &ca).await.status,
+        StatusCode::NOT_FOUND,
+        "nothing stored"
+    );
+}
+
+#[tokio::test]
+async fn apps_fetch_the_picture_with_an_app_password() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let pic = png_header(64, 64);
+    upload_avatar(&e, &ca, &csrf, &pic, true).await;
+    let app = e
+        .state
+        .create_app_password(
+            e.state
+                .authenticate("bob", PW, "127.0.0.1".parse().expect("ip"))
+                .await
+                .expect("bob")
+                .user_id,
+            "phone",
+        )
+        .await
+        .expect("app password");
+    let get_as = |uri: &'static str, auth: Option<String>| {
+        let e = &e;
+        async move {
+            let mut h = Vec::new();
+            if let Some(a) = &auth {
+                h.push(("authorization", a.as_str()));
+            }
+            send(e, "GET", uri, &h, Body::empty()).await
+        }
+    };
+    let r = get_as("/index.php/avatar/anna/64", Some(dav_basic("bob", &app))).await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert_eq!(
+        (r.h("content-type"), r.body.as_slice()),
+        ("image/png", pic.as_slice())
+    );
+    assert_eq!(r.h("x-content-type-options"), "nosniff");
+    // without or with wrong credentials; unknown user or no picture: 404
+    assert_eq!(
+        get_as("/index.php/avatar/anna/64", None).await.status,
+        StatusCode::UNAUTHORIZED
+    );
+    assert_eq!(
+        get_as(
+            "/index.php/avatar/anna/64",
+            Some(dav_basic("bob", "wrong-wrong-wrong"))
+        )
+        .await
+        .status,
+        StatusCode::UNAUTHORIZED
+    );
+    for uri in ["/index.php/avatar/bob/64", "/index.php/avatar/nobody/64"] {
+        assert_eq!(
+            get_as(uri, Some(dav_basic("bob", &app))).await.status,
+            StatusCode::NOT_FOUND,
+            "{uri}"
+        );
+    }
+}
