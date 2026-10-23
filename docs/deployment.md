@@ -26,9 +26,9 @@ Image only: `docker build -t rostdav .`, then `docker run -d -p 127.0.0.1:8080:8
 
 Each version tag (`v0.1.0`, …) is built by the [Release workflow](../.github/workflows/release.yml) after the tests pass:
 
-- **Linux binaries:** `rostdav-<version>-x86_64-unknown-linux-gnu.tar.gz` and (from the release after 0.1.0) `rostdav-<version>-aarch64-unknown-linux-gnu.tar.gz`, each with a `.sha256`, on the GitHub release page. Check one with `sha256sum -c <file>.sha256`. The archive holds the binary, both licences, the README, the changelog and `rostdav.example.toml`. The binary is built on Debian bookworm (glibc 2.36 or newer needed).
+- **Linux binaries:** `rostdav-<version>-x86_64-unknown-linux-gnu.tar.gz` and `rostdav-<version>-aarch64-unknown-linux-gnu.tar.gz`, each with a `.sha256`, on the GitHub release page. Check one with `sha256sum -c <file>.sha256`. The archive holds the binary, both licences, the README, the changelog and `rostdav.example.toml`. The binary is built on Debian bookworm (glibc 2.36 or newer needed).
 - **Container image:** `ghcr.io/pierrejochem/rostdav:<version>` (also `:<major>.<minor>`, `:<major>` and `:latest` for final releases). The workflow starts the image and checks health, user 10001 and the data directory mode before it pushes. A new ghcr.io package is private until its owner makes it public; a private one needs `docker login ghcr.io`.
-- Version 0.1.0 has the x86_64 binary and image only. Later releases ship arm64 as well, and the image tag then covers both architectures (`docker pull` picks the right one).
+- Version 0.1.0 has the x86_64 binary and image only. From 0.2.0 on there is an arm64 binary as well, and the image tag covers both architectures (`docker pull` picks the right one).
 
 ## Building from source
 

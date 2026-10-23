@@ -2,7 +2,7 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). What was tested with which client version is in [docs/compatibility.md](docs/compatibility.md); the design decisions are in [docs/adr/](docs/adr/).
 
-## [Unreleased]
+## [0.3.0] - 2026-10-23
 
 ### Added
 
