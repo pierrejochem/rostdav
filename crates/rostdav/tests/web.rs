@@ -2618,6 +2618,7 @@ async fn german_interface_is_complete() {
         "/admin/status",
         "/admin/server",
         "/admin/security",
+        "/admin/server",
         "/shares",
         "/recent",
         "/files?sort=size&dir=desc",
@@ -4056,4 +4057,247 @@ async fn recent_lists_own_files_newest_first_without_trash() {
     // other users see nothing of it
     let html = get(&e, "/recent", &cb).await.text();
     assert!(html.contains("No files yet.") && !html.contains("first.txt"));
+}
+
+#[tokio::test]
+async fn admin_adjusts_limits_and_goes_back_to_default() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(page.contains("Adjustable limits") && page.contains("Versions kept per file"));
+    assert!(
+        !page.contains("action=\"/admin/server/reset\""),
+        "nothing changed yet"
+    );
+
+    let post = |key: &'static str, value: &'static str| {
+        let (e, root, csrf) = (&e, &root, &csrf);
+        async move {
+            post_form(
+                e,
+                "/admin/server/set",
+                root,
+                &[("csrf", csrf), ("key", key), ("value", value)],
+            )
+            .await
+        }
+    };
+    let r = post("versioning.max_versions", "7").await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(
+        page.contains("value=\"7\"") && page.contains("In the file: 50"),
+        "{page}"
+    );
+    assert!(page.contains("action=\"/admin/server/reset\""));
+
+    // it is in force: a new user gets the new default quota
+    assert_eq!(
+        post("limits.default_quota", "1G").await.status,
+        StatusCode::SEE_OTHER
+    );
+    post_form(
+        &e,
+        "/admin/users/create",
+        &root,
+        &[("csrf", &csrf), ("name", "neo"), ("password", PW)],
+    )
+    .await;
+    let list = e
+        .state
+        .users_list(&rostdav_app::Actor::Cli)
+        .await
+        .expect("list");
+    assert_eq!(
+        list.iter()
+            .find(|u| u.name == "neo")
+            .expect("neo")
+            .quota_bytes,
+        Some(1 << 30)
+    );
+
+    // bad values and unknown keys change nothing
+    for (key, value) in [
+        ("versioning.max_versions", "5000"),
+        ("versioning.max_versions", "-1"),
+        ("limits.upload_retention_hours", "0"),
+        ("limits.default_quota", "10X"),
+    ] {
+        let r = post(key, value).await;
+        assert!(r.status.is_client_error(), "{key}={value}: {}", r.status);
+    }
+    for key in ["security.totp_key", "web.session_idle_hours", "nonsense"] {
+        assert_eq!(post(key, "1").await.status, StatusCode::NOT_FOUND, "{key}");
+    }
+    assert!(
+        get(&e, "/admin/server", &root)
+            .await
+            .text()
+            .contains("value=\"7\"")
+    );
+
+    // back to default: the file value is in force again and the mark is gone
+    let r = post_form(
+        &e,
+        "/admin/server/reset",
+        &root,
+        &[("csrf", &csrf), ("key", "versioning.max_versions")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    // the quota change is still there, so a reset form is still offered
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(page.contains("value=\"50\"") && page.contains("action=\"/admin/server/reset\""));
+    post_form(
+        &e,
+        "/admin/server/reset",
+        &root,
+        &[("csrf", &csrf), ("key", "limits.default_quota")],
+    )
+    .await;
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(page.contains("value=\"50\""));
+    assert!(
+        !page.contains("action=\"/admin/server/reset\""),
+        "the mark is gone"
+    );
+    let log = get(&e, "/admin/events", &root).await.text();
+    assert!(log.contains("admin.setting_changed") && log.contains("versioning.max_versions"));
+}
+
+#[tokio::test]
+async fn adjusting_limits_is_for_administrators_with_a_token() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let csrf_a = page_csrf(&e, &ca).await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    for uri in ["/admin/server/set", "/admin/server/reset"] {
+        let r = post_form(
+            &e,
+            uri,
+            &ca,
+            &[
+                ("csrf", &csrf_a),
+                ("key", "versioning.max_versions"),
+                ("value", "1"),
+            ],
+        )
+        .await;
+        assert_eq!(r.status, StatusCode::FORBIDDEN, "{uri} as a normal user");
+        let r = post_form(
+            &e,
+            uri,
+            &root,
+            &[
+                ("csrf", "forged"),
+                ("key", "versioning.max_versions"),
+                ("value", "1"),
+            ],
+        )
+        .await;
+        assert_eq!(r.status, StatusCode::FORBIDDEN, "{uri} with a forged token");
+    }
+    assert!(
+        get(&e, "/admin/server", &root)
+            .await
+            .text()
+            .contains("value=\"50\"")
+    );
+    let _ = csrf;
+}
+
+#[tokio::test]
+async fn changed_limits_survive_a_restart_and_the_file_wins() {
+    use rostdav_app::{Actor, Tunable};
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut cfg = Config::default();
+    cfg.storage.data_dir = dir.path().join("data");
+    let value = |st: &rostdav_app::AppState, t: Tunable| {
+        st.tunables(&Actor::Cli)
+            .expect("tunables")
+            .into_iter()
+            .find(|v| v.tunable == t)
+            .expect("known")
+    };
+    {
+        let st = rostdav::build_state(&cfg).await.expect("state");
+        st.set_tunable(&Actor::Cli, "trash.retention_days", "9")
+            .await
+            .expect("set");
+        // the same value as the file: nothing is stored
+        st.set_tunable(&Actor::Cli, "audit.retention_days", "365")
+            .await
+            .expect("same as the file");
+    }
+    let st = rostdav::build_state(&cfg).await.expect("state again");
+    let v = value(&st, Tunable::TrashRetentionDays);
+    assert_eq!((v.value.as_str(), v.changed, v.locked), ("9", true, false));
+    assert!(!value(&st, Tunable::EventLogRetentionDays).changed);
+
+    // now the file (or an environment variable) sets it: the stored change is ignored, the
+    // setting is locked and cannot be changed in the interface
+    cfg.trash.retention_days = 14;
+    cfg.set_explicitly.insert("trash.retention_days".to_owned());
+    let st = rostdav::build_state(&cfg)
+        .await
+        .expect("state with the file value");
+    let v = value(&st, Tunable::TrashRetentionDays);
+    assert_eq!((v.value.as_str(), v.changed, v.locked), ("14", false, true));
+    for r in [
+        st.set_tunable(&Actor::Cli, "trash.retention_days", "1")
+            .await,
+        st.reset_tunable(&Actor::Cli, "trash.retention_days").await,
+    ] {
+        assert!(matches!(r, Err(rostdav_core::Error::Conflict(_))), "{r:?}");
+    }
+    assert_eq!(value(&st, Tunable::TrashRetentionDays).value, "14");
+    // the unlocked ones still work
+    st.set_tunable(&Actor::Cli, "versioning.max_versions", "3")
+        .await
+        .expect("set");
+    assert_eq!(value(&st, Tunable::MaxVersions).value, "3");
+}
+
+#[tokio::test]
+async fn limits_set_by_configuration_are_shown_but_not_editable() {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let mut cfg = Config::default();
+    cfg.storage.data_dir = dir.path().join("data");
+    cfg.versioning.max_versions = 12;
+    cfg.set_explicitly
+        .insert("versioning.max_versions".to_owned());
+    let state = rostdav::build_state(&cfg).await.expect("state");
+    state.add_user("root", PW, true).await.expect("admin");
+    let e = Env {
+        app: rostdav::http::router_with(
+            state.clone(),
+            &rostdav::http::HttpOptions::from_config(&cfg),
+        ),
+        state,
+        _dir: dir,
+    };
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(page.contains("Set by configuration") && page.contains("value=\"12\" disabled"));
+    let r = post_form(
+        &e,
+        "/admin/server/set",
+        &root,
+        &[
+            ("csrf", &csrf),
+            ("key", "versioning.max_versions"),
+            ("value", "1"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::CONFLICT);
+    assert!(
+        get(&e, "/admin/server", &root)
+            .await
+            .text()
+            .contains("value=\"12\" disabled")
+    );
 }

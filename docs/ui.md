@@ -46,7 +46,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/admin/users`, `/admin/users/{create,manage,disabled,role,quota,password,delete}` | Administration: users (add, block, role, quota, password reset, delete with transfer) |
 | `/admin/events` | Administration: event log (period filter, newest 500) |
 | `/admin/status`, `POST /admin/status/check` | Administration: version, usage, consistency check (optional checksums and repair) |
-| `/admin/server` | Administration: effective settings (read-only) |
+| `/admin/server`, `POST /admin/server/{set,reset}` | Administration: adjustable limits (quota for new users, unfinished-upload expiry, version, trash and event log retention; "Back to default"), and the other effective settings (read-only) |
 | `/admin/security`, `POST /admin/security/{maintenance,unlock}` | Administration: maintenance mode on/off; active sign-in lockouts (address, user, two-factor) with "Unlock" |
 | `/login/2fa`, `/settings/2fa[/disable\|/codes]` | Second sign-in step; set up, turn off and recovery codes of two-factor authentication (ADR 0007); admin reset at `/admin/users/two-factor-reset` |
 | `/login/v2/flow/<token>` | Connect device (Login Flow v2; second step on the same page) |

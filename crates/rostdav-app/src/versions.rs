@@ -50,11 +50,11 @@ pub struct VersionListing {
 
 impl AppState {
     pub fn versioning_enabled(&self) -> bool {
-        self.inner.config.versioning.enabled
+        self.cfg().versioning.enabled
     }
 
     pub(crate) fn version_policy(&self) -> VersionPolicy {
-        let v = &self.inner.config.versioning;
+        let v = self.cfg().versioning;
         VersionPolicy {
             enabled: v.enabled,
             max_versions: v.max_versions,
@@ -203,7 +203,7 @@ impl AppState {
 
     /// Retention: age and quota share. Returns how many versions were removed.
     pub(crate) async fn cleanup_versions(&self) -> Result<usize> {
-        let v = &self.inner.config.versioning;
+        let v = self.cfg().versioning;
         let mut removed = 0u64;
         if v.max_age_days > 0 {
             let cutoff = crate::now_secs() - i64::from(v.max_age_days) * 86_400;

@@ -102,6 +102,8 @@ pub fn router() -> Router<AppState> {
         .route("/admin/status", get(admin::status))
         .route("/admin/status/check", post(admin::check))
         .route("/admin/server", get(admin::server))
+        .route("/admin/server/set", post(admin::set_tunable))
+        .route("/admin/server/reset", post(admin::reset_tunable))
         .route("/admin/security", get(admin::security))
         .route("/admin/security/maintenance", post(admin::set_maintenance))
         .route("/admin/security/unlock", post(admin::unlock))

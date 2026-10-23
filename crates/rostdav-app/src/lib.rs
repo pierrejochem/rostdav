@@ -22,6 +22,7 @@ mod secrets;
 mod share_tests;
 mod shares;
 mod trash;
+mod tunables;
 mod two_factor;
 mod uploads;
 mod versions;
@@ -43,6 +44,7 @@ pub use shares::{
     LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,
 };
 pub use trash::{TrashEntry, TrashOptions};
+pub use tunables::{Tunable, TunableView};
 pub use two_factor::{SignIn, TotpKeySource, TwoFactorSetup, TwoFactorStatus};
 pub use uploads::UploadListing;
 pub use versions::{VersionEntry, VersionListing, VersioningOptions};
@@ -61,7 +63,12 @@ pub struct AppState {
 struct Inner {
     db: Db,
     store: LocalStore,
-    config: AppConfig,
+    /// What is in force: the file and environment values with the administrator's changes on top.
+    config: std::sync::RwLock<AppConfig>,
+    /// The values from the file and the environment, for "back to default".
+    base_config: AppConfig,
+    /// Settings the file or an environment variable set: not changeable in the web interface.
+    locked: Vec<Tunable>,
     limiter: ratelimit::RateLimiter,
     /// Wrong second-factor codes: five per user in 15 minutes (ADR 0007).
     totp_limiter: ratelimit::RateLimiter,
@@ -142,7 +149,9 @@ impl AppState {
             inner: Arc::new(Inner {
                 db,
                 store,
-                config: AppConfig::default(),
+                config: std::sync::RwLock::new(AppConfig::default()),
+                base_config: AppConfig::default(),
+                locked: Vec::new(),
                 limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
                 totp_limiter: ratelimit::RateLimiter::new(
                     5,
@@ -155,6 +164,14 @@ impl AppState {
         })
     }
 
+    /// The settings in force (a copy: they are small, and an administrator may change them).
+    pub(crate) fn cfg(&self) -> AppConfig {
+        self.inner
+            .config
+            .read()
+            .map_or_else(|e| e.into_inner().clone(), |c| c.clone())
+    }
+
     fn reconfigured(&self, config: AppConfig) -> Self {
         // Called during start-up, before the state is shared.
         let old = &*self.inner;
@@ -162,7 +179,9 @@ impl AppState {
             inner: Arc::new(Inner {
                 db: old.db.clone(),
                 store: old.store.clone(),
-                config,
+                config: std::sync::RwLock::new(config.clone()),
+                base_config: config,
+                locked: old.locked.clone(),
                 limiter: ratelimit::RateLimiter::new(10, std::time::Duration::from_secs(15 * 60)),
                 totp_limiter: ratelimit::RateLimiter::new(
                     5,
@@ -178,11 +197,31 @@ impl AppState {
         }
     }
 
+    /// Marks settings (by their `section.name` key) as set by the configuration.
+    #[must_use]
+    pub fn with_locked_settings(self, keys: impl IntoIterator<Item = String>) -> Self {
+        let locked = keys
+            .into_iter()
+            .filter_map(|k| Tunable::from_key(&k))
+            .collect();
+        let me = self.reconfigured(self.cfg());
+        // `reconfigured` has just made a new `Inner` that nobody else holds
+        match Arc::try_unwrap(me.inner) {
+            Ok(mut inner) => {
+                inner.locked = locked;
+                Self {
+                    inner: Arc::new(inner),
+                }
+            }
+            Err(inner) => Self { inner },
+        }
+    }
+
     #[must_use]
     pub fn with_limits(self, limits: Limits) -> Self {
         let config = AppConfig {
             limits,
-            ..self.inner.config.clone()
+            ..self.cfg()
         };
         self.reconfigured(config)
     }
@@ -191,7 +230,7 @@ impl AppState {
     pub fn with_versioning(self, versioning: VersioningOptions) -> Self {
         let config = AppConfig {
             versioning,
-            ..self.inner.config.clone()
+            ..self.cfg()
         };
         self.reconfigured(config)
     }
@@ -200,17 +239,14 @@ impl AppState {
     pub fn with_security(self, security: SecurityOptions) -> Self {
         let config = AppConfig {
             security,
-            ..self.inner.config.clone()
+            ..self.cfg()
         };
         self.reconfigured(config)
     }
 
     #[must_use]
     pub fn with_web(self, web: WebOptions) -> Self {
-        let config = AppConfig {
-            web,
-            ..self.inner.config.clone()
-        };
+        let config = AppConfig { web, ..self.cfg() };
         self.reconfigured(config)
     }
 
@@ -218,7 +254,7 @@ impl AppState {
     pub fn with_trash(self, trash: TrashOptions) -> Self {
         let config = AppConfig {
             trash,
-            ..self.inner.config.clone()
+            ..self.cfg()
         };
         self.reconfigured(config)
     }
@@ -227,7 +263,7 @@ impl AppState {
     pub fn with_audit(self, audit: AuditOptions) -> Self {
         let config = AppConfig {
             audit,
-            ..self.inner.config.clone()
+            ..self.cfg()
         };
         self.reconfigured(config)
     }

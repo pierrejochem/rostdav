@@ -7,7 +7,7 @@ use axum::extract::{FromRequestParts, Query, State};
 use axum::http::StatusCode;
 use axum::http::request::Parts;
 use axum::response::{IntoResponse, Redirect, Response};
-use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, LockoutKind, parse_quota};
+use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, LockoutKind, Tunable, parse_quota};
 use rostdav_core::Error;
 use serde::Deserialize;
 
@@ -758,12 +758,130 @@ pub async fn check(
 
 // ---- server settings -------------------------------------------------------------------------------------
 
+/// Label, hint and input of an adjustable limit: `(label, hint, number input range)`.
+fn tunable_spec(t: Tunable) -> (&'static str, &'static str, Option<(u32, u32)>) {
+    match t {
+        Tunable::DefaultQuota => (
+            "Quota for new users",
+            "A size such as 10G or 500M, or unlimited. Users that exist already keep their quota.",
+            None,
+        ),
+        Tunable::UploadRetentionHours => (
+            "Unfinished uploads are removed after",
+            "Hours, 1 to 8760.",
+            Some((1, 8760)),
+        ),
+        Tunable::MaxVersions => (
+            "Versions kept per file",
+            "0 keeps every version.",
+            Some((0, 1000)),
+        ),
+        Tunable::VersionRetentionDays => (
+            "Version retention",
+            "Days, 0 keeps versions until another limit removes them.",
+            Some((0, 3650)),
+        ),
+        Tunable::VersionQuotaShare => (
+            "Versions share of quota",
+            "Percent of a user's quota that versions may use, 0 for no limit.",
+            Some((0, 100)),
+        ),
+        Tunable::TrashRetentionDays => (
+            "Trash retention",
+            "Days, 0 keeps deleted files until they are removed by hand.",
+            Some((0, 3650)),
+        ),
+        Tunable::EventLogRetentionDays => (
+            "Event log retention",
+            "Days, 0 keeps the event log.",
+            Some((0, 3650)),
+        ),
+    }
+}
+
 pub async fn server(State(state): State<AppState>, Admin(a): Admin) -> Response {
-    let rows = match state.settings_summary(&Actor::User(&a.session.principal)) {
-        Ok(r) => r,
-        Err(e) => return error_page(&a, &e, "/files"),
+    server_page(&state, &a).await
+}
+
+async fn server_page(state: &AppState, a: &Authed) -> Response {
+    let actor = Actor::User(&a.session.principal);
+    let (rows, tunables) = match (state.settings_summary(&actor), state.tunables(&actor)) {
+        (Ok(r), Ok(t)) => (r, t),
+        (Err(e), _) | (_, Err(e)) => return error_page(a, &e, "/files"),
     };
     let lang = a.lang;
+    let csrf = esc(&a.csrf);
+    let items: String = tunables
+        .iter()
+        .map(|v| {
+            let (label, hint, range) = tunable_spec(v.tunable);
+            if v.locked {
+                return format!(
+                    "<div class=\"setting\"><label>{}<input type=\"text\" value=\"{}\" disabled></label>\
+                     <p class=\"muted\"><span class=\"chip\">{}</span> {}</p></div>",
+                    esc(&t(lang, label)),
+                    esc(&v.value),
+                    esc(&t(lang, "Set by configuration")),
+                    esc(&t(
+                        lang,
+                        "The configuration file or an environment variable sets this; change it there."
+                    )),
+                );
+            }
+            let input = match range {
+                Some((min, max)) => format!(
+                    "<input type=\"number\" name=\"value\" min=\"{min}\" max=\"{max}\" step=\"1\" value=\"{}\" required>",
+                    esc(&v.value)
+                ),
+                None => format!(
+                    "<input type=\"text\" name=\"value\" value=\"{}\" required>",
+                    esc(&v.value)
+                ),
+            };
+            let note = if v.changed {
+                format!(
+                    "<span class=\"chip\">{}</span> <span class=\"muted\">{}</span>",
+                    esc(&t(lang, "Changed")),
+                    esc(&tf(lang, "In the file: {0}", &[&v.file_value]))
+                )
+            } else {
+                String::new()
+            };
+            let reset = if v.changed {
+                format!(
+                    "<form class=\"inline\" method=\"post\" action=\"/admin/server/reset\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+                     <input type=\"hidden\" name=\"key\" value=\"{}\"><button type=\"submit\">{}</button></form>",
+                    esc(v.tunable.key()),
+                    esc(&t(lang, "Back to default"))
+                )
+            } else {
+                String::new()
+            };
+            format!(
+                "<div class=\"setting\"><form class=\"inline\" method=\"post\" action=\"/admin/server/set\">\
+                 <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><input type=\"hidden\" name=\"key\" value=\"{}\">\
+                 <label>{}{input}</label><button class=\"primary\" type=\"submit\">{}</button></form>{reset}\
+                 <p class=\"muted\">{}{}</p></div>",
+                esc(v.tunable.key()),
+                esc(&t(lang, label)),
+                esc(&t(lang, "Save")),
+                esc(&t(lang, hint)),
+                if note.is_empty() { String::new() } else { format!(" {note}") },
+            )
+        })
+        .collect();
+    let adjustable = ui::card(
+        lang,
+        "Adjustable limits",
+        "",
+        &format!(
+            "<p class=\"muted\">{}</p>{items}",
+            esc(&t(
+                lang,
+                "These apply at once and are kept across restarts. \"Back to default\" returns to the value from the configuration file."
+            ))
+        ),
+    );
     let rows: String = rows
         .iter()
         .map(|(k, v)| {
@@ -778,15 +896,60 @@ pub async fn server(State(state): State<AppState>, Admin(a): Admin) -> Response 
         "<p class=\"muted\">{}</p><table><tbody>{rows}</tbody></table>",
         esc(&t(
             lang,
-            "Settings come from the configuration file and environment variables. Change them there and restart the server."
+            "Everything else comes from the configuration file and environment variables. Change it there and restart the server."
         ))
     );
     page(
-        &a,
+        a,
         "Server",
         "server",
-        &ui::card(lang, "Effective settings", "", &body),
+        &format!(
+            "{adjustable}{}",
+            ui::card(lang, "Effective settings", "", &body)
+        ),
     )
+}
+
+#[derive(Deserialize)]
+pub struct TunableForm {
+    csrf: String,
+    key: String,
+    #[serde(default)]
+    value: String,
+}
+
+pub async fn set_tunable(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    Form(f): Form<TunableForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state
+        .set_tunable(&Actor::User(&a.session.principal), &f.key, &f.value)
+        .await
+    {
+        Ok(()) => Redirect::to("/admin/server").into_response(),
+        Err(e) => error_page(&a, &e, "/admin/server"),
+    }
+}
+
+pub async fn reset_tunable(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    Form(f): Form<TunableForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state
+        .reset_tunable(&Actor::User(&a.session.principal), &f.key)
+        .await
+    {
+        Ok(()) => Redirect::to("/admin/server").into_response(),
+        Err(e) => error_page(&a, &e, "/admin/server"),
+    }
 }
 
 pub async fn twofa_reset_confirm(Admin(a): Admin, Query(q): Query<NameQuery>) -> Response {

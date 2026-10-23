@@ -240,7 +240,7 @@ impl AppState {
         // (a replaced file's old size is freed by the commit).
         let owner = parent.node.owner_id;
         // A replaced file's old content stays as a version and keeps counting.
-        let freed = if self.inner.config.versioning.enabled {
+        let freed = if self.cfg().versioning.enabled {
             0
         } else {
             existing
@@ -250,13 +250,13 @@ impl AppState {
         };
         let headroom = self.inner.db.quota_headroom(owner).await?;
         let quota_limit = headroom.map(|h| h.unsigned_abs().saturating_add(freed));
-        let max = quota_limit.map_or(self.inner.config.limits.max_upload_bytes, |q| {
-            q.min(self.inner.config.limits.max_upload_bytes)
+        let max = quota_limit.map_or(self.cfg().limits.max_upload_bytes, |q| {
+            q.min(self.cfg().limits.max_upload_bytes)
         });
 
         let stored = match self.inner.store.put(body, max).await {
             Err(Error::TooLarge)
-                if quota_limit.is_some_and(|q| q < self.inner.config.limits.max_upload_bytes) =>
+                if quota_limit.is_some_and(|q| q < self.cfg().limits.max_upload_bytes) =>
             {
                 return Err(Error::QuotaExceeded);
             }
@@ -318,7 +318,7 @@ impl AppState {
             };
         }
         authorize_access(p, &a, Need::Delete)?;
-        if self.inner.config.trash.enabled {
+        if self.cfg().trash.enabled {
             // into the owner's trash; space keeps counting until it is purged
             self.inner
                 .db
@@ -422,14 +422,14 @@ impl AppState {
     pub async fn collect_garbage(&self) -> Result<usize> {
         // retention first, so that what it releases is collected in the same run
         let expired = self
-            .expire_uploads(self.inner.config.limits.upload_retention_secs)
+            .expire_uploads(self.cfg().limits.upload_retention_secs)
             .await?;
         self.purge_old_events().await?;
         self.cleanup_versions().await?;
         self.cleanup_trash().await?;
         self.inner
             .db
-            .purge_sessions(self.inner.config.web.idle_secs)
+            .purge_sessions(self.cfg().web.idle_secs)
             .await?;
         self.purge_two_factor().await?;
         let ids = self.inner.db.delete_unreferenced_blobs().await?;

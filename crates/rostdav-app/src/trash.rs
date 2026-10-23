@@ -36,12 +36,12 @@ pub struct TrashEntry {
 
 impl AppState {
     pub fn trash_enabled(&self) -> bool {
-        self.inner.config.trash.enabled
+        self.cfg().trash.enabled
     }
 
     fn trash_guard(&self, p: &Principal) -> Result<()> {
         Self::require_full(p)?;
-        if self.inner.config.trash.enabled {
+        if self.cfg().trash.enabled {
             Ok(())
         } else {
             Err(Error::NotFound)
@@ -139,7 +139,7 @@ impl AppState {
 
     /// Retention: purge items older than the configured age.
     pub(crate) async fn cleanup_trash(&self) -> Result<usize> {
-        let t = &self.inner.config.trash;
+        let t = self.cfg().trash;
         if !t.enabled || t.retention_days == 0 {
             return Ok(0);
         }

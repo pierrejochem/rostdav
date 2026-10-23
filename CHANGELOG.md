@@ -2,6 +2,12 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). What was tested with which client version is in [docs/compatibility.md](docs/compatibility.md); the design decisions are in [docs/adr/](docs/adr/).
 
+## [Unreleased]
+
+### Added
+
+- Administrators can adjust the quota for new users, the expiry of unfinished uploads and the retention of versions, trash and event log in the web interface (Administration, Server). Settings given in the configuration file or an environment variable stay locked there ("set by configuration").
+
 ## [0.1.0] - 2026-10-23
 
 First release: a single-binary file server with WebDAV that the unmodified Nextcloud apps can use.
@@ -27,6 +33,6 @@ First release: a single-binary file server with WebDAV that the unmodified Nextc
 ### Known limitations
 
 - No previews, notifications, activities, end-to-end encryption, calendar or contacts (see [docs/compatibility.md](docs/compatibility.md)).
-- Settings such as quotas, retention and lockout thresholds come from the configuration file and are shown read-only in the web interface.
+- Sign-in limits, session lifetimes and similar settings come from the configuration file and are shown read-only in the web interface.
 - Sign-in blocks are kept in memory and end when the server restarts; one process, one SQLite database.
 - No avatar upload.

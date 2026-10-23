@@ -351,3 +351,18 @@ Recent	Zuletzt
 Recent files	Zuletzt geänderte Dateien
 The files you changed last, newest first.	Die zuletzt geänderten Dateien, neueste zuerst.
 No files yet.	Noch keine Dateien.
+Adjustable limits	Einstellbare Grenzen
+Changed	Geändert
+Back to default	Zurück zum Standard
+In the file: {0}	In der Datei: {0}
+Hours, 1 to 8760.	Stunden, 1 bis 8760.
+0 keeps every version.	0 behält jede Version.
+Days, 0 keeps versions until another limit removes them.	Tage, 0 behält Versionen, bis eine andere Grenze sie entfernt.
+Percent of a user's quota that versions may use, 0 for no limit.	Prozent des Kontingents eines Benutzers, die Versionen belegen dürfen, 0 für keine Grenze.
+Days, 0 keeps deleted files until they are removed by hand.	Tage, 0 behält gelöschte Dateien, bis sie von Hand entfernt werden.
+Days, 0 keeps the event log.	Tage, 0 behält das Ereignisprotokoll.
+A size such as 10G or 500M, or unlimited. Users that exist already keep their quota.	Eine Größe wie 10G oder 500M, oder unlimited. Bestehende Benutzer behalten ihr Kontingent.
+These apply at once and are kept across restarts. "Back to default" returns to the value from the configuration file.	Diese gelten sofort und bleiben nach einem Neustart erhalten. „Zurück zum Standard“ stellt den Wert aus der Konfigurationsdatei wieder her.
+Everything else comes from the configuration file and environment variables. Change it there and restart the server.	Alles andere stammt aus der Konfigurationsdatei und den Umgebungsvariablen. Dort ändern und den Server neu starten.
+Set by configuration	Von der Konfiguration gesetzt
+The configuration file or an environment variable sets this; change it there.	Die Konfigurationsdatei oder eine Umgebungsvariable setzt dies; dort ändern.

@@ -98,7 +98,7 @@ impl AppState {
         user_agent: &str,
     ) -> Result<String> {
         let token = random_token(COOKIE_LEN);
-        let web = &self.inner.config.web;
+        let web = self.cfg().web;
         let ua: String = user_agent
             .chars()
             .filter(|c| !c.is_control())
@@ -129,7 +129,7 @@ impl AppState {
         let Some((s, user)) = self
             .inner
             .db
-            .find_session(&hash_token(cookie), self.inner.config.web.idle_secs)
+            .find_session(&hash_token(cookie), self.cfg().web.idle_secs)
             .await?
         else {
             return Ok(None);

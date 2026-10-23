@@ -60,7 +60,7 @@ impl AppState {
         let ip = ip
             .filter(|i| !i.is_unspecified())
             .map(|i| {
-                if self.inner.config.audit.anonymize_ip {
+                if self.cfg().audit.anonymize_ip {
                     anonymize(i)
                 } else {
                     i
@@ -91,7 +91,7 @@ impl AppState {
 
     /// Removes events past the retention period; returns how many.
     pub async fn purge_old_events(&self) -> Result<u64> {
-        let days = self.inner.config.audit.retention_days;
+        let days = self.cfg().audit.retention_days;
         if days == 0 {
             return Ok(0);
         }

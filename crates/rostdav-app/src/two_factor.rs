@@ -166,12 +166,12 @@ impl AppState {
     // ---- key ------------------------------------------------------------------------------
 
     pub fn two_factor_available(&self) -> bool {
-        !matches!(self.inner.config.security.totp_key, TotpKeySource::None)
+        !matches!(self.cfg().security.totp_key, TotpKeySource::None)
     }
 
     /// The key for the secrets; with `create` a missing key file is created.
     async fn totp_key(&self, create: bool) -> Result<[u8; 32]> {
-        match &self.inner.config.security.totp_key {
+        match &self.cfg().security.totp_key {
             TotpKeySource::None => Err(Error::Unavailable),
             TotpKeySource::Fixed(k) => Ok(*k),
             TotpKeySource::File(path) => {

@@ -25,6 +25,10 @@ pub struct Config {
     pub web: Web,
     pub security: Security,
     pub log: Log,
+    /// Keys (`section.name`) that the file or an environment variable set. The web interface
+    /// shows those as "set by configuration" and does not let an administrator change them.
+    #[serde(skip)]
+    pub set_explicitly: std::collections::BTreeSet<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -246,7 +250,21 @@ impl Config {
             None => figment = figment.merge(Toml::file("rostdav.toml")),
         }
         figment = figment.merge(Env::prefixed("ROSTDAV_").split("__"));
-        Ok(figment.extract()?)
+        let mut cfg: Config = figment.extract()?;
+        // the same sources without the defaults layer: what is in there was set on purpose
+        let mut given = Figment::new();
+        match explicit_file {
+            Some(path) => given = given.merge(Toml::file(path)),
+            None => given = given.merge(Toml::file("rostdav.toml")),
+        }
+        given = given.merge(Env::prefixed("ROSTDAV_").split("__"));
+        cfg.set_explicitly = rostdav_app::Tunable::ALL
+            .into_iter()
+            .map(rostdav_app::Tunable::key)
+            .filter(|k| given.contains(k))
+            .map(str::to_owned)
+            .collect();
+        Ok(cfg)
     }
 }
 
@@ -282,6 +300,24 @@ mod tests {
                 "127.0.0.1:9100".parse::<SocketAddr>().expect("addr")
             );
             assert_eq!(cfg.storage.data_dir, PathBuf::from("/srv/rostdav"));
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn settings_given_by_file_or_environment_are_recorded() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file("c.toml", "[versioning]\nmax_versions = 50\n")?;
+            jail.set_env("ROSTDAV_TRASH__RETENTION_DAYS", "30");
+            let cfg = Config::load(Some(Path::new("c.toml"))).map_err(|e| e.to_string())?;
+            // set on purpose, even if the value equals the default
+            let given: Vec<&str> = cfg.set_explicitly.iter().map(String::as_str).collect();
+            assert_eq!(given, ["trash.retention_days", "versioning.max_versions"]);
+            // nothing given: nothing recorded
+            jail.create_file("empty.toml", "")?;
+            jail.clear_env();
+            let cfg = Config::load(Some(Path::new("empty.toml"))).map_err(|e| e.to_string())?;
+            assert!(cfg.set_explicitly.is_empty());
             Ok(())
         });
     }

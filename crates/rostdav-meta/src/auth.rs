@@ -94,6 +94,26 @@ impl Db {
             .map_err(err)
     }
 
+    /// All settings whose key starts with `prefix`.
+    pub async fn settings_with_prefix(&self, prefix: &str) -> Result<Vec<(String, Vec<u8>)>> {
+        sqlx::query_as(
+            "SELECT key, value FROM settings WHERE substr(key, 1, length(?1)) = ?1 ORDER BY key",
+        )
+        .bind(prefix)
+        .fetch_all(self.pool())
+        .await
+        .map_err(err)
+    }
+
+    pub async fn delete_setting(&self, key: &str) -> Result<()> {
+        sqlx::query("DELETE FROM settings WHERE key = ?")
+            .bind(key)
+            .execute(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(())
+    }
+
     /// Stores a setting, replacing an earlier value.
     pub async fn set_setting(&self, key: &str, value: &[u8]) -> Result<()> {
         sqlx::query(

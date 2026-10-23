@@ -53,7 +53,11 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
         .with_audit(rostdav_app::AuditOptions {
             anonymize_ip: cfg.audit.anonymize_ip,
             retention_days: cfg.audit.retention_days,
-        }))
+        })
+        // what the file and the environment leave open can be changed in the web interface
+        .with_locked_settings(cfg.set_explicitly.iter().cloned())
+        .load_setting_overrides()
+        .await?)
 }
 
 /// Where the key for the two-factor secrets comes from (ADR 0007).

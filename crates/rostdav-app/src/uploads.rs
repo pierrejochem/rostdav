@@ -89,7 +89,7 @@ impl AppState {
             .sum();
 
         // The whole upload may not exceed the upload limit or the remaining quota.
-        let limits = &self.inner.config.limits;
+        let limits = self.cfg().limits;
         let mut room = limits.max_upload_bytes.saturating_sub(others);
         let mut quota_bound = false;
         if let Some(h) = self.inner.db.quota_headroom(p.user_id).await? {
@@ -168,10 +168,10 @@ impl AppState {
             Some(a) => authorize_access(p, a, Need::Update)?,
             None => authorize_access(p, &parent, Need::Create)?,
         }
-        if sum > self.inner.config.limits.max_upload_bytes {
+        if sum > self.cfg().limits.max_upload_bytes {
             return Err(Error::TooLarge);
         }
-        let freed = if self.inner.config.versioning.enabled {
+        let freed = if self.cfg().versioning.enabled {
             0
         } else {
             existing
@@ -188,7 +188,7 @@ impl AppState {
         let stored = self
             .inner
             .store
-            .assemble(&dir, self.inner.config.limits.max_upload_bytes)
+            .assemble(&dir, self.cfg().limits.max_upload_bytes)
             .await?;
         let blob = NewBlob {
             id: stored.id.to_string(),

@@ -52,6 +52,20 @@ Walks the directory without following symbolic links (they are skipped and repor
 
 Command line > environment (`ROSTDAV_*`) > configuration file > database (UI) > defaults. Values from the upper levels are read-only in the UI and marked as "set by configuration".
 
+Adjustable in the web interface (Administration, Server), stored in the `settings` table as `cfg.<key>`, applied at once and kept across restarts:
+
+| Key | Meaning |
+|---|---|
+| `limits.default_quota` | Quota of users created from now on |
+| `limits.upload_retention_hours` | Unfinished chunked uploads are removed after this many hours (1 to 8760) |
+| `versioning.max_versions` | Versions kept per file (0 = all) |
+| `versioning.max_age_days` | Versions are removed after this many days (0 = no age limit) |
+| `versioning.max_quota_share_percent` | Share of a user's quota that versions may use (0 = no limit) |
+| `trash.retention_days` | Deleted files are removed after this many days (0 = keep) |
+| `audit.retention_days` | Event log entries are removed after this many days (0 = keep) |
+
+A key that the file or an environment variable sets (even to the default value) is locked: the page shows it as "set by configuration" and a change stored earlier is ignored. "Back to default" removes the change and returns to the value from the file. Everything else (sign-in limits, sessions, locations, security keys) stays in the file. Every change is recorded in the event log (`admin.setting_changed`, with the old and new value).
+
 ## Web sessions
 
 Browser sessions live in the `sessions` table (token hash only). Set the lifetimes in `[web]`:

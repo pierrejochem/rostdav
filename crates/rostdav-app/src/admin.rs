@@ -205,7 +205,7 @@ impl AppState {
                 is_admin,
             })
             .await?;
-        if let Some(q) = self.inner.config.limits.default_quota {
+        if let Some(q) = self.cfg().limits.default_quota {
             self.inner.db.set_quota(u.id, Some(q)).await?;
         }
         self.audit(
@@ -457,15 +457,8 @@ impl AppState {
     /// The effective operating settings, for the administration page (read-only).
     pub fn settings_summary(&self, actor: &Actor<'_>) -> Result<Vec<(&'static str, String)>> {
         actor.require_admin()?;
-        let c = &self.inner.config;
+        let c = self.cfg();
         let on = |b: bool| if b { "on" } else { "off" }.to_owned();
-        let days = |d: u32| {
-            if d == 0 {
-                "keep".to_owned()
-            } else {
-                format!("{d} days")
-            }
-        };
         Ok(vec![
             (
                 "Maximum upload size",
@@ -476,22 +469,7 @@ impl AppState {
                 format!("{} bytes", c.limits.max_chunk_bytes),
             ),
             ("Versioning", on(c.versioning.enabled)),
-            (
-                "Versions kept per file",
-                if c.versioning.max_versions == 0 {
-                    "unlimited".to_owned()
-                } else {
-                    c.versioning.max_versions.to_string()
-                },
-            ),
-            ("Version retention", days(c.versioning.max_age_days)),
-            (
-                "Versions share of quota",
-                format!("{} %", c.versioning.max_quota_share_percent),
-            ),
             ("Trash", on(c.trash.enabled)),
-            ("Trash retention", days(c.trash.retention_days)),
-            ("Event log retention", days(c.audit.retention_days)),
             ("Anonymise addresses in event log", on(c.audit.anonymize_ip)),
             (
                 "Browser session idle timeout",
