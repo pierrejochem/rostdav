@@ -131,5 +131,7 @@ jobs:
         run: |
           flags=""
           case "$GITHUB_REF_NAME" in *-*) flags="--prerelease";; esac
+          # a tag that is pushed again (after a fix) replaces its release; the tag itself stays
+          gh release delete "$GITHUB_REF_NAME" --yes 2>/dev/null || true
           gh release create "$GITHUB_REF_NAME" $flags --title "Rostdav ${{ needs.verify.outputs.version }}" \
             --notes-file notes.md rostdav-*.tar.gz rostdav-*.tar.gz.sha256
