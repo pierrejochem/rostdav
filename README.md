@@ -40,7 +40,7 @@ What has actually been tested with which app version is documented in [docs/comp
 ```text
 crates/
   rostdav-core/      Domain types, errors
-  rostdav-meta/      Metadata database (SQLite, optionally PostgreSQL later)
+  rostdav-meta/      Metadata database (Turso Database, SQLite file format; ADR 0008)
   rostdav-storage/   Blob storage in the data directory
   rostdav-app/       Services: identity, files, versions, shares, admin
   rostdav-dav/       WebDAV adapter

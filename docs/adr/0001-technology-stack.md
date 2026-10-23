@@ -1,6 +1,6 @@
 # ADR 0001: Technology stack
 
-- Status: **Accepted** on 2026-10-21
+- Status: **Accepted** on 2026-10-21. The database engine named below (SQLite) was replaced by Turso Database on 2026-10-23: see [ADR 0008](0008-metadata-database-turso.md).
 - Date: 2026-10-21
 
 ## Context

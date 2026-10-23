@@ -391,6 +391,58 @@ impl Db {
         .map_err(err)
     }
 
+    /// What the engine's own `PRAGMA integrity_check` reports (empty: the file is sound).
+    pub async fn integrity_problems(&self) -> Result<Vec<String>> {
+        let rows: Vec<String> = sql::query_scalar("PRAGMA integrity_check")
+            .fetch_all(self.pool())
+            .await
+            .map_err(err)?;
+        Ok(rows.into_iter().filter(|r| r != "ok").collect())
+    }
+
+    /// Rows whose foreign key points at a row that is not there, as
+    /// `<table> row <id> has no <parent table> <value>`. Cascades should make this impossible;
+    /// this is the check that tells whether they did.
+    ///
+    /// The engine's `PRAGMA foreign_key_check` answers "nothing" whatever the data (it is not
+    /// implemented), so the check is made here, from the schema: every foreign key of every
+    /// table, one query each.
+    pub async fn foreign_key_violations(&self) -> Result<Vec<String>> {
+        let tables: Vec<String> = sql::query_scalar(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'
+             ORDER BY name",
+        )
+        .fetch_all(self.pool())
+        .await
+        .map_err(err)?;
+        let mut found = Vec::new();
+        for t in tables {
+            // (column in this table, parent table, column in the parent)
+            let fks: Vec<(String, String, Option<String>)> = sql::query_as(format!(
+                "SELECT \"from\", \"table\", \"to\" FROM pragma_foreign_key_list('{t}')"
+            ))
+            .fetch_all(self.pool())
+            .await
+            .map_err(err)?;
+            for (col, parent, to) in fks {
+                let to = to.unwrap_or_else(|| "id".to_owned());
+                let missing: Vec<i64> = sql::query_scalar(format!(
+                    "SELECT c.rowid FROM \"{t}\" c
+                     WHERE c.\"{col}\" IS NOT NULL
+                       AND NOT EXISTS (SELECT 1 FROM \"{parent}\" p WHERE p.\"{to}\" = c.\"{col}\")
+                     LIMIT 20"
+                ))
+                .fetch_all(self.pool())
+                .await
+                .map_err(err)?;
+                for id in missing {
+                    found.push(format!("{t} row {id} has no {parent} for {col}"));
+                }
+            }
+        }
+        Ok(found)
+    }
+
     pub async fn usage_mismatches(&self) -> Result<Vec<UsageMismatch>> {
         let rows: Vec<(i64, String, i64, i64)> = sql::query_as(
             "SELECT u.id, u.name, u.used_bytes,
@@ -616,6 +668,50 @@ mod tests {
         db.delete_user(a).await.expect("delete");
         assert!(db.resolve(b, &path).await.expect("r").is_some());
         assert!(matches!(db.delete_user(a).await, Err(Error::NotFound)));
+    }
+
+    #[tokio::test]
+    async fn the_database_checks_find_a_row_without_its_parent() {
+        let (_d, db) = test_db().await;
+        assert!(db.integrity_problems().await.expect("integrity").is_empty());
+        assert!(db.foreign_key_violations().await.expect("fk").is_empty());
+        let (_, root) = {
+            let u = db
+                .create_user(crate::NewUser {
+                    name: "anna",
+                    password_hash: "h",
+                    is_admin: false,
+                })
+                .await
+                .expect("user");
+            (u.id, db.root_node(u.id).await.expect("root").id)
+        };
+        let dir = db
+            .create_dir(root, &Name::parse("d").expect("n"))
+            .await
+            .expect("d");
+        db.create_dir(dir.id, &Name::parse("c").expect("n"))
+            .await
+            .expect("c");
+        // delete the parent with the checks switched off: the child is left without a parent
+        let w = db.pool().writer().await;
+        w.execute("PRAGMA foreign_keys = OFF", ())
+            .await
+            .expect("off");
+        w.execute(&format!("DELETE FROM nodes WHERE id = {}", dir.id), ())
+            .await
+            .expect("delete");
+        w.execute("PRAGMA foreign_keys = ON", ()).await.expect("on");
+        drop(w);
+        let orphans: i64 = sql::query_scalar("SELECT count(*) FROM nodes WHERE parent_id = ?")
+            .bind(dir.id)
+            .fetch_one(db.pool())
+            .await
+            .expect("count");
+        assert_eq!(orphans, 1, "the test needs a child whose parent is gone");
+        let found = db.foreign_key_violations().await.expect("fk");
+        assert_eq!(found.len(), 1, "{found:?}");
+        assert!(found[0].starts_with("nodes row "), "{found:?}");
     }
 
     #[tokio::test]

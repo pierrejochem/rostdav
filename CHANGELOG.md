@@ -12,6 +12,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- **Database engine: Turso Database instead of SQLite** ([ADR 0008](docs/adr/0008-metadata-database-turso.md)). Same file format and file name; no C library any more. Existing databases are converted on the first start (take a backup first). Small files are slower (about 245 uploads/s instead of 420, 660 downloads/s instead of 1100 in the load test), large files and listings are not; the binary grows from about 20 MB to 47 MB.
+- `rostdav admin fsck` (and the status page) now also run the database's integrity check and look for rows whose parent row is gone.
 - The page upload no longer probes every file with a request that answers 404 (it starts the transfer and reads it only when it exists).
 
 ## [0.2.0] - 2026-10-23

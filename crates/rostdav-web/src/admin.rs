@@ -729,7 +729,7 @@ pub async fn check(
         )
     };
     let report = format!(
-        "<h3>{}</h3><table><tbody>{}{}{}{}{}{}{}</tbody></table>",
+        "<h3>{}</h3><table><tbody>{}{}{}{}{}{}{}{}</tbody></table>",
         esc(&tf(
             lang,
             "Result: {0}",
@@ -745,6 +745,10 @@ pub async fn check(
         line("Files checked", r.blobs_checked),
         line("Missing files (not repairable)", r.missing_blobs.len()),
         line("Corrupt files", r.corrupt_blobs.len()),
+        line(
+            "Database problems",
+            r.database_problems.len() + r.orphan_rows.len()
+        ),
         line("Unreferenced files", r.orphan_blobs.len()),
         line("Wrong usage counters", r.usage_mismatches.len()),
         line("Orphan upload folders", r.orphan_session_dirs.len()),

@@ -139,6 +139,10 @@ pub struct FsckReport {
     pub orphan_session_dirs: Vec<String>,
     /// Upload sessions whose directory is gone.
     pub sessions_without_dir: Vec<String>,
+    /// Problems the database reports about itself (`integrity_check`). Not repairable.
+    pub database_problems: Vec<String>,
+    /// Rows whose parent row is gone (`foreign_key_check`). Not repairable.
+    pub orphan_rows: Vec<String>,
     pub repaired: bool,
 }
 
@@ -147,6 +151,8 @@ impl FsckReport {
     pub fn is_clean(&self) -> bool {
         self.missing_blobs.is_empty()
             && self.corrupt_blobs.is_empty()
+            && self.database_problems.is_empty()
+            && self.orphan_rows.is_empty()
             && (self.repaired
                 || (self.orphan_blobs.is_empty()
                     && self.usage_mismatches.is_empty()
@@ -597,6 +603,8 @@ impl AppState {
             }
         }
 
+        report.database_problems = db.integrity_problems().await?;
+        report.orphan_rows = db.foreign_key_violations().await?;
         report.usage_mismatches = db.usage_mismatches().await?;
         if opts.repair {
             for m in &report.usage_mismatches {

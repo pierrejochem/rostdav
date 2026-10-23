@@ -89,3 +89,26 @@ async fn deleting_a_user_of_an_old_database_removes_the_whole_tree() {
         1
     );
 }
+
+/// The self-check must not say "fine" about a damaged file (a check that always passes is worse
+/// than none): overwrite pages in the middle of a copy and expect an error or a report.
+#[tokio::test]
+async fn the_integrity_check_notices_a_damaged_file() {
+    let (dir, url) = copy_fixture();
+    let path = dir.path().join("rostdav.sqlite");
+    let mut bytes = std::fs::read(&path).expect("read");
+    assert!(bytes.len() > 64 * 1024, "fixture is big enough");
+    for b in &mut bytes[8192..8192 + 16384] {
+        *b = 0xA5;
+    }
+    std::fs::write(&path, &bytes).expect("write");
+    let verdict = match Db::open(&url).await {
+        Err(_) => "open failed".to_owned(),
+        Ok(db) => match db.integrity_problems().await {
+            Err(e) => format!("check failed: {e}"),
+            Ok(p) if !p.is_empty() => format!("reported: {p:?}"),
+            Ok(_) => "NOTHING FOUND".to_owned(),
+        },
+    };
+    assert_ne!(verdict, "NOTHING FOUND", "damaged file passed the check");
+}

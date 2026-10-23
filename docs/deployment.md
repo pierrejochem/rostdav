@@ -71,7 +71,7 @@ Template: [`rostdav.example.toml`](../rostdav.example.toml). Precedence: environ
 | `server.trusted_proxies` | Addresses of reverse proxies whose `X-Forwarded-For` is believed (exact addresses, no ranges) | none |
 | `server.public_url` | Address users and apps use, e.g. `https://files.example.org` | from the request |
 | `storage.data_dir` | Data directory | `./data` |
-| `database.url` | Database | `sqlite://<data_dir>/db/rostdav.sqlite` |
+| `database.url` | Database file (`sqlite://<path>`; the file format is SQLite's) | `sqlite://<data_dir>/db/rostdav.sqlite` |
 | `limits.*`, `versioning.*`, `trash.*`, `audit.*`, `web.*` | Limits and retention, see [admin.md](admin.md) | |
 | `security.totp_key`, `security.totp_key_file` | Key for two-factor secrets, see [admin.md](admin.md) | `<data_dir>/totp.key` |
 | `log.format`, `log.level` | `json` or `pretty`; `info` (`RUST_LOG` wins) | `json`, `info` |
@@ -83,7 +83,7 @@ data/
   blobs/    file contents (immutable)
   tmp/      writes in progress (cleaned at start)
   uploads/  chunks of unfinished chunked uploads
-  db/       SQLite database
+  db/       metadata database (Turso Database, SQLite file format)
   totp.key  key for two-factor secrets (created at the first setup)
 ```
 
@@ -158,7 +158,7 @@ Browser: `https://<domain>/`. Nextcloud app: enter the server address; the app o
 - `GET /healthz` (process alive), `GET /readyz` (database reachable), `rostdav healthcheck` (what the container health check runs).
 - Logs: JSON lines on stdout; request lines carry method, path (tokens in paths are masked), status and latency; no secrets, no `Authorization` or cookies.
 - Event log: Administration › Event log, `rostdav admin audit export`.
-- Disk space of the data directory and the size of `db/rostdav.sqlite` are the things to watch. `rostdav admin fsck` compares database and files.
+- Disk space of the data directory and the size of `db/rostdav.sqlite` are the things to watch. `rostdav admin fsck` compares database and files, runs the database's own integrity check and looks for rows whose parent row is gone. The database engine (Turso Database) is young: run `fsck` now and then, and keep backups.
 
 ## Backup and restore
 
@@ -192,6 +192,8 @@ Files written after the snapshot were not part of it and are lost; blobs written
 
 Rollback means restoring the backup together with the old binary.
 
+**From a SQLite-based version (0.2.x or older) to the Turso-based one:** take the backup first, then start the new version. On its first start it adopts the migration history of the old database, rebuilds the `favorites` table as an ordinary table (the new engine cannot write to a `WITHOUT ROWID` table) and adds some indexes; this is logged and takes moments. The file keeps its name and its SQLite format, but the old versions were not tested against a file that the new engine has written: the way back is the backup. See [ADR 0008](adr/0008-metadata-database-turso.md).
+
 ## Hardening checklist
 
 - Rostdav listens on a private address only; the proxy is the only way in.
@@ -215,12 +217,14 @@ Rollback means restoring the backup together with the old binary.
 
 ## Measured performance (load tests)
 
-`cargo test --release -p rostdav --test load -- --ignored --nocapture --test-threads=1`, 2026-10-22, one developer machine (Linux, local SSD, release build). The tests call the router in-process: no TCP, TLS or reverse proxy, so these numbers are what the application itself does, not what a client sees. SQLite runs with `synchronous = FULL` (every commit is fsynced).
+`cargo test --release -p rostdav --test load -- --ignored --nocapture --test-threads=1`, 2026-10-22 and 2026-10-23, one developer machine (Linux, release build, test data on a RAM-backed `/tmp`). The tests call the router in-process: no TCP, TLS or reverse proxy, so these numbers are what the application itself does, not what a client sees.
 
-| Scenario | Result |
-|---|---|
-| One 512 MiB file | upload 480 MiB/s, download 197 MiB/s, peak memory 29 → 33 MiB (the file is streamed) |
-| 5000 small files (1 KiB, sequential) | PUT ≈ 420 files/s, PROPFIND depth 1 of all 5000 in 146 ms (1.9 MB of XML), GET ≈ 1100 files/s |
-| 32 parallel uploads of 8 MiB (16 plain, 16 chunked) | 256 MiB in 0.56 s, all files complete and not mixed up, peak memory 157 MiB |
+| Scenario | SQLite (0.2.0) | Turso Database |
+|---|---|---|
+| One 512 MiB file | upload 480 MiB/s, download 197 MiB/s | upload 799 MiB/s, download 202 MiB/s (the file is streamed in both: peak memory about 57 MiB) |
+| 5000 small files (1 KiB, sequential) | PUT ≈ 420 files/s | PUT ≈ 245 files/s |
+| the same files | PROPFIND depth 1 of all 5000: 146 ms | 163 ms |
+| the same files | GET ≈ 1100 files/s | GET ≈ 660 files/s |
+| 32 parallel uploads of 8 MiB | 256 MiB in 0.56 s | 256 MiB in 0.43 s, all complete and not mixed up, peak memory about 200 MiB |
 
-Small-file throughput is bound by the fsync of each commit, not by the CPU. Only sequential small files were measured, not many clients with many files.
+Small files cost more with the new engine: a call to it takes about 70 µs where SQLite took a few, and a PUT makes 18 statements, a GET 9. Large files, listings and parallel uploads are not affected. Only sequential small files were measured, not many clients with many files. The release binary is 47 MB (it was about 20 MB), and a first build takes much longer, because the engine is compiled with it.

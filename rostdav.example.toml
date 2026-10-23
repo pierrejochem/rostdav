@@ -15,7 +15,8 @@ listen = "127.0.0.1:8080"
 data_dir = "./data"
 
 [database]
-# If omitted: sqlite://<data_dir>/db/rostdav.sqlite
+# If omitted: sqlite://<data_dir>/db/rostdav.sqlite (the file is SQLite's format, written by the
+# Turso Database engine)
 # url = "sqlite:///srv/rostdav/db/rostdav.sqlite"
 
 [compat]

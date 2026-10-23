@@ -34,7 +34,7 @@ flowchart TB
     FS --> STORE[storage: blob store]
     JOBS[Background tasks] --> APP
   end
-  META --> DB[(SQLite / PostgreSQL)]
+  META --> DB[(Turso Database, SQLite file format)]
   STORE --> DISK[(Data directory)]
 ```
 
@@ -148,4 +148,4 @@ Precedence: command line > environment variables (`ROSTDAV_*`) > configuration f
 - One binary plus data directory (`db/`, `blobs/`, `tmp/`, `uploads/`), container image based on `distroless` or `scratch`.
 - Run behind a reverse proxy with TLS; Rostdav itself speaks HTTP on localhost or an internal network.
 - `/healthz` (process is alive) and `/readyz` (database and storage reachable).
-- Backup: SQLite online backup or `pg_dump`, then the blob directory. Since blobs are immutable, this order is consistent.
+- Backup: `rostdav admin backup` (`VACUUM INTO`, while the server runs), then the blob directory. Since blobs are immutable, this order is consistent.

@@ -1,6 +1,6 @@
 # ADR 0002: Storage model for files and metadata
 
-- Status: **Accepted** (approval point 2, 2026-10-21)
+- Status: **Accepted** (approval point 2, 2026-10-21). The schema and file format stand; the database engine is now Turso Database ([ADR 0008](0008-metadata-database-turso.md)).
 - Date: 2026-10-21
 
 ## Context

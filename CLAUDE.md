@@ -18,6 +18,10 @@ The binding working rules are in [AGENTS.md](AGENTS.md). The full project instru
 
 `v0.1.0` is published (2026-10-23): tag push starts `.github/workflows/release.yml` (verify tag against `Cargo.toml` and `CHANGELOG.md`, tests; then per architecture amd64 and arm64: build the image, check it, take the binary out of it, push by digest; then one multi-arch tag set on ghcr.io; GitHub release with notes from `CHANGELOG.md`). The arm64 part is new since 0.1.0 and has not run yet: watch the first run after a tag push. To release: bump `version` in `Cargo.toml`, add a `## [x.y.z] - date` section to `CHANGELOG.md`, commit, `git tag -a vX.Y.Z`, push `main` and the tag. CI includes `cargo deny`; run it locally (`cargo install cargo-deny`) before a release. The history was rewritten once on 2026-10-23 to drop two commit trailers; `v0.1.0` was re-created on the new commit.
 
+## Database
+
+The metadata database is Turso Database (SQLite file format) behind `crates/rostdav-meta/src/sql.rs`, since 2026-10-23 ([ADR 0008](docs/adr/0008-metadata-database-turso.md)); `v0.2.0` is the last SQLite/sqlx version. Things that bit us and are guarded by tests: one writer (concurrent writers get `Busy`), cascades need a plain index on every foreign key column (`every_foreign_key_has_a_plain_index_for_cascades`), `PRAGMA foreign_key_check` does nothing (`fsck` checks it itself), `WITHOUT ROWID` cannot be written, and the planner does not use our partial unique index for lookups (`nodes_child_lookup`). Look at `EXPLAIN QUERY PLAN` after changing the schema.
+
 ## Commands
 
 ```sh

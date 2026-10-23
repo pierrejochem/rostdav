@@ -350,6 +350,12 @@ async fn fsck(
             "DAMAGE   blob {id} differs from its recorded size or checksum"
         )?;
     }
+    for p in &r.database_problems {
+        writeln!(out, "DAMAGE   database: {p}")?;
+    }
+    for p in &r.orphan_rows {
+        writeln!(out, "DAMAGE   database: {p}")?;
+    }
     for id in &r.orphan_blobs {
         writeln!(out, "orphan   blob file {id} {verb}")?;
     }
