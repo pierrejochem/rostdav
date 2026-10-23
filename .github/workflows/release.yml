@@ -1,11 +1,12 @@
-# Release: runs when a version tag is pushed (git tag v0.1.0 && git push origin v0.1.0).
+# Release: runs when a tag starting with v is pushed (git tag v0.1.0 && git push origin v0.1.0).
 # It checks the tag against Cargo.toml and CHANGELOG.md, runs the tests, builds the Linux binary
 # and the container image (ghcr.io/<owner>/rostdav), and creates the GitHub release.
 name: Release
 
 on:
   push:
-    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+    # a plain filter: GitHub's glob is ambiguous for "+*"; the verify job rejects tags that are no release
+    tags: ["v*"]
 
 permissions:
   contents: read
