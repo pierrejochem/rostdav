@@ -13,7 +13,7 @@ fn err(e: sqlx::Error) -> Error {
     Error::internal(e)
 }
 
-type SummaryRow = (i64, String, bool, bool, Option<i64>, i64, i64, i64);
+type SummaryRow = (i64, String, bool, bool, Option<i64>, i64, i64, i64, bool);
 type EventRow = (i64, i64, String, String, String, String, String);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -26,6 +26,8 @@ pub struct UserSummary {
     pub used_bytes: i64,
     pub created_at: i64,
     pub devices: i64,
+    /// Two-factor authentication is on.
+    pub two_factor: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -53,7 +55,8 @@ impl Db {
     pub async fn list_users(&self) -> Result<Vec<UserSummary>> {
         let rows: Vec<SummaryRow> = sqlx::query_as(
             "SELECT u.id, u.name, u.is_admin, u.disabled, u.quota_bytes, u.used_bytes, u.created_at,
-                    (SELECT count(*) FROM app_passwords a WHERE a.user_id = u.id)
+                    (SELECT count(*) FROM app_passwords a WHERE a.user_id = u.id),
+                    EXISTS (SELECT 1 FROM totp t WHERE t.user_id = u.id AND t.enabled_at IS NOT NULL)
              FROM users u ORDER BY u.name_key",
         )
         .fetch_all(self.pool())
@@ -62,7 +65,17 @@ impl Db {
         Ok(rows
             .into_iter()
             .map(
-                |(id, name, is_admin, disabled, quota_bytes, used_bytes, created_at, devices)| {
+                |(
+                    id,
+                    name,
+                    is_admin,
+                    disabled,
+                    quota_bytes,
+                    used_bytes,
+                    created_at,
+                    devices,
+                    two_factor,
+                )| {
                     UserSummary {
                         id,
                         name,
@@ -72,6 +85,7 @@ impl Db {
                         used_bytes,
                         created_at,
                         devices,
+                        two_factor,
                     }
                 },
             )

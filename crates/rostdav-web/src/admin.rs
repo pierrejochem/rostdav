@@ -170,10 +170,18 @@ pub async fn users(
                 esc(&t(lang, if u.disabled { "Enable" } else { "Disable" })),
             )
         };
+        let twofa = if u.two_factor {
+            format!(
+                "<span class=\"chip\" title=\"{}\">2FA</span>",
+                esc(&t(lang, "Two-factor authentication is on for this user."))
+            )
+        } else {
+            String::new()
+        };
         rows.push_str(&format!(
             "<li class=\"row userrow{}\">{}<div class=\"row-text\"><b>{}</b><span class=\"muted\">{}</span></div>\
              <span class=\"u-storage\">{storage}</span>\
-             <span class=\"chip {}\">{}</span>\
+             {twofa}<span class=\"chip {}\">{}</span>\
              <div class=\"row-actions\"><a class=\"button\" href=\"/admin/users/manage?name={}\" aria-label=\"{}\">{}</a>{toggle}</div></li>",
             if u.disabled { " off" } else { "" },
             ui::avatar(&u.name),

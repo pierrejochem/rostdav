@@ -3495,6 +3495,9 @@ async fn administrator_can_reset_two_factor() {
             .text()
             .contains("is off for this user")
     );
+    // the user list marks who has it on (anna only)
+    let list = get(&e, "/admin/users", &root).await.text();
+    assert_eq!(list.matches(">2FA</span>").count(), 1, "{list}");
     assert!(
         get(&e, "/admin/users/two-factor-reset?name=anna", &root)
             .await
@@ -3548,6 +3551,13 @@ async fn administrator_can_reset_two_factor() {
         "her browser sessions ended"
     );
     assert_eq!(password_step(&e, "anna").await.h("location"), "/files");
+    assert!(
+        !get(&e, "/admin/users", &root)
+            .await
+            .text()
+            .contains(">2FA</span>"),
+        "the mark is gone after the reset"
+    );
     let log = get(&e, "/admin/events", &root).await.text();
     assert!(log.contains("admin.2fa_reset") && log.contains("auth.2fa_enabled"));
 }
