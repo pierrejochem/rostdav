@@ -240,6 +240,20 @@ Server address entered as `http://10.0.2.2:8081`. The app was driven through `ad
 
 Both bugs were invisible to the contract tests because the fixtures contained neither request.
 
+## M6: the Nextcloud desktop sync client (nextcloudcmd 4.0.6, Linux, 2026-10-23)
+
+`nextcloudcmd` is the sync engine of the desktop client without the GUI, so the sync logic is the real one; the GUI, the file-manager integration and virtual files were not tried. Account password sign-in (no 2FA). Two local folders against one Rostdav account, current build.
+
+| Step | Result |
+|---|---|
+| First sync of a folder with a subfolder, a file with umlauts in its name, a 20 MB file | uploaded (MKCOL 201, PUT 201); contents equal |
+| Second machine syncs into an empty folder | all files downloaded, 20 MB file has the same SHA-256 |
+| Edit a file, rename a folder, delete a file, add a 120 MB file | changes propagate to the other machine; the 120 MB file uses chunked upload v2 (`PropagateUploadFileNG`), hash equal |
+| The edit creates a version, the deleted file is in the trash | confirmed with `PROPFIND` on `versions/` and `trashbin/` |
+| Sync again on both machines | nothing transferred, trees identical, no 5xx in the server log |
+
+Noted, not a Rostdav defect: after every `MKCOL` that answers 201 the client logs "Network request error … HTTP status 201" and "An unexpected error occurred". The Nextcloud 35.0.2 reference produces the same lines for the same sync, and the folder is created.
+
 ## Favorites
 
 Source: Nextcloud 35.0.2 reference, 2026-10-23, and the Android app (M6).
