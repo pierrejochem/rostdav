@@ -74,12 +74,12 @@ impl State {
     }
 }
 
-fn name_of(ns: &ResolveResult<'_>, local: &[u8]) -> PropName {
+fn name_of(ns: &ResolveResult<'_>, local: &str) -> PropName {
     let ns = match ns {
-        ResolveResult::Bound(n) => String::from_utf8_lossy(n.as_ref()).into_owned(),
+        ResolveResult::Bound(n) => n.as_ref().to_owned(),
         _ => String::new(),
     };
-    (ns, String::from_utf8_lossy(local).into_owned())
+    (ns, local.to_owned())
 }
 
 /// Rejects unbound prefixes and `xmlns:p=""` (invalid in XML Namespaces 1.0).
@@ -91,7 +91,7 @@ fn check_element(ns: &ResolveResult<'_>, e: &quick_xml::events::BytesStart<'_>) 
     for attr in e.attributes() {
         let attr = attr.map_err(|_| Error::BadRequest("malformed XML"))?;
         let key = attr.key.as_ref();
-        if key.starts_with(b"xmlns:") && attr.value.is_empty() {
+        if key.starts_with("xmlns:") && attr.value.is_empty() {
             return Err(bad());
         }
     }
@@ -283,8 +283,21 @@ fn read_elements(body: &[u8]) -> Result<Vec<Elem>> {
                 open.pop();
             }
             Event::Text(t) => {
-                if let (Some(&i), Ok(t)) = (open.last(), t.unescape()) {
-                    out[i].text.push_str(&t);
+                if let Some(&i) = open.last() {
+                    out[i].text.push_str(&t.xml10_content());
+                }
+            }
+            // `&amp;`, `&#65;` and the like: the reader reports references on their own. An
+            // entity that is not predefined (a DOCTYPE is refused anyway) adds nothing.
+            Event::GeneralRef(r) => {
+                if let Some(&i) = open.last() {
+                    if let Ok(Some(c)) = r.resolve_char_ref() {
+                        out[i].text.push(c);
+                    } else if let Some(v) =
+                        quick_xml::escape::resolve_predefined_entity(&r.xml10_content())
+                    {
+                        out[i].text.push_str(v);
+                    }
                 }
             }
             Event::Eof => break,
@@ -371,6 +384,27 @@ mod tests {
 
     fn dav(l: &str) -> PropName {
         (DAV_NS.to_owned(), l.to_owned())
+    }
+
+    #[test]
+    fn character_data_resolves_references() {
+        // quick-xml reports `&amp;` and `&#65;` as events of their own; the text must still be whole
+        let body = br#"<d:propertyupdate xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:set><d:prop>
+            <oc:note>a &amp; b &lt;c&gt; &#65;&#x42; &quot;q&quot; end</oc:note></d:prop></d:set></d:propertyupdate>"#;
+        let u = parse_propertyupdate(body).expect("parse");
+        assert_eq!(u.len(), 1);
+        assert_eq!(u[0].value.as_deref(), Some("a & b <c> AB \"q\" end"));
+        // an entity that is not predefined adds nothing, and a DOCTYPE is still refused
+        let odd =
+            br#"<d:propertyupdate xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:set><d:prop>
+            <oc:note>x&nope;y</oc:note></d:prop></d:set></d:propertyupdate>"#;
+        assert_eq!(
+            parse_propertyupdate(odd).expect("parse")[0]
+                .value
+                .as_deref(),
+            Some("xy")
+        );
+        assert!(parse_propertyupdate(b"<!DOCTYPE a [<!ENTITY x 'y'>]><a/>").is_err());
     }
 
     #[test]

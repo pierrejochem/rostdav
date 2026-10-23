@@ -222,10 +222,10 @@ fn prop_statuses(xml: &str) -> BTreeMap<String, BTreeMap<String, u16>> {
     let (mut in_prop, mut depth) = (false, 0usize);
     loop {
         let (ns, ev) = rd.read_resolved_event().expect("xml");
-        let is_dav = matches!(&ns, ResolveResult::Bound(n) if n.as_ref() == b"DAV:");
+        let is_dav = matches!(&ns, ResolveResult::Bound(n) if n.as_ref() == "DAV:");
         match ev {
             Event::Start(e) => {
-                let local = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
+                let local = e.local_name().as_ref().to_owned();
                 if in_prop {
                     if depth == 0 {
                         props.push(local);
@@ -243,11 +243,11 @@ fn prop_statuses(xml: &str) -> BTreeMap<String, BTreeMap<String, u16>> {
             }
             Event::Empty(e) => {
                 if in_prop && depth == 0 {
-                    props.push(String::from_utf8_lossy(e.local_name().as_ref()).into_owned());
+                    props.push(e.local_name().as_ref().to_owned());
                 }
             }
             Event::Text(t) => {
-                let s = t.unescape().expect("text").into_owned();
+                let s = t.xml10_content().into_owned();
                 if in_href {
                     href.push_str(&s);
                 } else if in_status {
@@ -268,7 +268,7 @@ fn prop_statuses(xml: &str) -> BTreeMap<String, BTreeMap<String, u16>> {
                 }
             }
             Event::End(e) => {
-                let local = String::from_utf8_lossy(e.local_name().as_ref()).into_owned();
+                let local = e.local_name().as_ref().to_owned();
                 if in_prop {
                     if depth == 0 {
                         in_prop = false;

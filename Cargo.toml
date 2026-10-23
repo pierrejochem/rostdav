@@ -45,7 +45,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"]
 tempfile = "3"
 unicode-normalization = "0.1"
 percent-encoding = "2"
-quick-xml = "0.37"
+quick-xml = "0.42"
 tokio-util = { version = "0.7", features = ["io"] }
 httpdate = "1"
 mime_guess = "2"
