@@ -51,6 +51,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/admin/server`, `POST /admin/server/{set,reset}` | Administration: adjustable limits (quota for new users, unfinished-upload expiry, version, trash and event log retention; "Back to default"), and the other effective settings (read-only) |
 | `/admin/security`, `POST /admin/security/{maintenance,unlock}` | Administration: maintenance mode on/off; active sign-in lockouts (address, user, two-factor) with "Unlock" |
 | `/login/2fa`, `/settings/2fa[/disable\|/codes]` | Second sign-in step; set up, turn off and recovery codes of two-factor authentication (ADR 0007); admin reset at `/admin/users/two-factor-reset` |
+| (all sign-in pages) | Layout of `layout::bare`: a dark brand panel with the full logo (`assets/brand/rostdav-logo-dark.svg`, put into the page so the wordmark uses Space Grotesk; the file's own dark tile is cut out) beside the form; below 860 px the panel is a band above it. This replaces the single folder tile of `design/mockups/web-ui/Login.html`; the mockup was not updated. |
 | `/login/v2/flow/<token>` | Connect device (Login Flow v2; second step on the same page) |
 | `/static/{app,login}.css` | Embedded stylesheets |
 

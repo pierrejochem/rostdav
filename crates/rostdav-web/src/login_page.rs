@@ -23,7 +23,7 @@ fn page(lang: Lang, status: StatusCode, title: &str, body: &str) -> Response {
         status,
         title,
         &format!(
-            "<div class=\"brand\">rost<b>dav</b></div>{body}<div class=\"foot\">{}</div>",
+            "{body}<div class=\"foot\">{}</div>",
             esc(&t(
                 lang,
                 "Rostdav · compatible with Nextcloud clients · not a Nextcloud product"

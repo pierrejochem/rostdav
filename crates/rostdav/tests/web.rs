@@ -4750,3 +4750,86 @@ async fn pages_offer_dropzones_and_load_the_scripts_the_policy_allows() {
         assert!(r.text().contains(needle), "{name}");
     }
 }
+
+#[tokio::test]
+async fn sign_in_pages_show_the_full_logo_beside_the_form() {
+    let e = env().await;
+    let flow = e
+        .state
+        .start_login_flow("Nextcloud-Android/3.30")
+        .await
+        .expect("flow");
+    for (what, uri) in [
+        ("sign-in", "/login".to_owned()),
+        (
+            "device connection",
+            format!("/login/v2/flow/{}", flow.login_token),
+        ),
+    ] {
+        let r = send(&e, "GET", &uri, &[], Body::empty()).await;
+        assert_eq!(r.status, StatusCode::OK, "{what}");
+        let html = r.text();
+        // brand panel and form side by side; the logo of assets/brand is in the page itself
+        assert!(
+            html.contains("<main class=\"auth\">") && html.contains("class=\"auth-brand\""),
+            "{what}"
+        );
+        assert!(html.contains("<section class=\"auth-form\">"), "{what}");
+        assert!(
+            html.contains("<svg class=\"auth-logo\" viewBox=\"0 0 480 128\" role=\"img\" aria-label=\"Rostdav\">"),
+            "{what}: inline logo"
+        );
+        assert!(
+            html.contains(
+                "<tspan fill=\"#F4EFE8\">rost</tspan><tspan fill=\"#E8783A\">dav</tspan>"
+            ),
+            "{what}: wordmark"
+        );
+        assert!(
+            !html.contains("<rect width=\"480\" height=\"128\""),
+            "{what}: the dark tile of the file is left out"
+        );
+        assert!(
+            !html.contains("class=\"brand\"") && !html.contains("class=\"hero\""),
+            "{what}: old header gone"
+        );
+        assert!(
+            html.contains("Your files, on your own server.")
+                && html.contains("Works with the Nextcloud apps"),
+            "{what}"
+        );
+        // the form is still there and nothing needs an inline script or an image from elsewhere
+        assert!(
+            html.contains("name=\"password\"") && html.contains("name=\"csrf\""),
+            "{what}"
+        );
+        assert!(
+            !html.contains("<script>") && !html.contains("<img"),
+            "{what}"
+        );
+        let csp = r.h("content-security-policy");
+        assert!(
+            csp.contains("script-src 'self'") && !csp.contains("unsafe-inline"),
+            "{what}: {csp}"
+        );
+    }
+    // German
+    let r = send(
+        &e,
+        "GET",
+        "/login",
+        &[("accept-language", "de-DE,de;q=0.9")],
+        Body::empty(),
+    )
+    .await;
+    let html = r.text();
+    assert!(
+        html.contains("Deine Dateien auf deinem eigenen Server.")
+            && html.contains("Optionale Zwei-Faktor-Anmeldung")
+    );
+    // the wordmark font is one the page serves, so the inline logo can use it
+    let css = send(&e, "GET", "/static/app.css", &[], Body::empty())
+        .await
+        .text();
+    assert!(css.contains("Space Grotesk") && css.contains(".auth-brand{"));
+}

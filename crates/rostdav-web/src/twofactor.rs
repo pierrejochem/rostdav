@@ -161,7 +161,7 @@ fn second_step_page(
         status,
         "Confirm your sign-in",
         &format!(
-            "<div class=\"brand\">rost<b>dav</b></div>{}<p class=\"foot\"><a href=\"/login\">{}</a></p>",
+            "{}<p class=\"foot\"><a href=\"/login\">{}</a></p>",
             second_step_card(
                 lang,
                 &StepCard {

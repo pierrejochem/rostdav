@@ -78,16 +78,23 @@ input[type=checkbox],input[type=radio]{accent-color:#C2491D;width:18px;height:18
 .empty{padding:36px;text-align:center;color:var(--text-2)}
 
 /* sign-in and public pages */
-main.bare-main{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;padding:40px 16px}
-.hero{width:112px;height:112px;border-radius:32px;display:flex;align-items:center;justify-content:center;transform:perspective(700px) rotateX(12deg) rotateY(-14deg);background:var(--glass);border:1px solid var(--glass-border);box-shadow:inset 0 2px 0 var(--glass-hi),inset 0 -2px 0 var(--glass-lo),0 36px 64px -22px rgba(194,73,29,.85),0 12px 24px -12px rgba(0,0,0,.6)}
-.hero svg{width:78px;height:72px;filter:drop-shadow(0 10px 14px rgba(194,73,29,.65))}
-.brand{font-size:38px;letter-spacing:-1.5px;text-align:center}
+.auth{width:min(1080px,calc(100% - 32px));margin:auto;min-height:min(680px,calc(100vh - 48px));display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);border-radius:36px;overflow:hidden;border:1px solid var(--glass-border);box-shadow:0 44px 80px -32px rgba(122,42,18,.55),0 16px 32px -18px rgba(0,0,0,.35)}
+body.bare{display:flex;min-height:100vh;padding:24px 0}
+.auth-brand{position:relative;display:flex;align-items:center;padding:56px 52px;color:#F4EFE8;background:radial-gradient(120% 90% at 0% 0%,rgba(232,120,58,.40),transparent 55%),radial-gradient(90% 70% at 100% 100%,rgba(194,73,29,.30),transparent 60%),#15171C}
+.auth-logo{display:block;width:min(100%,400px);height:auto}
+.auth-tag{margin:30px 0 20px;font-size:23px;font-weight:600;letter-spacing:-.4px;line-height:1.25;color:#F4EFE8}
+.auth-points{list-style:none;margin:0;padding:0;display:grid;gap:13px;font-size:15px;color:#D5CCC2}
+.auth-points li{display:flex;align-items:center;gap:13px}
+.auth-points li::before{content:"";flex:none;width:9px;height:9px;border-radius:2px;background:#E8783A;transform:rotate(12deg)}
+.auth-form{display:flex;flex-direction:column;justify-content:center;gap:22px;padding:52px 48px;background:var(--glass);-webkit-backdrop-filter:blur(24px) saturate(160%);backdrop-filter:blur(24px) saturate(160%)}
+.auth-form .card{max-width:none;padding:0;border:0;border-radius:0;background:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.auth-form .foot{margin:0;font-size:13px;color:var(--text-2)}
+@media (max-width:860px){body.bare{padding:16px 0}.auth{grid-template-columns:minmax(0,1fr);min-height:0;border-radius:28px}.auth-brand{padding:30px 28px 26px}.auth-logo{width:min(78%,280px)}.auth-tag{margin:18px 0 0;font-size:18px}.auth-points{display:none}.auth-form{padding:30px 24px}}
 .card{width:100%;max-width:448px;border-radius:30px;padding:32px;display:flex;flex-direction:column;gap:20px}
 .card h1{margin:0}
 .card p{color:var(--text-2);margin:8px 0 0}
 .card form{display:flex;flex-direction:column;gap:14px}
 .card form button.primary,.card form button.allow{min-height:52px;font-size:16px}
-.card .brand{display:none}
 .client{display:flex;flex-direction:column;padding:14px;border-radius:18px;background:var(--chip);border:1px solid var(--glass-border)}
 .client b{font-size:15px}.client span{font-size:13px;color:var(--text-2)}
 button.allow{border:1px solid rgba(255,170,120,.55);background:linear-gradient(180deg,#CF5723,#9A3612);color:#fff;font-weight:700}

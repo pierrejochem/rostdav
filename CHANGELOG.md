@@ -2,6 +2,12 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). What was tested with which client version is in [docs/compatibility.md](docs/compatibility.md); the design decisions are in [docs/adr/](docs/adr/).
 
+## [Unreleased]
+
+### Changed
+
+- Sign-in pages (sign-in, second factor, device connection): the full Rostdav logo from `assets/brand` (mark and wordmark, set in the page's own font) beside the form on a dark brand panel, with a short tagline; on phones the panel becomes a band above the form.
+
 ## [0.3.0] - 2026-10-23
 
 ### Added

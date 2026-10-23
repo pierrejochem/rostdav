@@ -14,6 +14,27 @@ const AVATAR_JS: &str = include_str!("../static/avatar.js");
 const SPACE_GROTESK: &[u8] = include_bytes!("../static/fonts/SpaceGrotesk-latin.woff2");
 const JETBRAINS_MONO: &[u8] = include_bytes!("../static/fonts/JetBrainsMono-500-latin.woff2");
 
+/// The full logo (mark and wordmark) from `assets/brand`, for use on a dark background. It is
+/// put into the page itself, not loaded as an image, so that the wordmark is set in the page's
+/// Space Grotesk (an SVG loaded as an image cannot use the page's fonts).
+const BRAND_LOGO_ON_DARK: &str = include_str!("../../../assets/brand/rostdav-logo-dark.svg");
+
+fn brand_logo() -> &'static str {
+    static LOGO: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    LOGO.get_or_init(|| {
+        // the file brings its own dark tile; the page panel is the background instead
+        let svg = BRAND_LOGO_ON_DARK
+            .replacen("<rect width=\"480\" height=\"128\" rx=\"16\" fill=\"#15171C\"/>", "", 1)
+            .replacen(
+                "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 480 128\" width=\"480\" height=\"128\" role=\"img\" aria-label=\"Rostdav\"><title>Rostdav</title>",
+                "<svg class=\"auth-logo\" viewBox=\"0 0 480 128\" role=\"img\" aria-label=\"Rostdav\">",
+                1,
+            );
+        debug_assert!(svg.starts_with("<svg class=\"auth-logo\""), "logo file changed");
+        svg
+    })
+}
+
 const PASSWORD_SCRIPT: &str = "<script src=\"/static/password.js\"></script>";
 
 const LOGO: &str = "<svg viewBox=\"0 0 140 128\" aria-hidden=\"true\"><defs>\
@@ -139,9 +160,17 @@ pub fn bare(lang: Lang, status: StatusCode, title: &str, body: &str) -> Response
             "<!doctype html><html lang=\"{}\"><head><meta charset=\"utf-8\">\
              <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
              <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\">{FAVICON}</head>\
-             <body class=\"bare\"><main class=\"bare-main\"><div class=\"hero\">{LOGO}</div>{}</main>{PASSWORD_SCRIPT}</body></html>",
+             <body class=\"bare\"><main class=\"auth\">\
+             <section class=\"auth-brand\"><div>{}<p class=\"auth-tag\">{}</p>\
+             <ul class=\"auth-points\"><li>{}</li><li>{}</li><li>{}</li></ul></div></section>\
+             <section class=\"auth-form\">{}</section></main>{PASSWORD_SCRIPT}</body></html>",
             lang.code(),
             esc(&t(lang, title)),
+            brand_logo(),
+            esc(&t(lang, "Your files, on your own server.")),
+            esc(&t(lang, "Works with the Nextcloud apps")),
+            esc(&t(lang, "Versions, sharing and a trash bin")),
+            esc(&t(lang, "Optional two-factor sign-in")),
             tidy(body, lang)
         ),
     )
