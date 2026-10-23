@@ -17,7 +17,7 @@ RUN useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin rost
 COPY --from=build /out/rostdav /usr/local/bin/rostdav
 USER rostdav
 # the program does not replace itself in a container: it tells the administrator to pull the new image
-ENV ROSTDAV_INSTALL=container \
+ENV RD_INSTALL=container \
     ROSTDAV_SERVER__LISTEN=0.0.0.0:8080 \
     ROSTDAV_STORAGE__DATA_DIR=/data \
     ROSTDAV_LOG__FORMAT=json
