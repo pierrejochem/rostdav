@@ -16,7 +16,7 @@ The binding working rules are in [AGENTS.md](AGENTS.md). The full project instru
 
 ## Releases
 
-`v0.1.0` is published (2026-10-23): tag push starts `.github/workflows/release.yml` (verify tag against `Cargo.toml` and `CHANGELOG.md`, tests, Linux binary, image to ghcr.io, GitHub release with notes from `CHANGELOG.md`). To release: bump `version` in `Cargo.toml`, add a `## [x.y.z] - date` section to `CHANGELOG.md`, commit, `git tag -a vX.Y.Z`, push `main` and the tag. CI includes `cargo deny`; run it locally (`cargo install cargo-deny`) before a release. The history was rewritten once on 2026-10-23 to drop two commit trailers; `v0.1.0` was re-created on the new commit.
+`v0.1.0` is published (2026-10-23): tag push starts `.github/workflows/release.yml` (verify tag against `Cargo.toml` and `CHANGELOG.md`, tests; then per architecture amd64 and arm64: build the image, check it, take the binary out of it, push by digest; then one multi-arch tag set on ghcr.io; GitHub release with notes from `CHANGELOG.md`). The arm64 part is new since 0.1.0 and has not run yet: watch the first run after a tag push. To release: bump `version` in `Cargo.toml`, add a `## [x.y.z] - date` section to `CHANGELOG.md`, commit, `git tag -a vX.Y.Z`, push `main` and the tag. CI includes `cargo deny`; run it locally (`cargo install cargo-deny`) before a release. The history was rewritten once on 2026-10-23 to drop two commit trailers; `v0.1.0` was re-created on the new commit.
 
 ## Commands
 
