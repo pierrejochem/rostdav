@@ -2427,7 +2427,7 @@ version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
- "base64 0.22.1",
+ "base64 0.23.1",
  "clap",
  "figment",
  "futures-core",
@@ -2459,7 +2459,7 @@ name = "rostdav-app"
 version = "0.3.0"
 dependencies = [
  "argon2",
- "base64 0.22.1",
+ "base64 0.23.1",
  "blake3",
  "chacha20poly1305",
  "hmac",

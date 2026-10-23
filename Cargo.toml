@@ -51,7 +51,7 @@ quick-xml = "0.42"
 tokio-util = { version = "0.7", features = ["io"] }
 httpdate = "1"
 mime_guess = "2"
-base64 = "0.22"
+base64 = "0.23"
 futures-core = "0.3"
 blake3 = "1"
 argon2 = { version = "0.5", features = ["std"] }
