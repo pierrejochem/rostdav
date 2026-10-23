@@ -3,13 +3,13 @@
 //! Policy (who may do what, last-admin rules) lives in `rostdav-app`; this
 //! layer only provides the transactions.
 
+use crate::sql;
 use rostdav_core::{Error, Name, Result};
-use sqlx::SqliteConnection;
 
 use crate::Db;
 use crate::users::{new_etag, now_secs};
 
-fn err(e: sqlx::Error) -> Error {
+fn err(e: sql::Error) -> Error {
     Error::internal(e)
 }
 
@@ -53,7 +53,7 @@ pub struct UsageMismatch {
 
 impl Db {
     pub async fn list_users(&self) -> Result<Vec<UserSummary>> {
-        let rows: Vec<SummaryRow> = sqlx::query_as(
+        let rows: Vec<SummaryRow> = sql::query_as(
             "SELECT u.id, u.name, u.is_admin, u.disabled, u.quota_bytes, u.used_bytes, u.created_at,
                     (SELECT count(*) FROM app_passwords a WHERE a.user_id = u.id),
                     EXISTS (SELECT 1 FROM totp t WHERE t.user_id = u.id AND t.enabled_at IS NOT NULL)
@@ -94,7 +94,7 @@ impl Db {
 
     /// Enabled administrators other than `except`.
     pub async fn count_enabled_admins_except(&self, except: i64) -> Result<i64> {
-        sqlx::query_scalar(
+        sql::query_scalar(
             "SELECT count(*) FROM users WHERE is_admin = 1 AND disabled = 0 AND id != ?",
         )
         .bind(except)
@@ -114,7 +114,7 @@ impl Db {
     }
 
     async fn update_user(&self, sql: &str, flag: bool, id: i64) -> Result<()> {
-        let r = sqlx::query(sql)
+        let r = sql::query(sql)
             .bind(flag)
             .bind(id)
             .execute(self.pool())
@@ -133,8 +133,13 @@ impl Db {
         if dest.exists() {
             return Err(Error::Conflict("the backup target already exists"));
         }
-        sqlx::query("VACUUM INTO ?")
-            .bind(dest.to_string_lossy().into_owned())
+        // the engine takes the path only as a literal, not as a parameter: quote it
+        let path = dest.to_string_lossy();
+        if path.contains('\0') {
+            return Err(Error::BadRequest("invalid backup path"));
+        }
+        let quoted = path.replace('\'', "''");
+        sql::query(format!("VACUUM INTO '{quoted}'"))
             .execute(self.pool())
             .await
             .map_err(err)?;
@@ -142,7 +147,7 @@ impl Db {
     }
 
     pub async fn set_password_hash(&self, id: i64, hash: &str) -> Result<()> {
-        let r = sqlx::query("UPDATE users SET password_hash = ? WHERE id = ?")
+        let r = sql::query("UPDATE users SET password_hash = ? WHERE id = ?")
             .bind(hash)
             .bind(id)
             .execute(self.pool())
@@ -156,7 +161,7 @@ impl Db {
     }
 
     pub async fn revoke_all_app_passwords(&self, user_id: i64) -> Result<u64> {
-        let r = sqlx::query("DELETE FROM app_passwords WHERE user_id = ?")
+        let r = sql::query("DELETE FROM app_passwords WHERE user_id = ?")
             .bind(user_id)
             .execute(self.pool())
             .await
@@ -167,7 +172,7 @@ impl Db {
     /// Deletes a user with everything they own (nodes, devices, sessions) in one
     /// transaction. Blob rows stay; garbage collection removes them.
     pub async fn delete_user(&self, id: i64) -> Result<()> {
-        let r = sqlx::query("DELETE FROM users WHERE id = ?")
+        let r = sql::query("DELETE FROM users WHERE id = ?")
             .bind(id)
             .execute(self.pool())
             .await
@@ -184,11 +189,7 @@ impl Db {
     /// not enforced: this is an administrator decision).
     pub async fn transfer_tree(&self, from: i64, to: i64, base_name: &str) -> Result<String> {
         let now = now_secs();
-        let mut tx = self
-            .pool()
-            .begin_with("BEGIN IMMEDIATE")
-            .await
-            .map_err(err)?;
+        let mut tx = self.pool().begin().await.map_err(err)?;
         let from_root = root_id(&mut tx, from).await?;
         let to_root = root_id(&mut tx, to).await?;
 
@@ -200,7 +201,7 @@ impl Db {
             name = format!("{base_name} {n}");
         }
         let key = Name::parse(&name)?.key().to_owned();
-        let folder: i64 = sqlx::query_scalar(
+        let folder: i64 = sql::query_scalar(
             "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, mtime, etag, created_at, updated_at)
              VALUES (?, ?, ?, ?, 'dir', ?, ?, ?, ?) RETURNING id",
         )
@@ -217,7 +218,7 @@ impl Db {
         .map_err(err)?;
 
         // top-level children of the old root move below the new folder ...
-        sqlx::query("UPDATE nodes SET parent_id = ?, updated_at = ? WHERE parent_id = ? AND trash_id IS NULL")
+        sql::query("UPDATE nodes SET parent_id = ?, updated_at = ? WHERE parent_id = ? AND trash_id IS NULL")
             .bind(folder)
             .bind(now)
             .bind(from_root)
@@ -225,7 +226,7 @@ impl Db {
             .await
             .map_err(err)?;
         // ... and the whole subtree changes owner
-        sqlx::query(
+        sql::query(
             "WITH RECURSIVE sub(id) AS (
                  SELECT id FROM nodes WHERE parent_id = ?1 AND trash_id IS NULL
                  UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id WHERE n.trash_id IS NULL
@@ -239,7 +240,7 @@ impl Db {
         .map_err(err)?;
 
         // shares on the moved nodes now belong to the new owner; a share to the new owner makes no sense any more
-        sqlx::query(
+        sql::query(
             "WITH RECURSIVE sub(id) AS (
                  SELECT id FROM nodes WHERE parent_id = ?1 AND trash_id IS NULL
                  UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id WHERE n.trash_id IS NULL
@@ -251,13 +252,13 @@ impl Db {
         .execute(&mut *tx)
         .await
         .map_err(err)?;
-        sqlx::query("DELETE FROM shares WHERE owner_id = ?1 AND recipient_id = ?1")
+        sql::query("DELETE FROM shares WHERE owner_id = ?1 AND recipient_id = ?1")
             .bind(to)
             .execute(&mut *tx)
             .await
             .map_err(err)?;
 
-        let moved: i64 = sqlx::query_scalar(
+        let moved: i64 = sql::query_scalar(
             "WITH RECURSIVE sub(id) AS (
                  SELECT id FROM nodes WHERE parent_id = ?1 AND trash_id IS NULL
                  UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id WHERE n.trash_id IS NULL
@@ -269,20 +270,20 @@ impl Db {
         .fetch_one(&mut *tx)
         .await
         .map_err(err)?;
-        sqlx::query("UPDATE users SET used_bytes = used_bytes + ? WHERE id = ?")
+        sql::query("UPDATE users SET used_bytes = used_bytes + ? WHERE id = ?")
             .bind(moved)
             .bind(to)
             .execute(&mut *tx)
             .await
             .map_err(err)?;
-        sqlx::query("UPDATE users SET used_bytes = MAX(used_bytes - ?, 0) WHERE id = ?")
+        sql::query("UPDATE users SET used_bytes = MAX(used_bytes - ?, 0) WHERE id = ?")
             .bind(moved)
             .bind(from)
             .execute(&mut *tx)
             .await
             .map_err(err)?;
         // ancestors of the new folder change
-        sqlx::query("UPDATE nodes SET etag = ?, mtime = ?, updated_at = ? WHERE id = ?")
+        sql::query("UPDATE nodes SET etag = ?, mtime = ?, updated_at = ? WHERE id = ?")
             .bind(new_etag())
             .bind(now)
             .bind(now)
@@ -318,7 +319,7 @@ impl Db {
         ip: &str,
         details: &str,
     ) -> Result<()> {
-        sqlx::query(
+        sql::query(
             "INSERT INTO events (ts, actor, action, target, ip, details) VALUES (?, ?, ?, ?, ?, ?)",
         )
         .bind(ts)
@@ -335,7 +336,7 @@ impl Db {
 
     /// Events at or after `since` (unix seconds), oldest first.
     pub async fn events_since(&self, since: i64) -> Result<Vec<Event>> {
-        let rows: Vec<EventRow> = sqlx::query_as(
+        let rows: Vec<EventRow> = sql::query_as(
             "SELECT id, ts, actor, action, target, ip, details FROM events WHERE ts >= ? ORDER BY id",
         )
         .bind(since)
@@ -357,7 +358,7 @@ impl Db {
     }
 
     pub async fn purge_events_before(&self, cutoff: i64) -> Result<u64> {
-        let r = sqlx::query("DELETE FROM events WHERE ts < ?")
+        let r = sql::query("DELETE FROM events WHERE ts < ?")
             .bind(cutoff)
             .execute(self.pool())
             .await
@@ -369,7 +370,7 @@ impl Db {
 
     /// All registered blobs as `(id, size, checksum)`.
     pub async fn all_blobs(&self) -> Result<Vec<(String, i64, String)>> {
-        sqlx::query_as("SELECT id, size, checksum FROM blobs")
+        sql::query_as("SELECT id, size, checksum FROM blobs")
             .fetch_all(self.pool())
             .await
             .map_err(err)
@@ -377,7 +378,7 @@ impl Db {
 
     /// Paths of nodes that reference a blob (for reporting damage).
     pub async fn nodes_using_blob(&self, blob_id: &str) -> Result<Vec<(String, String)>> {
-        sqlx::query_as(
+        sql::query_as(
             "SELECT u.name, n.name FROM nodes n JOIN users u ON u.id = n.owner_id WHERE n.blob_id = ?1
              UNION
              SELECT u.name, n.name || ' (version ' || v.version_time || ')' FROM versions v
@@ -391,7 +392,7 @@ impl Db {
     }
 
     pub async fn usage_mismatches(&self) -> Result<Vec<UsageMismatch>> {
-        let rows: Vec<(i64, String, i64, i64)> = sqlx::query_as(
+        let rows: Vec<(i64, String, i64, i64)> = sql::query_as(
             "SELECT u.id, u.name, u.used_bytes,
                     COALESCE((SELECT SUM(size) FROM nodes n WHERE n.owner_id = u.id AND n.kind = 'file'), 0)
                     + COALESCE((SELECT SUM(v.size) FROM versions v JOIN nodes n ON n.id = v.node_id WHERE n.owner_id = u.id), 0)
@@ -414,7 +415,7 @@ impl Db {
 
     /// `(live files, versions, trash)` in bytes for a user's storage overview.
     pub async fn usage_breakdown(&self, user_id: i64) -> Result<(i64, i64, i64)> {
-        sqlx::query_as(
+        sql::query_as(
             "SELECT
                COALESCE((SELECT SUM(size) FROM nodes WHERE owner_id = ?1 AND kind = 'file' AND trash_id IS NULL), 0),
                COALESCE((SELECT SUM(v.size) FROM versions v JOIN nodes n ON n.id = v.node_id WHERE n.owner_id = ?1), 0),
@@ -427,7 +428,7 @@ impl Db {
     }
 
     pub async fn set_used_bytes(&self, user_id: i64, used: i64) -> Result<()> {
-        sqlx::query("UPDATE users SET used_bytes = ? WHERE id = ?")
+        sql::query("UPDATE users SET used_bytes = ? WHERE id = ?")
             .bind(used)
             .bind(user_id)
             .execute(self.pool())
@@ -442,7 +443,7 @@ impl Db {
 
     /// Blob rows deleted by the caller after confirming the file is gone for good.
     pub async fn delete_blob_row(&self, id: &str) -> Result<()> {
-        sqlx::query("DELETE FROM blobs WHERE id = ? AND id NOT IN (SELECT blob_id FROM nodes WHERE blob_id IS NOT NULL)")
+        sql::query("DELETE FROM blobs WHERE id = ? AND id NOT IN (SELECT blob_id FROM nodes WHERE blob_id IS NOT NULL)")
             .bind(id)
             .execute(self.pool())
             .await
@@ -451,8 +452,8 @@ impl Db {
     }
 }
 
-async fn root_id(conn: &mut SqliteConnection, user: i64) -> Result<i64> {
-    sqlx::query_scalar("SELECT id FROM nodes WHERE owner_id = ? AND parent_id IS NULL")
+async fn root_id(conn: &mut sql::Conn, user: i64) -> Result<i64> {
+    sql::query_scalar("SELECT id FROM nodes WHERE owner_id = ? AND parent_id IS NULL")
         .bind(user)
         .fetch_optional(conn)
         .await
@@ -460,9 +461,9 @@ async fn root_id(conn: &mut SqliteConnection, user: i64) -> Result<i64> {
         .ok_or(Error::NotFound)
 }
 
-async fn exists_child(conn: &mut SqliteConnection, parent: i64, name: &str) -> Result<bool> {
+async fn exists_child(conn: &mut sql::Conn, parent: i64, name: &str) -> Result<bool> {
     let key = Name::parse(name)?.key().to_owned();
-    sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id IS NULL)")
+    sql::query_scalar("SELECT EXISTS(SELECT 1 FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id IS NULL)")
         .bind(parent)
         .bind(key)
         .fetch_one(conn)

@@ -1,12 +1,13 @@
 //! Storage for two-factor authentication (ADR 0007): the encrypted TOTP secret and
 //! the hashed recovery codes. Nothing here knows how codes are computed.
 
+use crate::sql;
 use rostdav_core::{Error, Result};
 
 use crate::Db;
 use crate::users::now_secs;
 
-fn err(e: sqlx::Error) -> Error {
+fn err(e: sql::Error) -> Error {
     Error::internal(e)
 }
 
@@ -28,7 +29,7 @@ impl Db {
         secret_enc: &[u8],
         nonce: &[u8],
     ) -> Result<()> {
-        sqlx::query(
+        sql::query(
             "INSERT INTO totp (user_id, secret_enc, nonce, created_at, enabled_at, last_step)
              VALUES (?, ?, ?, ?, NULL, 0)
              ON CONFLICT(user_id) DO UPDATE SET secret_enc = excluded.secret_enc, nonce = excluded.nonce,
@@ -46,7 +47,7 @@ impl Db {
 
     pub async fn totp_get(&self, user_id: i64) -> Result<Option<TotpRow>> {
         type Row = (Vec<u8>, Vec<u8>, i64, Option<i64>, i64);
-        let row: Option<Row> = sqlx::query_as(
+        let row: Option<Row> = sql::query_as(
             "SELECT secret_enc, nonce, created_at, enabled_at, last_step FROM totp WHERE user_id = ?",
         )
         .bind(user_id)
@@ -66,7 +67,7 @@ impl Db {
 
     /// Whether 2FA is switched on (setups in progress do not count).
     pub async fn totp_enabled(&self, user_id: i64) -> Result<bool> {
-        let n: i64 = sqlx::query_scalar(
+        let n: i64 = sql::query_scalar(
             "SELECT COUNT(*) FROM totp WHERE user_id = ? AND enabled_at IS NOT NULL",
         )
         .bind(user_id)
@@ -79,7 +80,7 @@ impl Db {
     /// Records a code as used. `true` only if `step` is larger than every step accepted
     /// before (atomic: two requests with the same code cannot both succeed).
     pub async fn totp_accept_step(&self, user_id: i64, step: i64) -> Result<bool> {
-        let r = sqlx::query("UPDATE totp SET last_step = ? WHERE user_id = ? AND last_step < ?")
+        let r = sql::query("UPDATE totp SET last_step = ? WHERE user_id = ? AND last_step < ?")
             .bind(step)
             .bind(user_id)
             .bind(step)
@@ -96,12 +97,8 @@ impl Db {
         step: i64,
         recovery_hashes: &[String],
     ) -> Result<()> {
-        let mut tx = self
-            .pool()
-            .begin_with("BEGIN IMMEDIATE")
-            .await
-            .map_err(err)?;
-        let r = sqlx::query("UPDATE totp SET enabled_at = ?, last_step = ? WHERE user_id = ? AND enabled_at IS NULL")
+        let mut tx = self.pool().begin().await.map_err(err)?;
+        let r = sql::query("UPDATE totp SET enabled_at = ?, last_step = ? WHERE user_id = ? AND enabled_at IS NULL")
             .bind(now_secs())
             .bind(step)
             .bind(user_id)
@@ -117,17 +114,13 @@ impl Db {
 
     /// Removes the secret and all recovery codes (disable or administrator reset).
     pub async fn totp_delete(&self, user_id: i64) -> Result<bool> {
-        let mut tx = self
-            .pool()
-            .begin_with("BEGIN IMMEDIATE")
-            .await
-            .map_err(err)?;
-        sqlx::query("DELETE FROM recovery_codes WHERE user_id = ?")
+        let mut tx = self.pool().begin().await.map_err(err)?;
+        sql::query("DELETE FROM recovery_codes WHERE user_id = ?")
             .bind(user_id)
             .execute(&mut *tx)
             .await
             .map_err(err)?;
-        let r = sqlx::query("DELETE FROM totp WHERE user_id = ?")
+        let r = sql::query("DELETE FROM totp WHERE user_id = ?")
             .bind(user_id)
             .execute(&mut *tx)
             .await
@@ -138,7 +131,7 @@ impl Db {
 
     /// Removes setups that were never confirmed.
     pub async fn totp_purge_pending(&self, older_than_secs: i64) -> Result<u64> {
-        let r = sqlx::query("DELETE FROM totp WHERE enabled_at IS NULL AND created_at <= ?")
+        let r = sql::query("DELETE FROM totp WHERE enabled_at IS NULL AND created_at <= ?")
             .bind(now_secs() - older_than_secs)
             .execute(self.pool())
             .await
@@ -147,18 +140,14 @@ impl Db {
     }
 
     pub async fn recovery_replace(&self, user_id: i64, hashes: &[String]) -> Result<()> {
-        let mut tx = self
-            .pool()
-            .begin_with("BEGIN IMMEDIATE")
-            .await
-            .map_err(err)?;
+        let mut tx = self.pool().begin().await.map_err(err)?;
         replace_codes(&mut tx, user_id, hashes).await?;
         tx.commit().await.map_err(err)
     }
 
     /// `(id, hash)` of the unused recovery codes.
     pub async fn recovery_unused(&self, user_id: i64) -> Result<Vec<(i64, String)>> {
-        sqlx::query_as("SELECT id, code_hash FROM recovery_codes WHERE user_id = ? AND used_at IS NULL ORDER BY id")
+        sql::query_as("SELECT id, code_hash FROM recovery_codes WHERE user_id = ? AND used_at IS NULL ORDER BY id")
             .bind(user_id)
             .fetch_all(self.pool())
             .await
@@ -168,7 +157,7 @@ impl Db {
     /// Marks a code as used; `false` if it was used already (two requests, one code).
     pub async fn recovery_use(&self, id: i64) -> Result<bool> {
         let r =
-            sqlx::query("UPDATE recovery_codes SET used_at = ? WHERE id = ? AND used_at IS NULL")
+            sql::query("UPDATE recovery_codes SET used_at = ? WHERE id = ? AND used_at IS NULL")
                 .bind(now_secs())
                 .bind(id)
                 .execute(self.pool())
@@ -178,7 +167,7 @@ impl Db {
     }
 
     pub async fn recovery_remaining(&self, user_id: i64) -> Result<i64> {
-        sqlx::query_scalar(
+        sql::query_scalar(
             "SELECT COUNT(*) FROM recovery_codes WHERE user_id = ? AND used_at IS NULL",
         )
         .bind(user_id)
@@ -188,21 +177,17 @@ impl Db {
     }
 }
 
-async fn replace_codes(
-    tx: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
-    user_id: i64,
-    hashes: &[String],
-) -> Result<()> {
-    sqlx::query("DELETE FROM recovery_codes WHERE user_id = ?")
+async fn replace_codes(tx: &mut sql::Conn, user_id: i64, hashes: &[String]) -> Result<()> {
+    sql::query("DELETE FROM recovery_codes WHERE user_id = ?")
         .bind(user_id)
-        .execute(&mut **tx)
+        .execute(&mut *tx)
         .await
         .map_err(err)?;
     for h in hashes {
-        sqlx::query("INSERT INTO recovery_codes (user_id, code_hash) VALUES (?, ?)")
+        sql::query("INSERT INTO recovery_codes (user_id, code_hash) VALUES (?, ?)")
             .bind(user_id)
             .bind(h)
-            .execute(&mut **tx)
+            .execute(&mut *tx)
             .await
             .map_err(err)?;
     }

@@ -9,12 +9,12 @@ publish.workspace = true
 
 [dependencies]
 rostdav-core.workspace = true
-sqlx.workspace = true
+turso.workspace = true
 tracing.workspace = true
 ulid.workspace = true
+tokio.workspace = true
 
 [dev-dependencies]
-tokio.workspace = true
 tempfile.workspace = true
 
 [lints]

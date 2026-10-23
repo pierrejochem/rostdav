@@ -1,13 +1,14 @@
 //! App passwords, login flows and settings (ADR 0003).
 
+use crate::sql;
 use rostdav_core::{Error, Result};
 
 use crate::Db;
 use crate::users::now_secs;
 
-fn err(e: sqlx::Error) -> Error {
+fn err(e: sql::Error) -> Error {
     match &e {
-        sqlx::Error::Database(d) if d.is_unique_violation() => Error::AlreadyExists,
+        e if e.is_unique_violation() => Error::AlreadyExists,
         _ => Error::internal(e),
     }
 }
@@ -72,13 +73,13 @@ impl Db {
         key: &str,
         make: impl FnOnce() -> Vec<u8>,
     ) -> Result<Vec<u8>> {
-        sqlx::query("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)")
+        sql::query("INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)")
             .bind(key)
             .bind(make())
             .execute(self.pool())
             .await
             .map_err(err)?;
-        sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
+        sql::query_scalar("SELECT value FROM settings WHERE key = ?")
             .bind(key)
             .fetch_one(self.pool())
             .await
@@ -87,7 +88,7 @@ impl Db {
 
     /// The stored value of a setting, if any.
     pub async fn setting(&self, key: &str) -> Result<Option<Vec<u8>>> {
-        sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
+        sql::query_scalar("SELECT value FROM settings WHERE key = ?")
             .bind(key)
             .fetch_optional(self.pool())
             .await
@@ -96,7 +97,7 @@ impl Db {
 
     /// All settings whose key starts with `prefix`.
     pub async fn settings_with_prefix(&self, prefix: &str) -> Result<Vec<(String, Vec<u8>)>> {
-        sqlx::query_as(
+        sql::query_as(
             "SELECT key, value FROM settings WHERE substr(key, 1, length(?1)) = ?1 ORDER BY key",
         )
         .bind(prefix)
@@ -106,7 +107,7 @@ impl Db {
     }
 
     pub async fn delete_setting(&self, key: &str) -> Result<()> {
-        sqlx::query("DELETE FROM settings WHERE key = ?")
+        sql::query("DELETE FROM settings WHERE key = ?")
             .bind(key)
             .execute(self.pool())
             .await
@@ -116,7 +117,7 @@ impl Db {
 
     /// Stores a setting, replacing an earlier value.
     pub async fn set_setting(&self, key: &str, value: &[u8]) -> Result<()> {
-        sqlx::query(
+        sql::query(
             "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         )
         .bind(key)
@@ -135,7 +136,7 @@ impl Db {
         name: &str,
         token_hash: &str,
     ) -> Result<i64> {
-        sqlx::query_scalar(
+        sql::query_scalar(
             "INSERT INTO app_passwords (user_id, name, token_hash, created_at) VALUES (?, ?, ?, ?) RETURNING id",
         )
         .bind(user_id)
@@ -149,7 +150,7 @@ impl Db {
 
     /// Looks up an app password of exactly this user.
     pub async fn find_app_password(&self, user_id: i64, token_hash: &str) -> Result<Option<i64>> {
-        sqlx::query_scalar("SELECT id FROM app_passwords WHERE token_hash = ? AND user_id = ?")
+        sql::query_scalar("SELECT id FROM app_passwords WHERE token_hash = ? AND user_id = ?")
             .bind(token_hash)
             .bind(user_id)
             .fetch_optional(self.pool())
@@ -160,7 +161,7 @@ impl Db {
     /// Records use, at most once per minute.
     pub async fn touch_app_password(&self, id: i64) -> Result<()> {
         let now = now_secs();
-        sqlx::query(
+        sql::query(
             "UPDATE app_passwords SET last_used_at = ?1 WHERE id = ?2 AND (last_used_at IS NULL OR last_used_at < ?1 - 60)",
         )
         .bind(now)
@@ -173,7 +174,7 @@ impl Db {
 
     /// Deletes an app password of this user; returns whether one existed.
     pub async fn revoke_app_password(&self, user_id: i64, id: i64) -> Result<bool> {
-        let r = sqlx::query("DELETE FROM app_passwords WHERE id = ? AND user_id = ?")
+        let r = sql::query("DELETE FROM app_passwords WHERE id = ? AND user_id = ?")
             .bind(id)
             .bind(user_id)
             .execute(self.pool())
@@ -183,7 +184,7 @@ impl Db {
     }
 
     pub async fn list_app_passwords(&self, user_id: i64) -> Result<Vec<AppPassword>> {
-        let rows: Vec<(i64, i64, String, i64, Option<i64>)> = sqlx::query_as(
+        let rows: Vec<(i64, i64, String, i64, Option<i64>)> = sql::query_as(
             "SELECT id, user_id, name, created_at, last_used_at FROM app_passwords WHERE user_id = ? ORDER BY id",
         )
         .bind(user_id)
@@ -216,12 +217,12 @@ impl Db {
     ) -> Result<()> {
         let now = now_secs();
         // Opportunistic cleanup keeps the table small without a background job.
-        sqlx::query("DELETE FROM login_flows WHERE expires_at < ?")
+        sql::query("DELETE FROM login_flows WHERE expires_at < ?")
             .bind(now)
             .execute(self.pool())
             .await
             .map_err(err)?;
-        let (open,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM login_flows")
+        let (open,): (i64,) = sql::query_as("SELECT COUNT(*) FROM login_flows")
             .fetch_one(self.pool())
             .await
             .map_err(err)?;
@@ -230,7 +231,7 @@ impl Db {
                 retry_after_secs: 60,
             });
         }
-        sqlx::query(
+        sql::query(
             "INSERT INTO login_flows (poll_hash, login_hash, client_name, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
         )
         .bind(poll_hash)
@@ -246,7 +247,7 @@ impl Db {
 
     /// An open (not expired, not yet granted) flow by its login token hash.
     pub async fn open_flow_by_login(&self, login_hash: &str) -> Result<Option<LoginFlow>> {
-        let row: Option<(i64, String, String)> = sqlx::query_as(
+        let row: Option<(i64, String, String)> = sql::query_as(
             "SELECT id, client_name, poll_hash FROM login_flows WHERE login_hash = ? AND expires_at >= ? AND user_id IS NULL",
         )
         .bind(login_hash)
@@ -263,7 +264,7 @@ impl Db {
 
     /// Deletes a flow that has not been granted yet.
     pub async fn delete_open_flow(&self, login_hash: &str) -> Result<()> {
-        sqlx::query("DELETE FROM login_flows WHERE login_hash = ? AND user_id IS NULL")
+        sql::query("DELETE FROM login_flows WHERE login_hash = ? AND user_id IS NULL")
             .bind(login_hash)
             .execute(self.pool())
             .await
@@ -273,7 +274,7 @@ impl Db {
 
     /// Marks an open flow as granted. Returns `false` if it was no longer open.
     pub async fn grant_flow(&self, flow_id: i64, user_id: i64, app_password: &str) -> Result<bool> {
-        let r = sqlx::query(
+        let r = sql::query(
             "UPDATE login_flows SET user_id = ?, app_password = ? WHERE id = ? AND user_id IS NULL AND expires_at >= ?",
         )
         .bind(user_id)
@@ -288,7 +289,7 @@ impl Db {
 
     /// Returns the granted credentials exactly once and deletes the flow.
     pub async fn poll_flow(&self, poll_hash: &str) -> Result<PollResult> {
-        let row: Option<(String, String)> = sqlx::query_as(
+        let row: Option<(String, String)> = sql::query_as(
             "DELETE FROM login_flows
              WHERE poll_hash = ? AND expires_at >= ? AND user_id IS NOT NULL
              RETURNING (SELECT name FROM users WHERE id = login_flows.user_id), app_password",
@@ -317,17 +318,16 @@ impl Db {
         transfer_id: &str,
         dir: &str,
     ) -> Result<UploadSession> {
-        let open: i64 =
-            sqlx::query_scalar("SELECT count(*) FROM upload_sessions WHERE user_id = ?")
-                .bind(user_id)
-                .fetch_one(self.pool())
-                .await
-                .map_err(err)?;
+        let open: i64 = sql::query_scalar("SELECT count(*) FROM upload_sessions WHERE user_id = ?")
+            .bind(user_id)
+            .fetch_one(self.pool())
+            .await
+            .map_err(err)?;
         if open >= MAX_UPLOAD_SESSIONS_PER_USER {
             return Err(Error::Conflict("too many open uploads"));
         }
         let created_at = now_secs();
-        let id: i64 = sqlx::query_scalar(
+        let id: i64 = sql::query_scalar(
             "INSERT INTO upload_sessions (user_id, transfer_id, dir, created_at) VALUES (?, ?, ?, ?) RETURNING id",
         )
         .bind(user_id)
@@ -351,7 +351,7 @@ impl Db {
         user_id: i64,
         transfer_id: &str,
     ) -> Result<Option<UploadSession>> {
-        let row: Option<(i64, String, i64)> = sqlx::query_as(
+        let row: Option<(i64, String, i64)> = sql::query_as(
             "SELECT id, dir, created_at FROM upload_sessions WHERE user_id = ? AND transfer_id = ?",
         )
         .bind(user_id)
@@ -369,7 +369,7 @@ impl Db {
     }
 
     pub async fn delete_upload_session(&self, id: i64) -> Result<()> {
-        sqlx::query("DELETE FROM upload_sessions WHERE id = ?")
+        sql::query("DELETE FROM upload_sessions WHERE id = ?")
             .bind(id)
             .execute(self.pool())
             .await
@@ -379,7 +379,7 @@ impl Db {
 
     /// Sessions created before `cutoff` (unix seconds).
     pub async fn upload_sessions_older_than(&self, cutoff: i64) -> Result<Vec<UploadSession>> {
-        let rows: Vec<(i64, i64, String, String, i64)> = sqlx::query_as(
+        let rows: Vec<(i64, i64, String, String, i64)> = sql::query_as(
             "SELECT id, user_id, transfer_id, dir, created_at FROM upload_sessions WHERE created_at < ?",
         )
         .bind(cutoff)
@@ -411,7 +411,7 @@ impl Db {
         user_agent: &str,
     ) -> Result<Session> {
         let now = now_secs();
-        let id: i64 = sqlx::query_scalar(
+        let id: i64 = sql::query_scalar(
             "INSERT INTO sessions (user_id, token_hash, created_at, last_seen, expires_at, ip, user_agent)
              VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id",
         )
@@ -444,7 +444,7 @@ impl Db {
         idle_secs: i64,
     ) -> Result<Option<(Session, crate::User)>> {
         let now = now_secs();
-        let row: Option<(i64, i64, i64, i64, i64, String, String)> = sqlx::query_as(
+        let row: Option<(i64, i64, i64, i64, i64, String, String)> = sql::query_as(
             "SELECT s.id, s.user_id, s.created_at, s.last_seen, s.expires_at, s.ip, s.user_agent
              FROM sessions s JOIN users u ON u.id = s.user_id
              WHERE s.token_hash = ? AND s.expires_at > ? AND s.last_seen > ? AND u.disabled = 0",
@@ -478,7 +478,7 @@ impl Db {
     /// Records activity, at most once a minute.
     pub async fn touch_session(&self, id: i64) -> Result<()> {
         let now = now_secs();
-        sqlx::query("UPDATE sessions SET last_seen = ?1 WHERE id = ?2 AND last_seen < ?1 - 60")
+        sql::query("UPDATE sessions SET last_seen = ?1 WHERE id = ?2 AND last_seen < ?1 - 60")
             .bind(now)
             .bind(id)
             .execute(self.pool())
@@ -488,7 +488,7 @@ impl Db {
     }
 
     pub async fn delete_session(&self, id: i64) -> Result<()> {
-        sqlx::query("DELETE FROM sessions WHERE id = ?")
+        sql::query("DELETE FROM sessions WHERE id = ?")
             .bind(id)
             .execute(self.pool())
             .await
@@ -498,7 +498,7 @@ impl Db {
 
     /// Ends all sessions of a user except `keep`. Returns how many.
     pub async fn delete_other_sessions(&self, user_id: i64, keep: i64) -> Result<u64> {
-        let r = sqlx::query("DELETE FROM sessions WHERE user_id = ? AND id != ?")
+        let r = sql::query("DELETE FROM sessions WHERE user_id = ? AND id != ?")
             .bind(user_id)
             .bind(keep)
             .execute(self.pool())
@@ -508,7 +508,7 @@ impl Db {
     }
 
     pub async fn delete_user_sessions(&self, user_id: i64) -> Result<u64> {
-        let r = sqlx::query("DELETE FROM sessions WHERE user_id = ?")
+        let r = sql::query("DELETE FROM sessions WHERE user_id = ?")
             .bind(user_id)
             .execute(self.pool())
             .await
@@ -517,7 +517,7 @@ impl Db {
     }
 
     pub async fn list_sessions(&self, user_id: i64) -> Result<Vec<Session>> {
-        let rows: Vec<(i64, i64, i64, i64, String, String)> = sqlx::query_as(
+        let rows: Vec<(i64, i64, i64, i64, String, String)> = sql::query_as(
             "SELECT id, created_at, last_seen, expires_at, ip, user_agent FROM sessions WHERE user_id = ? ORDER BY last_seen DESC",
         )
         .bind(user_id)
@@ -543,7 +543,7 @@ impl Db {
     /// Removes expired and idle sessions.
     pub async fn purge_sessions(&self, idle_secs: i64) -> Result<u64> {
         let now = now_secs();
-        let r = sqlx::query("DELETE FROM sessions WHERE expires_at <= ? OR last_seen <= ?")
+        let r = sql::query("DELETE FROM sessions WHERE expires_at <= ? OR last_seen <= ?")
             .bind(now)
             .bind(now - idle_secs)
             .execute(self.pool())
@@ -555,7 +555,7 @@ impl Db {
     // ---- preferences ----------------------------------------------------------------
 
     pub async fn get_pref(&self, user_id: i64, key: &str) -> Result<Option<String>> {
-        sqlx::query_scalar("SELECT value FROM user_prefs WHERE user_id = ? AND key = ?")
+        sql::query_scalar("SELECT value FROM user_prefs WHERE user_id = ? AND key = ?")
             .bind(user_id)
             .bind(key)
             .fetch_optional(self.pool())
@@ -564,7 +564,7 @@ impl Db {
     }
 
     pub async fn set_pref(&self, user_id: i64, key: &str, value: &str) -> Result<()> {
-        sqlx::query("INSERT INTO user_prefs (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value")
+        sql::query("INSERT INTO user_prefs (user_id, key, value) VALUES (?, ?, ?) ON CONFLICT (user_id, key) DO UPDATE SET value = excluded.value")
             .bind(user_id)
             .bind(key)
             .bind(value)
@@ -575,7 +575,7 @@ impl Db {
     }
 
     pub async fn find_user_by_id(&self, id: i64) -> Result<Option<crate::User>> {
-        let row: Option<(i64, String, String, bool, bool)> = sqlx::query_as(
+        let row: Option<(i64, String, String, bool, bool)> = sql::query_as(
             "SELECT id, name, password_hash, is_admin, disabled FROM users WHERE id = ?",
         )
         .bind(id)
@@ -673,7 +673,7 @@ mod tests {
             db.create_login_flow("p3", "l3", "C", 600, 2).await,
             Err(Error::RateLimited { .. })
         ));
-        sqlx::query("UPDATE login_flows SET expires_at = 0 WHERE poll_hash = 'p1'")
+        sql::query("UPDATE login_flows SET expires_at = 0 WHERE poll_hash = 'p1'")
             .execute(db.pool())
             .await
             .expect("expire");
@@ -729,7 +729,7 @@ mod tests {
             .expect("create");
         assert!(db.open_flow_by_login("l").await.expect("open").is_none());
         // even a granted-but-expired flow is not returned
-        sqlx::query("UPDATE login_flows SET user_id = ?, app_password = 's'")
+        sql::query("UPDATE login_flows SET user_id = ?, app_password = 's'")
             .bind(anna)
             .execute(db.pool())
             .await
@@ -787,7 +787,7 @@ mod tests {
         db.create_app_password(anna, "Phone", "h")
             .await
             .expect("create");
-        sqlx::query("DELETE FROM users WHERE id = ?")
+        sql::query("DELETE FROM users WHERE id = ?")
             .bind(anna)
             .execute(db.pool())
             .await

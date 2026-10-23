@@ -4,8 +4,8 @@
 //! (documented decision, docs/instructions.md 2.4). A version is named by the
 //! modification time of its content, like in the reference server.
 
+use crate::sql;
 use rostdav_core::{Error, Result};
-use sqlx::SqliteConnection;
 
 use crate::Db;
 use crate::nodes::{
@@ -61,7 +61,7 @@ fn to_version(r: VRow) -> Version {
 
 /// Stores the current content of `node` as a version. Returns the new row ID.
 pub(crate) async fn archive(
-    conn: &mut SqliteConnection,
+    conn: &mut sql::Conn,
     node: &Node,
     author: Option<i64>,
     now: i64,
@@ -71,7 +71,7 @@ pub(crate) async fn archive(
     };
     // names are unique per file: move to the next free second
     let mut t = node.mtime;
-    while sqlx::query_scalar::<_, bool>(
+    while sql::query_scalar::<bool>(
         "SELECT EXISTS(SELECT 1 FROM versions WHERE node_id = ? AND version_time = ?)",
     )
     .bind(node.id)
@@ -82,7 +82,7 @@ pub(crate) async fn archive(
     {
         t += 1;
     }
-    sqlx::query_scalar(
+    sql::query_scalar(
         "INSERT INTO versions (node_id, version_time, mtime, size, blob_id, checksum, client_checksum, author_id, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
@@ -101,11 +101,11 @@ pub(crate) async fn archive(
 }
 
 /// Deletes the oldest versions beyond `keep` (0 = unlimited); returns the bytes freed.
-pub(crate) async fn trim(conn: &mut SqliteConnection, node_id: i64, keep: u32) -> Result<i64> {
+pub(crate) async fn trim(conn: &mut sql::Conn, node_id: i64, keep: u32) -> Result<i64> {
     if keep == 0 {
         return Ok(0);
     }
-    let doomed: Vec<(i64, i64)> = sqlx::query_as(
+    let doomed: Vec<(i64, i64)> = sql::query_as(
         "SELECT id, size FROM versions WHERE node_id = ? ORDER BY version_time DESC LIMIT -1 OFFSET ?",
     )
     .bind(node_id)
@@ -114,7 +114,7 @@ pub(crate) async fn trim(conn: &mut SqliteConnection, node_id: i64, keep: u32) -
     .await
     .map_err(db_err)?;
     for (id, _) in &doomed {
-        sqlx::query("DELETE FROM versions WHERE id = ?")
+        sql::query("DELETE FROM versions WHERE id = ?")
             .bind(id)
             .execute(&mut *conn)
             .await
@@ -124,8 +124,8 @@ pub(crate) async fn trim(conn: &mut SqliteConnection, node_id: i64, keep: u32) -
 }
 
 /// Size of all versions of all files in the subtree (for delete accounting).
-pub(crate) async fn subtree_versions_size(conn: &mut SqliteConnection, id: i64) -> Result<i64> {
-    sqlx::query_scalar(
+pub(crate) async fn subtree_versions_size(conn: &mut sql::Conn, id: i64) -> Result<i64> {
+    sql::query_scalar(
         "WITH RECURSIVE sub(id) AS (
              SELECT id FROM nodes WHERE id = ?1
              UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id
@@ -141,7 +141,7 @@ pub(crate) async fn subtree_versions_size(conn: &mut SqliteConnection, id: i64) 
 impl Db {
     /// Archived versions of a file, oldest first (the live content is not included).
     pub async fn list_versions(&self, node_id: i64) -> Result<Vec<Version>> {
-        let rows: Vec<VRow> = sqlx::query_as(&format!(
+        let rows: Vec<VRow> = sql::query_as(format!(
             "SELECT {VCOLS} {VFROM} WHERE v.node_id = ? ORDER BY v.version_time"
         ))
         .bind(node_id)
@@ -152,7 +152,7 @@ impl Db {
     }
 
     pub async fn find_version(&self, node_id: i64, version_time: i64) -> Result<Option<Version>> {
-        let row: Option<VRow> = sqlx::query_as(&format!(
+        let row: Option<VRow> = sql::query_as(format!(
             "SELECT {VCOLS} {VFROM} WHERE v.node_id = ? AND v.version_time = ?"
         ))
         .bind(node_id)
@@ -167,7 +167,7 @@ impl Db {
     pub async fn delete_version(&self, node_id: i64, version_time: i64) -> Result<()> {
         let mut tx = self.write_tx().await?;
         let node = require(&mut tx, node_id).await?;
-        let size: Option<i64> = sqlx::query_scalar(
+        let size: Option<i64> = sql::query_scalar(
             "DELETE FROM versions WHERE node_id = ? AND version_time = ? RETURNING size",
         )
         .bind(node_id)
@@ -194,7 +194,7 @@ impl Db {
         let mut tx = self.write_tx().await?;
         let node = require(&mut tx, node_id).await?;
         let parent = node.parent_id.ok_or(Error::NotFound)?;
-        let row: Option<VRow> = sqlx::query_as(&format!(
+        let row: Option<VRow> = sql::query_as(format!(
             "SELECT {VCOLS} {VFROM} WHERE v.node_id = ? AND v.version_time = ?"
         ))
         .bind(node_id)
@@ -206,7 +206,7 @@ impl Db {
 
         let before = node.size + v.size;
         // free the name first, then archive the live content
-        sqlx::query("DELETE FROM versions WHERE id = ?")
+        sql::query("DELETE FROM versions WHERE id = ?")
             .bind(v.id)
             .execute(&mut *tx)
             .await
@@ -215,7 +215,7 @@ impl Db {
         if keep_old {
             crate::versions::archive(&mut tx, &node, author, now).await?;
         }
-        sqlx::query(
+        sql::query(
             "UPDATE nodes SET size = ?, mtime = ?, etag = ?, blob_id = ?, checksum = ?, client_checksum = ?,
              upload_time = ?, updated_at = ? WHERE id = ?",
         )
@@ -245,7 +245,7 @@ impl Db {
     /// Deletes versions archived before `cutoff` (unix seconds); returns how many.
     pub async fn expire_versions(&self, cutoff: i64) -> Result<u64> {
         let mut tx = self.write_tx().await?;
-        let old: Vec<(i64, i64, i64)> = sqlx::query_as(
+        let old: Vec<(i64, i64, i64)> = sql::query_as(
             "SELECT v.id, v.size, n.owner_id FROM versions v JOIN nodes n ON n.id = v.node_id WHERE v.created_at < ?",
         )
         .bind(cutoff)
@@ -253,7 +253,7 @@ impl Db {
         .await
         .map_err(db_err)?;
         for (id, size, owner) in &old {
-            sqlx::query("DELETE FROM versions WHERE id = ?")
+            sql::query("DELETE FROM versions WHERE id = ?")
                 .bind(id)
                 .execute(&mut *tx)
                 .await
@@ -269,7 +269,7 @@ impl Db {
     pub async fn trim_versions_to_quota_share(&self, percent: u32) -> Result<u64> {
         let mut tx = self.write_tx().await?;
         let users: Vec<(i64, i64)> =
-            sqlx::query_as("SELECT id, quota_bytes FROM users WHERE quota_bytes IS NOT NULL")
+            sql::query_as("SELECT id, quota_bytes FROM users WHERE quota_bytes IS NOT NULL")
                 .fetch_all(&mut *tx)
                 .await
                 .map_err(db_err)?;
@@ -277,7 +277,7 @@ impl Db {
         for (user, quota) in users {
             let limit = quota.saturating_mul(i64::from(percent)) / 100;
             loop {
-                let total: i64 = sqlx::query_scalar(
+                let total: i64 = sql::query_scalar(
                     "SELECT COALESCE(SUM(v.size), 0) FROM versions v JOIN nodes n ON n.id = v.node_id WHERE n.owner_id = ?",
                 )
                 .bind(user)
@@ -287,7 +287,7 @@ impl Db {
                 if total <= limit {
                     break;
                 }
-                let oldest: Option<(i64, i64)> = sqlx::query_as(
+                let oldest: Option<(i64, i64)> = sql::query_as(
                     "SELECT v.id, v.size FROM versions v JOIN nodes n ON n.id = v.node_id
                      WHERE n.owner_id = ? ORDER BY v.created_at, v.id LIMIT 1",
                 )
@@ -296,7 +296,7 @@ impl Db {
                 .await
                 .map_err(db_err)?;
                 let Some((id, size)) = oldest else { break };
-                sqlx::query("DELETE FROM versions WHERE id = ?")
+                sql::query("DELETE FROM versions WHERE id = ?")
                     .bind(id)
                     .execute(&mut *tx)
                     .await
@@ -311,7 +311,7 @@ impl Db {
 
     /// The live node for a file ID of a given owner (versions are addressed by file ID).
     pub async fn file_of_owner(&self, owner_id: i64, node_id: i64) -> Result<Option<Node>> {
-        let row: Option<Row> = sqlx::query_as(&format!(
+        let row: Option<Row> = sql::query_as(format!(
             "SELECT {COLS} FROM nodes WHERE id = ? AND owner_id = ? AND kind = 'file' AND trash_id IS NULL"
         ))
         .bind(node_id)

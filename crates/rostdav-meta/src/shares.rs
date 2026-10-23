@@ -3,10 +3,10 @@
 //! This layer stores and looks up shares. Who may do what with a share is
 //! decided in `rostdav-app`.
 
+use crate::sql;
 use std::collections::HashMap;
 
 use rostdav_core::{Error, Name, Result};
-use sqlx::SqliteConnection;
 
 use crate::Db;
 use crate::nodes::{COLS, Node, NodeKind, Row, db_err, fetch, to_node};
@@ -126,8 +126,8 @@ fn to_share(r: ShareRow) -> Share {
 const LIVE: &str = "(expires_at IS NULL OR expires_at > strftime('%s','now'))
     AND NOT EXISTS (SELECT 1 FROM nodes tn WHERE tn.id = shares.node_id AND tn.trash_id IS NOT NULL)";
 
-async fn mount_clash(conn: &mut SqliteConnection, user: i64, key: &str) -> Result<bool> {
-    sqlx::query_scalar(
+async fn mount_clash(conn: &mut sql::Conn, user: i64, key: &str) -> Result<bool> {
+    sql::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM nodes n JOIN nodes r ON r.id = n.parent_id
                        WHERE r.owner_id = ?1 AND r.parent_id IS NULL AND n.name_key = ?2 AND n.trash_id IS NULL)
              OR EXISTS(SELECT 1 FROM shares WHERE recipient_id = ?1 AND mount_key = ?2)",
@@ -141,14 +141,14 @@ async fn mount_clash(conn: &mut SqliteConnection, user: i64, key: &str) -> Resul
 
 /// For creations in a user's root: the name must not be a mount point.
 pub(crate) async fn ensure_no_mount_clash(
-    conn: &mut SqliteConnection,
+    conn: &mut sql::Conn,
     parent: &Node,
     key: &str,
 ) -> Result<()> {
     if parent.parent_id.is_some() {
         return Ok(());
     }
-    let clash: bool = sqlx::query_scalar(
+    let clash: bool = sql::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM shares WHERE recipient_id = ? AND mount_key = ?)",
     )
     .bind(parent.owner_id)
@@ -174,7 +174,7 @@ impl Db {
             return Err(Error::Conflict("the root cannot be shared"));
         }
         if let Some(rec) = new.recipient_id {
-            let existing: Option<ShareRow> = sqlx::query_as(&format!(
+            let existing: Option<ShareRow> = sql::query_as(format!(
                 "SELECT {SCOLS} FROM shares WHERE node_id = ? AND recipient_id = ?"
             ))
             .bind(new.node_id)
@@ -200,7 +200,7 @@ impl Db {
             }
             None => (None, None),
         };
-        let id: i64 = sqlx::query_scalar(
+        let id: i64 = sql::query_scalar(
             "INSERT INTO shares (kind, owner_id, node_id, recipient_id, permissions, mount_name, mount_key, token,
                                  password_hash, expires_at, note, label, hide_download, created_at)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
@@ -222,7 +222,7 @@ impl Db {
         .fetch_one(&mut *tx)
         .await
         .map_err(db_err)?;
-        let row: ShareRow = sqlx::query_as(&format!("SELECT {SCOLS} FROM shares WHERE id = ?"))
+        let row: ShareRow = sql::query_as(format!("SELECT {SCOLS} FROM shares WHERE id = ?"))
             .bind(id)
             .fetch_one(&mut *tx)
             .await
@@ -232,7 +232,7 @@ impl Db {
     }
 
     pub async fn get_share(&self, id: i64) -> Result<Option<Share>> {
-        let row: Option<ShareRow> = sqlx::query_as(&format!(
+        let row: Option<ShareRow> = sql::query_as(format!(
             "SELECT {SCOLS} FROM shares WHERE id = ? AND {LIVE}"
         ))
         .bind(id)
@@ -244,7 +244,7 @@ impl Db {
 
     /// A live link by token.
     pub async fn find_link(&self, token: &str) -> Result<Option<Share>> {
-        let row: Option<ShareRow> = sqlx::query_as(&format!(
+        let row: Option<ShareRow> = sql::query_as(format!(
             "SELECT {SCOLS} FROM shares WHERE kind = 3 AND token = ? AND {LIVE}"
         ))
         .bind(token)
@@ -256,7 +256,7 @@ impl Db {
 
     /// The live user share mounted under this name in the user's root.
     pub async fn find_mount(&self, user_id: i64, name: &Name) -> Result<Option<Share>> {
-        let row: Option<ShareRow> = sqlx::query_as(&format!(
+        let row: Option<ShareRow> = sql::query_as(format!(
             "SELECT {SCOLS} FROM shares WHERE recipient_id = ? AND mount_key = ? AND {LIVE}"
         ))
         .bind(user_id)
@@ -284,7 +284,7 @@ impl Db {
     }
 
     async fn query_shares(&self, cond: &str, arg: i64) -> Result<Vec<Share>> {
-        let rows: Vec<ShareRow> = sqlx::query_as(&format!(
+        let rows: Vec<ShareRow> = sql::query_as(format!(
             "SELECT {SCOLS} FROM shares WHERE {cond} ORDER BY id"
         ))
         .bind(arg)
@@ -302,7 +302,7 @@ impl Db {
             let sql = format!(
                 "SELECT DISTINCT node_id, kind FROM shares WHERE node_id IN ({marks}) AND {LIVE} ORDER BY kind"
             );
-            let mut q = sqlx::query_as::<_, (i64, i64)>(&sql);
+            let mut q = sql::query_as::<(i64, i64)>(&sql);
             for id in chunk {
                 q = q.bind(id);
             }
@@ -323,7 +323,7 @@ impl Db {
         for chunk in ids.chunks(400) {
             let marks = vec!["?"; chunk.len()].join(",");
             let sql = format!("SELECT id FROM nodes WHERE owner_id = ? AND id IN ({marks})");
-            let mut q = sqlx::query_scalar::<_, i64>(&sql).bind(owner_id);
+            let mut q = sql::query_scalar::<i64>(&sql).bind(owner_id);
             for id in chunk {
                 q = q.bind(id);
             }
@@ -335,7 +335,7 @@ impl Db {
     pub async fn update_share(&self, id: i64, upd: &ShareUpdate) -> Result<Share> {
         let mut tx = self.write_tx().await?;
         let row: Option<ShareRow> =
-            sqlx::query_as(&format!("SELECT {SCOLS} FROM shares WHERE id = ?"))
+            sql::query_as(format!("SELECT {SCOLS} FROM shares WHERE id = ?"))
                 .bind(id)
                 .fetch_optional(&mut *tx)
                 .await
@@ -359,7 +359,7 @@ impl Db {
         if let Some(h) = upd.hide_download {
             s.hide_download = h;
         }
-        sqlx::query(
+        sql::query(
             "UPDATE shares SET permissions = ?, password_hash = ?, expires_at = ?, note = ?, label = ?, hide_download = ? WHERE id = ?",
         )
         .bind(i64::from(s.permissions))
@@ -377,7 +377,7 @@ impl Db {
     }
 
     pub async fn delete_share(&self, id: i64) -> Result<bool> {
-        let r = sqlx::query("DELETE FROM shares WHERE id = ?")
+        let r = sql::query("DELETE FROM shares WHERE id = ?")
             .bind(id)
             .execute(self.pool())
             .await
@@ -389,7 +389,7 @@ impl Db {
     pub async fn rename_mount(&self, share_id: i64, recipient_id: i64, name: &Name) -> Result<()> {
         let mut tx = self.write_tx().await?;
         let own: Option<i64> =
-            sqlx::query_scalar("SELECT id FROM shares WHERE id = ? AND recipient_id = ?")
+            sql::query_scalar("SELECT id FROM shares WHERE id = ? AND recipient_id = ?")
                 .bind(share_id)
                 .bind(recipient_id)
                 .fetch_optional(&mut *tx)
@@ -399,7 +399,7 @@ impl Db {
         if mount_clash(&mut tx, recipient_id, name.key()).await? {
             return Err(Error::AlreadyExists);
         }
-        sqlx::query("UPDATE shares SET mount_name = ?, mount_key = ? WHERE id = ?")
+        sql::query("UPDATE shares SET mount_name = ?, mount_key = ? WHERE id = ?")
             .bind(name.as_str())
             .bind(name.key())
             .bind(share_id)
@@ -412,7 +412,7 @@ impl Db {
 
     /// Path of a node below its owner's root, e.g. `/Docs/a.txt`.
     pub async fn node_path(&self, node_id: i64) -> Result<String> {
-        let names: Vec<String> = sqlx::query_scalar(
+        let names: Vec<String> = sql::query_scalar(
             "WITH RECURSIVE chain(id, parent_id, name, depth) AS (
                  SELECT id, parent_id, name, 0 FROM nodes WHERE id = ?1
                  UNION ALL
@@ -437,12 +437,12 @@ impl Db {
             if cur.kind != NodeKind::Dir {
                 return Ok(None);
             }
-            let row: Option<Row> = sqlx::query_as(&format!(
+            let row: Option<Row> = sql::query_as(format!(
                 "SELECT {COLS} FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id IS NULL"
             ))
             .bind(cur.id)
             .bind(seg.key())
-            .fetch_optional(&mut *conn)
+            .fetch_optional(&mut conn)
             .await
             .map_err(db_err)?;
             match row.map(to_node).transpose()? {
@@ -459,7 +459,7 @@ impl Db {
         for chunk in ids.chunks(400) {
             let marks = vec!["?"; chunk.len()].join(",");
             let sql = format!("SELECT id, name FROM users WHERE id IN ({marks})");
-            let mut q = sqlx::query_as::<_, (i64, String)>(&sql);
+            let mut q = sql::query_as::<(i64, String)>(&sql);
             for id in chunk {
                 q = q.bind(id);
             }
@@ -477,7 +477,7 @@ impl Db {
                 .replace('%', "\\%")
                 .replace('_', "\\_")
         );
-        sqlx::query_scalar(
+        sql::query_scalar(
             "SELECT name FROM users WHERE disabled = 0 AND id != ? AND lower(name_key) LIKE ? ESCAPE '\\' ORDER BY name_key LIMIT ?",
         )
         .bind(except)

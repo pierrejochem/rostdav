@@ -1,5 +1,6 @@
 //! Users and their root nodes.
 
+use crate::sql;
 use rostdav_core::{Error, Name, Result};
 
 use crate::Db;
@@ -30,7 +31,7 @@ impl Db {
         let now = now_secs();
         let mut tx = self.pool().begin().await.map_err(Error::internal)?;
 
-        let id: i64 = sqlx::query_scalar(
+        let id: i64 = sql::query_scalar(
             "INSERT INTO users (name, name_key, password_hash, is_admin, created_at)
              VALUES (?, ?, ?, ?, ?) RETURNING id",
         )
@@ -42,13 +43,11 @@ impl Db {
         .fetch_one(&mut *tx)
         .await
         .map_err(|e| match &e {
-            sqlx::Error::Database(d) if d.is_unique_violation() => {
-                Error::Conflict("user already exists")
-            }
+            e if e.is_unique_violation() => Error::Conflict("user already exists"),
             _ => Error::internal(e),
         })?;
 
-        sqlx::query(
+        sql::query(
             "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, mtime, etag, created_at, updated_at)
              VALUES (?, NULL, '', '', 'dir', ?, ?, ?, ?)",
         )
@@ -76,7 +75,7 @@ impl Db {
         let Ok(name) = Name::parse(name) else {
             return Ok(None);
         };
-        let row: Option<(i64, String, String, bool, bool)> = sqlx::query_as(
+        let row: Option<(i64, String, String, bool, bool)> = sql::query_as(
             "SELECT id, name, password_hash, is_admin, disabled FROM users WHERE name_key = ?",
         )
         .bind(name.key())
@@ -125,7 +124,7 @@ mod tests {
         let u = db.create_user(nu("anna")).await.expect("create");
         let found = db.find_user("anna").await.expect("find").expect("some");
         assert_eq!(found, u);
-        let roots: i64 = sqlx::query_scalar(
+        let roots: i64 = sql::query_scalar(
             "SELECT count(*) FROM nodes WHERE owner_id = ? AND parent_id IS NULL AND kind = 'dir'",
         )
         .bind(u.id)
@@ -149,11 +148,11 @@ mod tests {
         let (_d, db) = test_db().await;
         db.create_user(nu("anna")).await.expect("create");
         let _ = db.create_user(nu("anna")).await;
-        let users: i64 = sqlx::query_scalar("SELECT count(*) FROM users")
+        let users: i64 = sql::query_scalar("SELECT count(*) FROM users")
             .fetch_one(db.pool())
             .await
             .expect("c");
-        let nodes: i64 = sqlx::query_scalar("SELECT count(*) FROM nodes")
+        let nodes: i64 = sql::query_scalar("SELECT count(*) FROM nodes")
             .fetch_one(db.pool())
             .await
             .expect("c");

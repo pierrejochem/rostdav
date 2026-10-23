@@ -3,8 +3,8 @@
 //! The top node of a deleted subtree is re-homed under the owner's root; its
 //! original location is kept as text. Space keeps counting until a purge.
 
+use crate::sql;
 use rostdav_core::{Error, Name, Result};
-use sqlx::SqliteConnection;
 
 use crate::Db;
 use crate::nodes::{
@@ -34,8 +34,8 @@ type ItemRow = (i64, i64, String, i64, Option<String>);
 const ICOLS: &str = "t.id, t.node_id, t.orig_path, t.deleted_at, u.name";
 const IFROM: &str = "FROM trash t LEFT JOIN users u ON u.id = t.deleted_by";
 
-async fn path_of(conn: &mut SqliteConnection, id: i64) -> Result<String> {
-    let names: Vec<String> = sqlx::query_scalar(
+async fn path_of(conn: &mut sql::Conn, id: i64) -> Result<String> {
+    let names: Vec<String> = sql::query_scalar(
         "WITH RECURSIVE chain(id, parent_id, name, depth) AS (
              SELECT id, parent_id, name, 0 FROM nodes WHERE id = ?1
              UNION ALL
@@ -50,16 +50,16 @@ async fn path_of(conn: &mut SqliteConnection, id: i64) -> Result<String> {
     Ok(names.join("/"))
 }
 
-async fn root_of(conn: &mut SqliteConnection, owner: i64) -> Result<i64> {
-    sqlx::query_scalar("SELECT id FROM nodes WHERE owner_id = ? AND parent_id IS NULL")
+async fn root_of(conn: &mut sql::Conn, owner: i64) -> Result<i64> {
+    sql::query_scalar("SELECT id FROM nodes WHERE owner_id = ? AND parent_id IS NULL")
         .bind(owner)
         .fetch_one(conn)
         .await
         .map_err(db_err)
 }
 
-async fn live_child(conn: &mut SqliteConnection, parent: i64, key: &str) -> Result<Option<Node>> {
-    let row: Option<Row> = sqlx::query_as(&format!(
+async fn live_child(conn: &mut sql::Conn, parent: i64, key: &str) -> Result<Option<Node>> {
+    let row: Option<Row> = sql::query_as(format!(
         "SELECT {COLS} FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id IS NULL"
     ))
     .bind(parent)
@@ -70,8 +70,8 @@ async fn live_child(conn: &mut SqliteConnection, parent: i64, key: &str) -> Resu
     row.map(to_node).transpose()
 }
 
-async fn load_item(conn: &mut SqliteConnection, id: i64) -> Result<Option<TrashItem>> {
-    let row: Option<ItemRow> = sqlx::query_as(&format!("SELECT {ICOLS} {IFROM} WHERE t.id = ?"))
+async fn load_item(conn: &mut sql::Conn, id: i64) -> Result<Option<TrashItem>> {
+    let row: Option<ItemRow> = sql::query_as(format!("SELECT {ICOLS} {IFROM} WHERE t.id = ?"))
         .bind(id)
         .fetch_optional(&mut *conn)
         .await
@@ -93,7 +93,7 @@ async fn load_item(conn: &mut SqliteConnection, id: i64) -> Result<Option<TrashI
 
 /// A name for `base` that is free below `parent`: `a (restored).txt`, `a (restored 2).txt`, ...
 async fn free_name(
-    conn: &mut SqliteConnection,
+    conn: &mut sql::Conn,
     parent: &Node,
     base: &str,
     is_file: bool,
@@ -132,7 +132,7 @@ impl Db {
         let now = now_secs();
         let mut tx = self.write_tx().await?;
         let node = require(&mut tx, node_id).await?;
-        let live: Option<i64> = sqlx::query_scalar("SELECT trash_id FROM nodes WHERE id = ?")
+        let live: Option<i64> = sql::query_scalar("SELECT trash_id FROM nodes WHERE id = ?")
             .bind(node_id)
             .fetch_one(&mut *tx)
             .await
@@ -148,7 +148,7 @@ impl Db {
         }
         let orig_path = path_of(&mut tx, node_id).await?;
         let mut deleted_at = now;
-        while sqlx::query_scalar::<_, bool>("SELECT EXISTS(SELECT 1 FROM trash WHERE owner_id = ? AND orig_name = ? AND deleted_at = ?)")
+        while sql::query_scalar::<bool>("SELECT EXISTS(SELECT 1 FROM trash WHERE owner_id = ? AND orig_name = ? AND deleted_at = ?)")
             .bind(node.owner_id)
             .bind(&node.name)
             .bind(deleted_at)
@@ -158,7 +158,7 @@ impl Db {
         {
             deleted_at += 1;
         }
-        let trash_id: i64 = sqlx::query_scalar(
+        let trash_id: i64 = sql::query_scalar(
             "INSERT INTO trash (node_id, owner_id, orig_path, orig_name, deleted_at, deleted_by) VALUES (?, ?, ?, ?, ?, ?) RETURNING id",
         )
         .bind(node_id)
@@ -170,7 +170,7 @@ impl Db {
         .fetch_one(&mut *tx)
         .await
         .map_err(db_err)?;
-        sqlx::query(
+        sql::query(
             "WITH RECURSIVE sub(id) AS (
                  SELECT id FROM nodes WHERE id = ?2
                  UNION ALL SELECT n.id FROM nodes n JOIN sub s ON n.parent_id = s.id WHERE n.trash_id IS NULL
@@ -184,7 +184,7 @@ impl Db {
         .map_err(db_err)?;
         // independent of the old parent from now on
         let root = root_of(&mut tx, node.owner_id).await?;
-        sqlx::query("UPDATE nodes SET parent_id = ?, updated_at = ? WHERE id = ?")
+        sql::query("UPDATE nodes SET parent_id = ?, updated_at = ? WHERE id = ?")
             .bind(root)
             .bind(now)
             .bind(node_id)
@@ -199,7 +199,7 @@ impl Db {
 
     /// The owner's trash, newest first.
     pub async fn list_trash(&self, owner_id: i64) -> Result<Vec<TrashItem>> {
-        let ids: Vec<i64> = sqlx::query_scalar(
+        let ids: Vec<i64> = sql::query_scalar(
             "SELECT id FROM trash WHERE owner_id = ? ORDER BY deleted_at DESC, id DESC",
         )
         .bind(owner_id)
@@ -228,7 +228,7 @@ impl Db {
         let Ok(deleted_at) = time.parse::<i64>() else {
             return Ok(None);
         };
-        let id: Option<i64> = sqlx::query_scalar(
+        let id: Option<i64> = sql::query_scalar(
             "SELECT id FROM trash WHERE owner_id = ? AND orig_name = ? AND deleted_at = ?",
         )
         .bind(owner_id)
@@ -248,7 +248,7 @@ impl Db {
 
     /// Children of a node inside a trashed subtree.
     pub async fn trash_children(&self, trash_id: i64, parent: i64) -> Result<Vec<Node>> {
-        let rows: Vec<Row> = sqlx::query_as(&format!(
+        let rows: Vec<Row> = sql::query_as(format!(
             "SELECT {COLS} FROM nodes WHERE parent_id = ? AND trash_id = ? ORDER BY name_key"
         ))
         .bind(parent)
@@ -270,7 +270,7 @@ impl Db {
             if cur.kind != NodeKind::Dir {
                 return Ok(None);
             }
-            let row: Option<Row> = sqlx::query_as(&format!(
+            let row: Option<Row> = sql::query_as(format!(
                 "SELECT {COLS} FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id = ?"
             ))
             .bind(cur.id)
@@ -289,7 +289,7 @@ impl Db {
 
     /// Sum of file sizes in a trashed subtree.
     pub async fn trash_item_size(&self, trash_id: i64) -> Result<i64> {
-        sqlx::query_scalar("SELECT COALESCE(SUM(size), 0) FROM nodes WHERE trash_id = ?")
+        sql::query_scalar("SELECT COALESCE(SUM(size), 0) FROM nodes WHERE trash_id = ?")
             .bind(trash_id)
             .fetch_one(self.pool())
             .await
@@ -334,12 +334,12 @@ impl Db {
         .await?;
         let key = Name::parse(&name)?.key().to_owned();
 
-        sqlx::query("UPDATE nodes SET trash_id = NULL WHERE trash_id = ?")
+        sql::query("UPDATE nodes SET trash_id = NULL WHERE trash_id = ?")
             .bind(trash_id)
             .execute(&mut *tx)
             .await
             .map_err(db_err)?;
-        sqlx::query("UPDATE nodes SET parent_id = ?, name = ?, name_key = ?, etag = ?, updated_at = ? WHERE id = ?")
+        sql::query("UPDATE nodes SET parent_id = ?, name = ?, name_key = ?, etag = ?, updated_at = ? WHERE id = ?")
             .bind(parent.id)
             .bind(&name)
             .bind(&key)
@@ -349,7 +349,7 @@ impl Db {
             .execute(&mut *tx)
             .await
             .map_err(db_err)?;
-        sqlx::query("DELETE FROM trash WHERE id = ?")
+        sql::query("DELETE FROM trash WHERE id = ?")
             .bind(trash_id)
             .execute(&mut *tx)
             .await
@@ -382,7 +382,7 @@ impl Db {
 
     async fn purge_where(&self, cond: &str, arg: i64) -> Result<usize> {
         let mut tx = self.write_tx().await?;
-        let ids: Vec<i64> = sqlx::query_scalar(&format!("SELECT id FROM trash WHERE {cond}"))
+        let ids: Vec<i64> = sql::query_scalar(format!("SELECT id FROM trash WHERE {cond}"))
             .bind(arg)
             .fetch_all(&mut *tx)
             .await
@@ -395,23 +395,22 @@ impl Db {
     }
 }
 
-async fn purge_in_tx(tx: &mut SqliteConnection, trash_id: i64) -> Result<Option<i64>> {
-    let row: Option<(i64, i64)> =
-        sqlx::query_as("SELECT node_id, owner_id FROM trash WHERE id = ?")
-            .bind(trash_id)
-            .fetch_optional(&mut *tx)
-            .await
-            .map_err(db_err)?;
+async fn purge_in_tx(tx: &mut sql::Conn, trash_id: i64) -> Result<Option<i64>> {
+    let row: Option<(i64, i64)> = sql::query_as("SELECT node_id, owner_id FROM trash WHERE id = ?")
+        .bind(trash_id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(db_err)?;
     let Some((node_id, owner)) = row else {
         return Ok(None);
     };
     let files: i64 =
-        sqlx::query_scalar("SELECT COALESCE(SUM(size), 0) FROM nodes WHERE trash_id = ?")
+        sql::query_scalar("SELECT COALESCE(SUM(size), 0) FROM nodes WHERE trash_id = ?")
             .bind(trash_id)
             .fetch_one(&mut *tx)
             .await
             .map_err(db_err)?;
-    let versions: i64 = sqlx::query_scalar(
+    let versions: i64 = sql::query_scalar(
         "SELECT COALESCE(SUM(v.size), 0) FROM versions v JOIN nodes n ON n.id = v.node_id WHERE n.trash_id = ?",
     )
     .bind(trash_id)
@@ -419,7 +418,7 @@ async fn purge_in_tx(tx: &mut SqliteConnection, trash_id: i64) -> Result<Option<
     .await
     .map_err(db_err)?;
     // children go with their parent (foreign key cascade), versions and the trash row too
-    sqlx::query("DELETE FROM nodes WHERE id = ?")
+    sql::query("DELETE FROM nodes WHERE id = ?")
         .bind(node_id)
         .execute(&mut *tx)
         .await

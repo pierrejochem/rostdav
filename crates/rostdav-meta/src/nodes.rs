@@ -8,8 +8,8 @@
 //!
 //! Until shares exist (M9) every operation stays inside one owner's tree.
 
+use crate::sql;
 use rostdav_core::{Error, LogicalPath, Name, Result};
-use sqlx::SqliteConnection;
 
 use crate::Db;
 use crate::users::{new_etag, now_secs};
@@ -122,15 +122,15 @@ pub(crate) fn to_node(r: Row) -> Result<Node> {
     })
 }
 
-pub(crate) fn db_err(e: sqlx::Error) -> Error {
+pub(crate) fn db_err(e: sql::Error) -> Error {
     match &e {
-        sqlx::Error::Database(d) if d.is_unique_violation() => Error::AlreadyExists,
+        e if e.is_unique_violation() => Error::AlreadyExists,
         _ => Error::internal(e),
     }
 }
 
-pub(crate) async fn fetch(conn: &mut SqliteConnection, id: i64) -> Result<Option<Node>> {
-    let row: Option<Row> = sqlx::query_as(&format!("SELECT {COLS} FROM nodes WHERE id = ?"))
+pub(crate) async fn fetch(conn: &mut sql::Conn, id: i64) -> Result<Option<Node>> {
+    let row: Option<Row> = sql::query_as(format!("SELECT {COLS} FROM nodes WHERE id = ?"))
         .bind(id)
         .fetch_optional(conn)
         .await
@@ -138,16 +138,12 @@ pub(crate) async fn fetch(conn: &mut SqliteConnection, id: i64) -> Result<Option
     row.map(to_node).transpose()
 }
 
-pub(crate) async fn require(conn: &mut SqliteConnection, id: i64) -> Result<Node> {
+pub(crate) async fn require(conn: &mut sql::Conn, id: i64) -> Result<Node> {
     fetch(conn, id).await?.ok_or(Error::NotFound)
 }
 
-async fn find_child(
-    conn: &mut SqliteConnection,
-    parent: i64,
-    name_key: &str,
-) -> Result<Option<Node>> {
-    let row: Option<Row> = sqlx::query_as(&format!(
+async fn find_child(conn: &mut sql::Conn, parent: i64, name_key: &str) -> Result<Option<Node>> {
+    let row: Option<Row> = sql::query_as(format!(
         "SELECT {COLS} FROM nodes WHERE parent_id = ? AND name_key = ? AND trash_id IS NULL"
     ))
     .bind(parent)
@@ -159,8 +155,8 @@ async fn find_child(
 }
 
 /// Renews ETag and mtime of `start` and all its ancestors.
-pub(crate) async fn touch_chain(conn: &mut SqliteConnection, start: i64, now: i64) -> Result<()> {
-    sqlx::query(
+pub(crate) async fn touch_chain(conn: &mut sql::Conn, start: i64, now: i64) -> Result<()> {
+    sql::query(
         "WITH RECURSIVE chain(id, parent_id) AS (
              SELECT id, parent_id FROM nodes WHERE id = ?1
              UNION ALL
@@ -178,8 +174,8 @@ pub(crate) async fn touch_chain(conn: &mut SqliteConnection, start: i64, now: i6
     Ok(())
 }
 
-async fn subtree_size(conn: &mut SqliteConnection, id: i64) -> Result<i64> {
-    sqlx::query_scalar(
+async fn subtree_size(conn: &mut sql::Conn, id: i64) -> Result<i64> {
+    sql::query_scalar(
         "WITH RECURSIVE sub(id) AS (
              SELECT id FROM nodes WHERE id = ?1
              UNION ALL
@@ -194,8 +190,8 @@ async fn subtree_size(conn: &mut SqliteConnection, id: i64) -> Result<i64> {
 }
 
 /// Is `candidate` equal to `ancestor` or located below it?
-async fn is_within(conn: &mut SqliteConnection, candidate: i64, ancestor: i64) -> Result<bool> {
-    sqlx::query_scalar(
+async fn is_within(conn: &mut sql::Conn, candidate: i64, ancestor: i64) -> Result<bool> {
+    sql::query_scalar(
         "WITH RECURSIVE chain(id, parent_id) AS (
              SELECT id, parent_id FROM nodes WHERE id = ?1
              UNION ALL
@@ -211,12 +207,12 @@ async fn is_within(conn: &mut SqliteConnection, candidate: i64, ancestor: i64) -
 }
 
 /// Adjusts the owner's usage; refuses to exceed the quota when growing.
-pub(crate) async fn adjust_used(conn: &mut SqliteConnection, owner: i64, delta: i64) -> Result<()> {
+pub(crate) async fn adjust_used(conn: &mut sql::Conn, owner: i64, delta: i64) -> Result<()> {
     if delta == 0 {
         return Ok(());
     }
     let (quota, used): (Option<i64>, i64) =
-        sqlx::query_as("SELECT quota_bytes, used_bytes FROM users WHERE id = ?")
+        sql::query_as("SELECT quota_bytes, used_bytes FROM users WHERE id = ?")
             .bind(owner)
             .fetch_one(&mut *conn)
             .await
@@ -225,7 +221,7 @@ pub(crate) async fn adjust_used(conn: &mut SqliteConnection, owner: i64, delta: 
     if delta > 0 && quota.is_some_and(|q| new_used > q) {
         return Err(Error::QuotaExceeded);
     }
-    sqlx::query("UPDATE users SET used_bytes = ? WHERE id = ?")
+    sql::query("UPDATE users SET used_bytes = ? WHERE id = ?")
         .bind(new_used)
         .bind(owner)
         .execute(conn)
@@ -234,7 +230,7 @@ pub(crate) async fn adjust_used(conn: &mut SqliteConnection, owner: i64, delta: 
     Ok(())
 }
 
-async fn require_dir(conn: &mut SqliteConnection, id: i64) -> Result<Node> {
+async fn require_dir(conn: &mut sql::Conn, id: i64) -> Result<Node> {
     let n = require(conn, id).await?;
     if n.kind != NodeKind::Dir {
         return Err(Error::Conflict("parent is not a directory"));
@@ -243,18 +239,15 @@ async fn require_dir(conn: &mut SqliteConnection, id: i64) -> Result<Node> {
 }
 
 impl Db {
-    pub(crate) async fn write_tx(&self) -> Result<sqlx::Transaction<'static, sqlx::Sqlite>> {
+    pub(crate) async fn write_tx(&self) -> Result<sql::Tx> {
         // IMMEDIATE: take the write lock up front; a deferred read-then-write
         // transaction can fail with SQLITE_BUSY that busy_timeout cannot cure.
-        self.pool()
-            .begin_with("BEGIN IMMEDIATE")
-            .await
-            .map_err(Error::internal)
+        self.pool().begin().await.map_err(Error::internal)
     }
 
     /// Sets or clears the owner's quota (admin CLI, tests).
     pub async fn set_quota(&self, owner_id: i64, quota: Option<i64>) -> Result<()> {
-        sqlx::query("UPDATE users SET quota_bytes = ? WHERE id = ?")
+        sql::query("UPDATE users SET quota_bytes = ? WHERE id = ?")
             .bind(quota)
             .bind(owner_id)
             .execute(self.pool())
@@ -265,7 +258,7 @@ impl Db {
 
     /// `(quota_bytes, used_bytes)` of a user.
     pub async fn quota_info(&self, owner_id: i64) -> Result<(Option<i64>, i64)> {
-        sqlx::query_as("SELECT quota_bytes, used_bytes FROM users WHERE id = ?")
+        sql::query_as("SELECT quota_bytes, used_bytes FROM users WHERE id = ?")
             .bind(owner_id)
             .fetch_one(self.pool())
             .await
@@ -275,7 +268,7 @@ impl Db {
     /// Bytes the owner may still add, or `None` without a quota.
     pub async fn quota_headroom(&self, owner_id: i64) -> Result<Option<i64>> {
         let (quota, used): (Option<i64>, i64) =
-            sqlx::query_as("SELECT quota_bytes, used_bytes FROM users WHERE id = ?")
+            sql::query_as("SELECT quota_bytes, used_bytes FROM users WHERE id = ?")
                 .bind(owner_id)
                 .fetch_one(self.pool())
                 .await
@@ -285,7 +278,7 @@ impl Db {
 
     /// The owner's files that changed last (trash excluded), newest first.
     pub async fn recent_files(&self, owner_id: i64, limit: i64) -> Result<Vec<Node>> {
-        let rows: Vec<Row> = sqlx::query_as(&format!(
+        let rows: Vec<Row> = sql::query_as(format!(
             "SELECT {COLS} FROM nodes WHERE owner_id = ? AND kind = 'file' AND trash_id IS NULL
              ORDER BY mtime DESC, id DESC LIMIT ?"
         ))
@@ -303,7 +296,7 @@ impl Db {
     }
 
     pub async fn root_node(&self, owner_id: i64) -> Result<Node> {
-        let row: Option<Row> = sqlx::query_as(&format!(
+        let row: Option<Row> = sql::query_as(format!(
             "SELECT {COLS} FROM nodes WHERE owner_id = ? AND parent_id IS NULL"
         ))
         .bind(owner_id)
@@ -334,7 +327,7 @@ impl Db {
 
     /// Children ordered by name.
     pub async fn children(&self, parent_id: i64) -> Result<Vec<Node>> {
-        let rows: Vec<Row> = sqlx::query_as(&format!(
+        let rows: Vec<Row> = sql::query_as(format!(
             "SELECT {COLS} FROM nodes WHERE parent_id = ? AND trash_id IS NULL ORDER BY name_key"
         ))
         .bind(parent_id)
@@ -355,7 +348,7 @@ impl Db {
         let mut tx = self.write_tx().await?;
         let parent = require_dir(&mut tx, parent_id).await?;
         crate::shares::ensure_no_mount_clash(&mut tx, &parent, name.key()).await?;
-        let id: i64 = sqlx::query_scalar(
+        let id: i64 = sql::query_scalar(
             "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, mtime, etag, created_at, updated_at)
              VALUES (?, ?, ?, ?, 'dir', ?, ?, ?, ?) RETURNING id",
         )
@@ -440,7 +433,7 @@ impl Db {
             return Err(Error::Conflict("target is a directory"));
         }
 
-        sqlx::query("INSERT INTO blobs (id, size, checksum, created_at) VALUES (?, ?, ?, ?)")
+        sql::query("INSERT INTO blobs (id, size, checksum, created_at) VALUES (?, ?, ?, ?)")
             .bind(&blob.id)
             .bind(blob.size)
             .bind(&blob.checksum)
@@ -464,7 +457,7 @@ impl Db {
                     delta -= crate::versions::trim(&mut tx, old.id, opts.versioning.max_versions)
                         .await?;
                 }
-                sqlx::query(
+                sql::query(
                     "UPDATE nodes SET size = ?, mtime = ?, etag = ?, blob_id = ?, checksum = ?, client_checksum = ?,
                      upload_time = ?, updated_at = ?
                      WHERE id = ?",
@@ -485,7 +478,7 @@ impl Db {
             }
             None => {
                 crate::shares::ensure_no_mount_clash(&mut tx, &parent, name.key()).await?;
-                let id: i64 = sqlx::query_scalar(
+                let id: i64 = sql::query_scalar(
                     "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time, created_at, updated_at)
                      VALUES (?, ?, ?, ?, 'file', ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
                 )
@@ -529,7 +522,7 @@ impl Db {
         }
         let freed = subtree_size(&mut tx, id).await?
             + crate::versions::subtree_versions_size(&mut tx, id).await?;
-        sqlx::query("DELETE FROM nodes WHERE id = ?")
+        sql::query("DELETE FROM nodes WHERE id = ?")
             .bind(id)
             .execute(&mut *tx)
             .await
@@ -564,7 +557,7 @@ impl Db {
         }
         crate::shares::ensure_no_mount_clash(&mut tx, &parent, name.key()).await?;
         let replaced = clear_target(&mut tx, &parent, name, overwrite, node.id).await?;
-        sqlx::query(
+        sql::query(
             "UPDATE nodes SET parent_id = ?, name = ?, name_key = ?, updated_at = ? WHERE id = ?",
         )
         .bind(parent.id)
@@ -622,7 +615,7 @@ impl Db {
         .await?;
         let mut stack = vec![(src.id, new_id)];
         while let Some((old_dir, new_dir)) = stack.pop() {
-            let rows: Vec<Row> = sqlx::query_as(&format!(
+            let rows: Vec<Row> = sql::query_as(format!(
                 "SELECT {COLS} FROM nodes WHERE parent_id = ? AND trash_id IS NULL"
             ))
             .bind(old_dir)
@@ -648,7 +641,7 @@ impl Db {
     /// Removes blob rows that no node references and returns their IDs; the
     /// caller then deletes the files.
     pub async fn delete_unreferenced_blobs(&self) -> Result<Vec<String>> {
-        sqlx::query_scalar(
+        sql::query_scalar(
             "DELETE FROM blobs
              WHERE id NOT IN (SELECT blob_id FROM nodes WHERE blob_id IS NOT NULL)
                AND id NOT IN (SELECT blob_id FROM versions)
@@ -662,7 +655,7 @@ impl Db {
 
 /// Handles an existing node at the target of a move/copy.
 async fn clear_target(
-    tx: &mut SqliteConnection,
+    tx: &mut sql::Conn,
     parent: &Node,
     name: &Name,
     overwrite: bool,
@@ -679,7 +672,7 @@ async fn clear_target(
     }
     let freed = subtree_size(tx, target.id).await?
         + crate::versions::subtree_versions_size(tx, target.id).await?;
-    sqlx::query("DELETE FROM nodes WHERE id = ?")
+    sql::query("DELETE FROM nodes WHERE id = ?")
         .bind(target.id)
         .execute(&mut *tx)
         .await
@@ -689,7 +682,7 @@ async fn clear_target(
 }
 
 async fn copy_one(
-    conn: &mut SqliteConnection,
+    conn: &mut sql::Conn,
     src: &Node,
     owner: i64,
     parent: i64,
@@ -701,7 +694,7 @@ async fn copy_one(
         NodeKind::File => "file",
         NodeKind::Dir => "dir",
     };
-    sqlx::query_scalar(
+    sql::query_scalar(
         "INSERT INTO nodes (owner_id, parent_id, name, name_key, kind, size, mtime, etag, blob_id, checksum, client_checksum, upload_time, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
@@ -773,7 +766,7 @@ mod tests {
     }
 
     async fn used(db: &Db, owner: i64) -> i64 {
-        sqlx::query_scalar("SELECT used_bytes FROM users WHERE id = ?")
+        sql::query_scalar("SELECT used_bytes FROM users WHERE id = ?")
             .bind(owner)
             .fetch_one(db.pool())
             .await
@@ -791,7 +784,7 @@ mod tests {
         let new = put(&db, root, "new.txt", "3", 3).await;
         put(&db, bob_root, "bobs.txt", "4", 4).await;
         for (id, t) in [(old.id, 100), (mid.id, 200), (new.id, 300)] {
-            sqlx::query("UPDATE nodes SET mtime = ? WHERE id = ?")
+            sql::query("UPDATE nodes SET mtime = ? WHERE id = ?")
                 .bind(t)
                 .bind(id)
                 .execute(db.pool())
@@ -939,7 +932,7 @@ mod tests {
     async fn quota_is_enforced_and_accounted() {
         let (_d, db) = test_db().await;
         let (uid, root) = user(&db, "anna").await;
-        sqlx::query("UPDATE users SET quota_bytes = 10 WHERE id = ?")
+        sql::query("UPDATE users SET quota_bytes = 10 WHERE id = ?")
             .bind(uid)
             .execute(db.pool())
             .await
@@ -1075,7 +1068,7 @@ mod tests {
     async fn copy_over_quota_changes_nothing() {
         let (_d, db) = test_db().await;
         let (uid, root) = user(&db, "anna").await;
-        sqlx::query("UPDATE users SET quota_bytes = 15 WHERE id = ?")
+        sql::query("UPDATE users SET quota_bytes = 15 WHERE id = ?")
             .bind(uid)
             .execute(db.pool())
             .await

@@ -1,9 +1,10 @@
+use crate::sql;
 use rostdav_core::{Error, Result};
 
 use crate::Db;
 use crate::users::now_secs;
 
-fn err(e: sqlx::Error) -> Error {
+fn err(e: sql::Error) -> Error {
     Error::internal(e)
 }
 
@@ -24,7 +25,7 @@ impl Db {
         data: &[u8],
         etag: &str,
     ) -> Result<()> {
-        sqlx::query(
+        sql::query(
             "INSERT INTO avatars (user_id, mime, data, etag, updated_at) VALUES (?1, ?2, ?3, ?4, ?5)
              ON CONFLICT(user_id) DO UPDATE SET mime = ?2, data = ?3, etag = ?4, updated_at = ?5",
         )
@@ -41,7 +42,7 @@ impl Db {
 
     pub async fn avatar_get(&self, user_id: i64) -> Result<Option<StoredAvatar>> {
         let row: Option<(String, Vec<u8>, String)> =
-            sqlx::query_as("SELECT mime, data, etag FROM avatars WHERE user_id = ?")
+            sql::query_as("SELECT mime, data, etag FROM avatars WHERE user_id = ?")
                 .bind(user_id)
                 .fetch_optional(self.pool())
                 .await
@@ -51,7 +52,7 @@ impl Db {
 
     /// Whether the user has a picture, without reading it.
     pub async fn avatar_exists(&self, user_id: i64) -> Result<bool> {
-        let n: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM avatars WHERE user_id = ?")
+        let n: i64 = sql::query_scalar("SELECT COUNT(*) FROM avatars WHERE user_id = ?")
             .bind(user_id)
             .fetch_one(self.pool())
             .await
@@ -60,7 +61,7 @@ impl Db {
     }
 
     pub async fn avatar_delete(&self, user_id: i64) -> Result<bool> {
-        let r = sqlx::query("DELETE FROM avatars WHERE user_id = ?")
+        let r = sql::query("DELETE FROM avatars WHERE user_id = ?")
             .bind(user_id)
             .execute(self.pool())
             .await
@@ -114,7 +115,7 @@ mod tests {
         db.avatar_set(u.id, "image/png", b"x", "e")
             .await
             .expect("set");
-        sqlx::query("DELETE FROM users WHERE id = ?")
+        crate::sql::query("DELETE FROM users WHERE id = ?")
             .bind(u.id)
             .execute(db.pool())
             .await

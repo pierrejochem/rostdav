@@ -1,12 +1,13 @@
 //! Favorites: a set of (user, node) pairs.
 
+use crate::sql;
 use std::collections::HashSet;
 
 use rostdav_core::{Error, Result};
 
 use crate::Db;
 
-fn err(e: sqlx::Error) -> Error {
+fn err(e: sql::Error) -> Error {
     Error::internal(e)
 }
 
@@ -18,7 +19,7 @@ impl Db {
         } else {
             "DELETE FROM favorites WHERE user_id = ? AND node_id = ?"
         };
-        sqlx::query(sql)
+        sql::query(sql)
             .bind(user_id)
             .bind(node_id)
             .execute(self.pool())
@@ -35,7 +36,7 @@ impl Db {
         let marks = vec!["?"; node_ids.len()].join(",");
         let sql =
             format!("SELECT node_id FROM favorites WHERE user_id = ? AND node_id IN ({marks})");
-        let mut q = sqlx::query_scalar::<_, i64>(&sql).bind(user_id);
+        let mut q = sql::query_scalar::<i64>(&sql).bind(user_id);
         for id in node_ids {
             q = q.bind(id);
         }
@@ -48,7 +49,7 @@ impl Db {
 
     /// Favorites of the user that live in the user's own tree (not in the trash).
     pub async fn favorites_own(&self, user_id: i64) -> Result<Vec<i64>> {
-        sqlx::query_scalar(
+        sql::query_scalar(
             "SELECT f.node_id FROM favorites f JOIN nodes n ON n.id = f.node_id
              WHERE f.user_id = ?1 AND n.owner_id = ?1 AND n.trash_id IS NULL AND n.parent_id IS NOT NULL
              ORDER BY f.node_id",
