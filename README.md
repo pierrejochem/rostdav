@@ -4,6 +4,12 @@
 
 A lean, self-hosted file server in Rust with WebDAV that works with the official Nextcloud apps.
 
+Rostdav is one small program with one data folder: no PHP, no web server stack, no separate database server. Sign in from the Nextcloud Android app or the desktop client, sync and share files, restore older versions and deleted files, and manage users in a built-in web interface (light and dark, English and German). Free and open source (Apache-2.0 or MIT) for Linux on x86-64 and arm64, as a binary or a container image.
+
+**[Documentation and user manual](https://pierrejochem.github.io/rostdav/)** · [Install](https://pierrejochem.github.io/rostdav/admin/deployment/) · [Releases](https://github.com/pierrejochem/rostdav/releases) · [Compatibility](https://pierrejochem.github.io/rostdav/reference/compatibility/)
+
+[![CI](https://github.com/pierrejochem/rostdav/actions/workflows/ci.yml/badge.svg)](https://github.com/pierrejochem/rostdav/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/pierrejochem/rostdav)](https://github.com/pierrejochem/rostdav/releases) [![License](https://img.shields.io/badge/license-Apache--2.0%20OR%20MIT-blue)](#license)
+
 > Rostdav is not a Nextcloud product and is not affiliated with Nextcloud GmbH. It implements only the interfaces required for the supported features.
 
 ## Status
@@ -25,13 +31,14 @@ Production: [docs/deployment.md](docs/deployment.md) (released binary and contai
 
 With [`just`](https://github.com/casey/just): `just run`, `just check`, `just smoke`. IDE setup and workflow: [CONTRIBUTING.md](CONTRIBUTING.md).
 
-## Planned features
+## Features
 
 - Multiple users with separate file areas
 - WebDAV for files and folders, streaming of large files, chunked upload
 - Sign-in from the Nextcloud app via Login Flow v2 with a separate app password per device
 - Versions, shares, trash
 - Web interface with light and dark mode, administration, optional two-factor authentication
+- Maintenance mode, event log, consistency check, backup and restore from the command line
 
 What has actually been tested with which app version is documented in [docs/compatibility.md](docs/compatibility.md).
 
@@ -50,10 +57,13 @@ crates/
 docs/                Instructions, architecture, ADRs, plan, security, compatibility, operations
 design/mockups/      Sources of the design canvases (logo, web UI)
 assets/brand/        Logo, app icon, favicon as SVG
-scripts/             Smoke test
+site/                Documentation site (Zola; GitHub Pages), user manual pages
+scripts/             Smoke test, site-sync.py (copies docs/ into the site)
 ```
 
 ## Documentation
+
+The same documents, with the user manual and screenshots, are published as a web site: <https://pierrejochem.github.io/rostdav/>. The site is built from `site/` and `docs/` (`just site`).
 
 | Document | Contents |
 |---|---|

@@ -16,6 +16,8 @@ version = "0.3.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/pierrejochem/rostdav"
+homepage = "https://pierrejochem.github.io/rostdav/"
+documentation = "https://pierrejochem.github.io/rostdav/"
 rust-version = "1.85"
 # Internal crates; the binary is what gets shipped.
 publish = false

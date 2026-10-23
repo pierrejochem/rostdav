@@ -4,6 +4,11 @@ description = "Lean file server compatible with the Nextcloud apps"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+keywords = ["webdav", "nextcloud", "file-server", "self-hosted", "files"]
+categories = ["web-programming::http-server", "filesystem"]
 rust-version.workspace = true
 publish.workspace = true
 

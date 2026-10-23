@@ -35,3 +35,7 @@ First line ≤ 72 characters, with a milestone prefix, e.g. `M2: PROPFIND with D
 ## License of contributions
 
 Unless explicitly stated otherwise, contributions are submitted under MIT OR Apache-2.0.
+
+## Documentation site
+
+The user manual is `site/content/manual/`; the other pages come from `docs/` and `CHANGELOG.md`. `just site` builds it (Zola 0.21), see [site/README.md](site/README.md). Link every compatibility statement in the manual to the [compatibility report](docs/compatibility.md) and describe only what the interface really shows.
