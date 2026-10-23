@@ -301,14 +301,15 @@ pub fn app_opts(
         nav_entry("trash", &t(lang, "Trash bin"), "/trash", current)
     );
     let account_nav = format!(
-        "{}{}",
+        "{}{}{}",
         nav_entry(
             "devices",
             &t(lang, "Devices & security"),
             "/devices",
             current
         ),
-        nav_entry("settings", &t(lang, "Settings"), "/settings", current)
+        nav_entry("settings", &t(lang, "Settings"), "/settings", current),
+        nav_entry("about", &t(lang, "About"), "/about", current)
     );
     let server_nav = if chrome.admin {
         format!(

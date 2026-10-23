@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- About page (`/about`, in the navigation under the account entries): version, licence, source code, and the release notes of every version. The notes are `CHANGELOG.md` compiled into the binary, so they work offline and describe exactly what is running; the running version is marked and open.
+
 ### Fixed
 
 - The profile picture is now shown where a user appears as a round icon: the icon at the top right of every page, and the user list and user details in the administration (before, only the first letter was shown). The picture's address carries its version, so a new picture shows at once and not after the browser's cache has expired.

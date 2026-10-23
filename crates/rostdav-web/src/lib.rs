@@ -2,6 +2,7 @@
 //!
 //! Login Flow v2 page (M4) and the browser interface with sessions (M11, ADR 0006).
 
+mod about;
 mod admin;
 mod filespage;
 mod i18n;
@@ -74,6 +75,7 @@ pub fn router() -> Router<AppState> {
         .route("/share/user", post(sharing::share_user))
         .route("/share/link", post(sharing::share_link))
         .route("/share/delete", post(sharing::share_delete))
+        .route("/about", get(about::about))
         .route("/recent", get(filespage::recent))
         .route("/shares", get(sharing::shares_page))
         .route("/shares/delete", post(sharing::shares_delete))

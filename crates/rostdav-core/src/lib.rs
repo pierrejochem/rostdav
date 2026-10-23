@@ -5,6 +5,7 @@
 
 pub mod error;
 pub mod path;
+pub mod release;
 pub mod time;
 
 pub use error::{Error, Result};

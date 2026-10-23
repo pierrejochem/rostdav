@@ -4915,3 +4915,27 @@ async fn the_profile_picture_shows_in_the_header_and_in_the_user_list() {
             .contains("/avatar/")
     );
 }
+
+#[tokio::test]
+async fn the_about_page_shows_version_licence_and_release_notes() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let page = get(&e, "/about", &ca).await.text();
+    assert!(page.contains(rostdav_core::VERSION), "version");
+    assert!(page.contains("MIT OR Apache-2.0"), "licence");
+    assert!(page.contains("https://github.com/pierrejochem/rostdav"));
+    // the notes of the running version come from CHANGELOG.md, open, and marked as installed
+    assert!(page.contains("Release notes") && page.contains("<details class=\"release\" open>"));
+    assert!(page.contains("Installed"));
+    // reachable from the navigation of every page, and only with a sign-in
+    assert!(
+        get(&e, "/files", &ca)
+            .await
+            .text()
+            .contains("href=\"/about\"")
+    );
+    assert_eq!(
+        send(&e, "GET", "/about", &[], Body::empty()).await.status,
+        StatusCode::SEE_OTHER
+    );
+}

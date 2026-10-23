@@ -38,6 +38,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/settings`, `POST /settings/{theme,profile,export}`, `/settings/password` | Profile (display name, e-mail), change password (ends other browser sessions), theme, WebDAV address, storage overview, data export (tar of own files; no shares received, versions or trash) |
 | `/s/<token>`, `/s/<token>/{unlock,dl,upload}` | Public link page: list, download, password form, upload |
 | `POST /settings/avatar`, `POST /settings/avatar/delete`, `/avatar/<user>/<size>` | Profile picture: upload (PNG or JPEG, up to 256 KiB), remove, and the picture itself for the pages |
+| `/about` | About: version, licence, source code, release notes of all versions (`CHANGELOG.md` compiled in, English only). Any signed-in user. Version check and updater: [ADR 0009](adr/0009-version-check-and-updater.md), proposed |
 | `/recent` | Recent: the 100 own files that changed last (not trash, not files shared with me), each linking to its folder with the file selected |
 | `/shares`, `POST /shares/delete` | Overview of all shares: shared by me (with recipient or link address, access, expiry, "Stop sharing") and shared with me (owner, access) |
 | `/share?path=`, `/share/{user,link,delete}` | Sharing dialog: share with a user, create/stop public links (password, expiry, view/edit/upload-only) |

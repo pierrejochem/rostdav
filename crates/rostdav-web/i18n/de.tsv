@@ -382,3 +382,17 @@ Your files, on your own server.	Deine Dateien auf deinem eigenen Server.
 Works with the Nextcloud apps	Funktioniert mit den Nextcloud-Apps
 Versions, sharing and a trash bin	Versionen, Freigaben und ein Papierkorb
 Optional two-factor sign-in	Optionale Zwei-Faktor-Anmeldung
+About	Über
+Version, licence and what changed in each release.	Version, Lizenz und was sich in jeder Version geändert hat.
+Licence	Lizenz
+Source code	Quellcode
+Metadata database	Metadatenbank
+Turso Database (SQLite file format)	Turso Database (SQLite-Dateiformat)
+Release notes	Versionshinweise
+The release notes are in English.	Die Versionshinweise sind auf Englisch.
+Installed	Installiert
+Added	Hinzugefügt
+Fixed	Behoben
+Removed	Entfernt
+Deprecated	Veraltet
+Security	Sicherheit
