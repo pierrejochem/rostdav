@@ -21,6 +21,10 @@ fmt:
 test *ARGS:
     cargo test --workspace {{ARGS}}
 
+# Coverage-guided fuzzing (nightly, cargo-fuzz): just fuzz paths 60
+fuzz target seconds="60":
+    cd fuzz && cargo +nightly fuzz run {{target}} -- -max_total_time={{seconds}}
+
 # Smoke test against the built debug binary
 smoke:
     cargo build -p rostdav

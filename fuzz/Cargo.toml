@@ -1,0 +1,41 @@
+[package]
+name = "rostdav-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+rostdav-core = { path = "../crates/rostdav-core" }
+rostdav-dav = { path = "../crates/rostdav-dav" }
+rostdav-storage = { path = "../crates/rostdav-storage" }
+
+# Not a member of the main workspace: needs nightly and must not slow `just check`.
+[workspace]
+
+[[bin]]
+name = "paths"
+path = "fuzz_targets/paths.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "dav_xml"
+path = "fuzz_targets/dav_xml.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "dav_headers_and_urls"
+path = "fuzz_targets/dav_headers_and_urls.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "tokens"
+path = "fuzz_targets/tokens.rs"
+test = false
+doc = false

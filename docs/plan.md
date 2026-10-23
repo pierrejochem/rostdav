@@ -73,7 +73,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 
 ## Phase 5: Hardening and delivery
 
-- Security tests: authorization matrix ✅, robustness tests for paths/XML/headers ✅ (seeded random inputs; coverage-guided `cargo fuzz` not done), load tests ✅ (`tests/load.rs`, results in docs/deployment.md)
+- Security tests: authorization matrix ✅, robustness tests for paths/XML/headers ✅ (seeded random inputs; coverage-guided `cargo fuzz` targets in `fuzz/` ✅, 30 s per target without findings), load tests ✅ (`tests/load.rs`, results in docs/deployment.md)
 - Container image ✅ (`Dockerfile`, CI job), Compose example with Caddy ✅ (`deploy/`, nginx and Traefik in deployment.md), backup/restore ✅ (`admin backup`, tested)
 - Operations documentation ✅ ([deployment.md](deployment.md))
 

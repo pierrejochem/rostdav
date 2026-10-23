@@ -16,6 +16,38 @@ mod uploads;
 mod versions;
 mod xml;
 
+/// Entry points for the `cargo fuzz` targets in `fuzz/`. Not part of the API.
+#[doc(hidden)]
+pub mod fuzzing {
+    use rostdav_core::Name;
+
+    /// All request-body parsers; they may refuse input but must neither panic nor hang.
+    pub fn xml_bodies(body: &[u8]) {
+        let _ = crate::xml::parse_propfind(body);
+        let _ = crate::xml::parse_propertyupdate(body);
+        let _ = crate::xml::parse_filter_files(body);
+    }
+
+    /// `Range`: a served range always lies inside the entity.
+    pub fn range(header: &str, size: u64) {
+        if let crate::range::RangeOutcome::Partial(a, b) =
+            crate::range::parse_range(Some(header), size)
+        {
+            assert!(a <= b && b < size, "range {a}-{b} outside {size} bytes");
+        }
+    }
+
+    /// Request and `Destination` paths of every URL space.
+    pub fn targets(raw: &str) {
+        let user = Name::parse("anna").expect("fixed name");
+        let _ = crate::target::Target::parse_any(raw, &user);
+        let _ = crate::target::parse_destination(raw, &user);
+        let _ = crate::versions::VersionsTarget::parse(raw);
+        let _ = crate::trashbin::TrashTarget::parse(raw);
+        let _ = crate::uploads::UploadTarget::parse(raw);
+    }
+}
+
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{Request, State};
