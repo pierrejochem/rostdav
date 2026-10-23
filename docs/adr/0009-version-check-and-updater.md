@@ -1,6 +1,6 @@
 # ADR 0009: Version check and updater
 
-- Status: **Version check accepted** by the project owner on 2026-10-23 (approval point 1: the HTTPS client dependency) and built. **Updater: proposed, not built.** It waits for the owner's decision on the signing key (see "What stays the owner's"). The About page and the embedded release notes needed no decision.
+- Status: **Accepted** by the project owner on 2026-10-23 (approval point 1: the HTTPS client; "build the updater"). The version check, the updater and the About page are built. The updater stays off until the owner has made the signing key (see "What stays the owner's"): a build without a key says so and offers the manual steps.
 - Date: 2026-10-23
 
 ## Context
@@ -34,9 +34,9 @@ An update is accepted only if all of these hold:
 1. The administrator confirms with their **password** in the same request (an administrator session alone is not enough to replace the program), with CSRF protection.
 2. The target version is **newer** than the running one (no downgrade through the page) and equal to the version found by the check.
 3. The files are downloaded from `https://github.com/pierrejochem/rostdav/releases/download/v<version>/`, with the URL built by Rostdav from the validated version, not taken from the API answer. Redirects are followed only to `https` and the hosts GitHub serves release files from.
-4. **The signature verifies.** The release workflow signs the bare binary of each architecture with a [minisign](https://jedisct1.github.io/minisign/) key; the public key is compiled into Rostdav (`minisign-verify`, a small crate without dependencies). A checksum file from the same place as the file proves nothing about who made it, so it is not used as the check; it stays in the release for people who download by hand. **Without a key built in, the updater is switched off** and says so.
-5. The downloaded binary is run once with `--version` and must report the expected version.
-6. A **database backup** is written first (`backups/before-<version>.db`, the same code as `rostdav admin backup`). If it fails, nothing is replaced. The backup is the way back for an update that converts the database (as 0.3.0 did).
+4. **The signature verifies** (`minisign-verify`, prehashed signatures only). The release workflow signs the bare binary of each architecture with a [minisign](https://jedisct1.github.io/minisign/) key; the public key is compiled into Rostdav (`minisign-verify`, a small crate without dependencies). A checksum file from the same place as the file proves nothing about who made it, so it is not used as the check; it stays in the release for people who download by hand. **Without a key built in, the updater is switched off** and says so.
+5. The downloaded binary is written next to the program file, run once with `--version`, and must report exactly `rostdav <version>`.
+6. A **database backup** is written first (`backups/before-<version>.sqlite` in the data directory, the snapshot code of `rostdav admin backup`; the files are not copied, they are not changed by an update). If it fails, nothing is replaced. The backup is the way back for an update that converts the database (as 0.3.0 did).
 
 Then the new binary is written next to the old one, the old one is kept as `rostdav.previous`, the new one is moved into place with `rename` (atomic), an event `admin.update_installed` is written to the event log, and the server shuts down gracefully with exit status 75. A supervisor restarts it: `Restart=on-failure` (as in `docs/deployment.md`) does. Without a supervisor the page says to start it again. Rostdav does not re-execute itself: file descriptors and the running tasks stay out of it.
 
@@ -59,3 +59,11 @@ The signing key cannot be made by the agent. The owner generates it (`minisign -
 - **Replace via tarball**: rejected; needs `tar` and `flate2` for no gain over a bare signed binary.
 - **Re-exec the new binary**: rejected, see above.
 - **No updater, check only**: the smallest option, if the owner prefers it after reading the above.
+
+## As built
+
+- Code: `crates/rostdav-app/src/update.rs` (check), `updater.rs` (install), `update-key.pub` (the key; the file in the repository is a placeholder, and a build with a placeholder reports "no update signing key"). Web: Administration, Server, "Updates".
+- Order inside an install, each step refusing before the next: administrator and not a container, key present, account password (rate limited like a sign-in; an app password does not count), the version found by the check is newer, one install at a time, download (https; redirects only to `github.com`, `objects.githubusercontent.com`, `release-assets.githubusercontent.com`; size limits 256 MiB and 8 KiB), signature, `--version`, database backup, keep the old program as `<name>.previous` (hard link), `rename` over the program file, event `admin.update_installed`, graceful shutdown with exit status 75.
+- If any step fails, the staged file is removed and the program file is as before (tests: bad signature, signature of another key, program that reports another version, program that does not start, wrong password, non-administrator, container, no key, unwritable folder, no newer version, missing signature file, failed backup).
+- Release files: the release workflow signs the bare binaries (`rostdav-<version>-<target>`) with `minisign -S -H` when the secret `MINISIGN_SECRET_KEY` exists (password: `MINISIGN_PASSWORD`), and checks each signature against `update-key.pub` before the release is created. Without the secret it warns and publishes unsigned files; a running server cannot install those. **Not yet run:** the signing step runs for the first time at the next tag after the secrets exist.
+- A rollback is manual: stop the server, move `rostdav.previous` back over the program file, and (if the update converted the database) restore `backups/before-<version>.sqlite` over `db/rostdav.sqlite`.

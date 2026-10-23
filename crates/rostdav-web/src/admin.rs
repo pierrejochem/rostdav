@@ -886,9 +886,12 @@ async fn server_page(state: &AppState, a: &Authed) -> Response {
             ))
         ),
     );
-    let updates = match state.update_status(&actor).await {
-        Ok(u) => ui::card(lang, "Updates", "", &updates_html(a, &u)),
-        Err(e) => return error_page(a, &e, "/files"),
+    let updates = match (
+        state.update_status(&actor).await,
+        state.update_install_support(&actor).await,
+    ) {
+        (Ok(u), Ok(support)) => ui::card(lang, "Updates", "", &updates_html(a, &u, support)),
+        (Err(e), _) | (_, Err(e)) => return error_page(a, &e, "/files"),
     };
     let rows: String = rows
         .iter()
@@ -919,7 +922,11 @@ async fn server_page(state: &AppState, a: &Authed) -> Response {
 }
 
 /// The version check: off by default, with what it does and does not send said plainly.
-fn updates_html(a: &Authed, u: &rostdav_app::UpdateStatus) -> String {
+fn updates_html(
+    a: &Authed,
+    u: &rostdav_app::UpdateStatus,
+    support: rostdav_app::InstallSupport,
+) -> String {
     let lang = a.lang;
     let csrf = esc(&a.csrf);
     let form = |action: &str, on: &str, label: &str, class: &str| {
@@ -957,6 +964,7 @@ fn updates_html(a: &Authed, u: &rostdav_app::UpdateStatus) -> String {
                 esc(&t(lang, "Release page")),
                 crate::about::sections_html(lang, &rostdav_core::release::parse_notes(&l.notes)),
             ));
+            out.push_str(&install_html(a, &l.version.to_string(), support));
         }
         (None, Some(_)) => out.push_str(&format!(
             "<p><strong>{}</strong></p>",
@@ -981,6 +989,84 @@ fn updates_html(a: &Authed, u: &rostdav_app::UpdateStatus) -> String {
         form("/admin/server/update", "0", "Turn off", "")
     ));
     out
+}
+
+/// How to get the newer version: the form when this server can install it, else the steps.
+fn install_html(a: &Authed, version: &str, support: rostdav_app::InstallSupport) -> String {
+    use rostdav_app::InstallSupport as S;
+    let lang = a.lang;
+    let note = |text: &str| format!("<p class=\"muted\">{}</p>", esc(&t(lang, text)));
+    match support {
+        S::Ready => format!(
+            "<form method=\"post\" action=\"/admin/server/update/install\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
+             <p class=\"muted\">{}</p>\
+             <label>{}<input type=\"password\" name=\"password\" autocomplete=\"current-password\" required></label>\
+             <button class=\"danger\" type=\"submit\">{}</button></form>",
+            esc(&a.csrf),
+            esc(&t(
+                lang,
+                "The server downloads the new version, checks its signature, saves the database to the backups folder in the data directory, replaces its program file and restarts. The old program stays next to it as \"rostdav.previous\". Something must start the server again after it stops (for example systemd with Restart=on-failure)."
+            )),
+            esc(&t(lang, "Your password")),
+            esc(&tf(lang, "Install version {0}", &[version])),
+        ),
+        S::Container => note(
+            "This server runs from a container image. Make a backup, then pull the new image and recreate the container (docker compose pull, then docker compose up -d).",
+        ),
+        S::NoKey => note(
+            "This build has no update signing key, so it cannot install updates itself. Download the new version from the release page and replace the program file.",
+        ),
+        S::UnsupportedPlatform => {
+            note("There is no release file for this machine. Build the new version from source.")
+        }
+        S::NotWritable => note(
+            "The server may not write to the folder of its program file, so it cannot install updates itself. Replace the program file by hand.",
+        ),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct InstallForm {
+    csrf: String,
+    password: String,
+}
+
+pub async fn install_update(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    parts: axum::http::request::Parts,
+    Form(f): Form<InstallForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state
+        .update_install(&a.session, &f.password, crate::session::client_ip(&parts))
+        .await
+    {
+        Ok(version) => {
+            let lang = a.lang;
+            let body = format!(
+                "<p>{}</p><p class=\"muted\">{}</p>",
+                esc(&tf(
+                    lang,
+                    "Version {0} is installed. The server restarts now.",
+                    &[&version]
+                )),
+                esc(&t(
+                    lang,
+                    "Reload this page after a few seconds. If the server does not come back, start it again."
+                )),
+            );
+            page(
+                &a,
+                "Server",
+                "server",
+                &ui::card(lang, "Updates", "", &body),
+            )
+        }
+        Err(e) => error_page(&a, &e, "/admin/server"),
+    }
 }
 
 #[derive(Deserialize)]

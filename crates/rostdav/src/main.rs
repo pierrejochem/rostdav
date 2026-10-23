@@ -99,12 +99,16 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
         listener,
         app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown_signal())
+    .with_graceful_shutdown(shutdown_signal(state.clone()))
     .await
     .context("server exited with error")?;
 
     state.shutdown().await;
     tracing::info!("stopped");
+    if state.restart_requested() {
+        // an update was installed: a supervisor with `Restart=on-failure` starts the new program
+        std::process::exit(rostdav_app::EXIT_FOR_RESTART);
+    }
     Ok(())
 }
 
@@ -134,7 +138,7 @@ fn spawn_version_check(state: rostdav_app::AppState) {
     });
 }
 
-async fn shutdown_signal() {
+async fn shutdown_signal(state: rostdav_app::AppState) {
     let ctrl_c = async {
         if let Err(err) = tokio::signal::ctrl_c().await {
             tracing::error!(error = %err, "Ctrl-C handler failed");
@@ -155,6 +159,8 @@ async fn shutdown_signal() {
     tokio::select! {
         () = ctrl_c => {},
         () = terminate => {},
+        // an update was installed (the program file was replaced)
+        () = state.restart_signal() => {},
     }
     tracing::info!("shutdown requested");
 }

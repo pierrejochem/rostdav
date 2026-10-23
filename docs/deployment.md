@@ -50,6 +50,7 @@ Group=rostdav
 ExecStart=/usr/local/bin/rostdav serve
 Environment=ROSTDAV_CONFIG=/etc/rostdav/rostdav.toml
 Restart=on-failure
+# an update installed from the web interface ends the process with status 75 so that this restarts it
 # the data directory is the only place it writes to
 ProtectSystem=strict
 ReadWritePaths=/var/lib/rostdav

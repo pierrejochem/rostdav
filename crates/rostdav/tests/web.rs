@@ -5052,3 +5052,153 @@ async fn the_version_check_is_off_until_an_administrator_turns_it_on() {
             .contains("The version check is off.")
     );
 }
+
+/// Answers by path with fixed bodies (404 otherwise); stands in for GitHub.
+async fn fake_github(routes: Vec<(String, Vec<u8>)>) -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .expect("bind");
+    let base = format!("http://{}", listener.local_addr().expect("addr"));
+    tokio::spawn(async move {
+        while let Ok((mut sock, _)) = listener.accept().await {
+            let mut buf = vec![0u8; 4096];
+            let n = sock.read(&mut buf).await.unwrap_or(0);
+            let head = String::from_utf8_lossy(&buf[..n]).into_owned();
+            let path = head.split_whitespace().nth(1).unwrap_or("/").to_owned();
+            let found = routes.iter().find(|(p, _)| *p == path);
+            let (status, body) = match found {
+                Some((_, b)) => (200, b.clone()),
+                None => (404, Vec::new()),
+            };
+            let head = format!(
+                "HTTP/1.1 {status} X\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                body.len()
+            );
+            let _ = sock.write_all(head.as_bytes()).await;
+            let _ = sock.write_all(&body).await;
+        }
+    });
+    base
+}
+
+#[tokio::test]
+async fn an_administrator_installs_a_signed_update_with_the_password() {
+    use std::os::unix::fs::PermissionsExt;
+    // fixtures: a test key (the secret half was thrown away) and a signed "program"
+    const KEY: &str = "untrusted comment: minisign public key: FB5BD003E2F3A363\nRWRjo/PiA9Bb+xu5Pjf2QwaS6RWaVjOu+zz7l58y8m2TrUKG0w5Feu76\n";
+    const NEW: &str = "#!/bin/sh\necho \"rostdav 99.1.0\"\n";
+    const SIG: &str = "untrusted comment: rostdav test\nRURjo/PiA9Bb+6ZQZC2r8ObmLr3Cm9aFCr8GxRQQ4EIl3+SSqrHl/k0f6w01dCxh+iHwV35b3sBS0+FFzRmivh7nvjvX5iF/5QE=\ntrusted comment: timestamp:1\n1gbe8hLTc1wjXzd6YyEvgz7oilHj9LXVRlj1nHcExL2WSon6+JVoU4LN1MZ+vetQYiIdzGWx4jlxZt5Q9cNhCg==\n";
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let anna = login(&e, "anna").await;
+    let target = match std::env::consts::ARCH {
+        "x86_64" => "x86_64-unknown-linux-gnu",
+        "aarch64" => "aarch64-unknown-linux-gnu",
+        _ => return, // no release file for this machine: the form is not offered either
+    };
+    let release = serde_json::json!({
+        "tag_name": "v99.1.0",
+        "html_url": "https://github.com/pierrejochem/rostdav/releases/tag/v99.1.0",
+        "published_at": "2026-12-01T10:00:00Z",
+        "body": "### Added\n\n- A thing",
+    })
+    .to_string();
+    let file = format!("/dl/v99.1.0/rostdav-99.1.0-{target}");
+    let base = fake_github(vec![
+        ("/latest".into(), release.into_bytes()),
+        (file.clone(), NEW.as_bytes().to_vec()),
+        (format!("{file}.minisig"), SIG.as_bytes().to_vec()),
+    ])
+    .await;
+    e.state.set_update_source(&format!("{base}/latest"));
+    let dir = tempfile::tempdir().expect("dir");
+    let exe = dir.path().join("rostdav");
+    std::fs::write(&exe, "old program").expect("exe");
+    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).expect("mode");
+    e.state
+        .set_updater_for_tests(Some(KEY), &exe, &format!("{base}/dl"), false);
+
+    let csrf = page_csrf(&e, &root).await;
+    post_form(
+        &e,
+        "/admin/server/update",
+        &root,
+        &[("csrf", &csrf), ("on", "1")],
+    )
+    .await;
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(
+        page.contains("Install version 99.1.0") && page.contains("name=\"password\""),
+        "{page}"
+    );
+
+    // wrong CSRF value, a non-administrator, and a wrong password change nothing
+    let url = "/admin/server/update/install";
+    let r = post_form(&e, url, &root, &[("csrf", "wrong"), ("password", PW)]).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let csrf_a = page_csrf(&e, &anna).await;
+    let r = post_form(&e, url, &anna, &[("csrf", &csrf_a), ("password", PW)]).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        url,
+        &root,
+        &[("csrf", &csrf), ("password", "falsches-passwort-1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::BAD_REQUEST);
+    assert!(r.text().contains("The password is wrong"));
+    assert_eq!(std::fs::read_to_string(&exe).expect("exe"), "old program");
+    assert!(!e.state.restart_requested());
+
+    // the right password installs it
+    let r = post_form(&e, url, &root, &[("csrf", &csrf), ("password", PW)]).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert!(r.text().contains("Version 99.1.0 is installed"));
+    assert_eq!(std::fs::read_to_string(&exe).expect("exe"), NEW);
+    assert_eq!(
+        std::fs::read_to_string(dir.path().join("rostdav.previous")).expect("previous"),
+        "old program"
+    );
+    assert!(e.state.restart_requested());
+}
+
+#[tokio::test]
+async fn a_container_is_told_to_pull_the_image_instead() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let release = serde_json::json!({
+        "tag_name": "v99.1.0",
+        "html_url": "https://github.com/pierrejochem/rostdav/releases/tag/v99.1.0",
+        "body": "",
+    })
+    .to_string();
+    let base = fake_github(vec![("/latest".into(), release.into_bytes())]).await;
+    e.state.set_update_source(&format!("{base}/latest"));
+    e.state.set_updater_for_tests(
+        Some("untrusted comment: x\nRWQ"),
+        std::path::Path::new("/nonexistent/rostdav"),
+        &base,
+        true,
+    );
+    let csrf = page_csrf(&e, &root).await;
+    post_form(
+        &e,
+        "/admin/server/update",
+        &root,
+        &[("csrf", &csrf), ("on", "1")],
+    )
+    .await;
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(page.contains("runs from a container image") && !page.contains("name=\"password\""));
+    let r = post_form(
+        &e,
+        "/admin/server/update/install",
+        &root,
+        &[("csrf", &csrf), ("password", PW)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::BAD_REQUEST);
+    assert!(!e.state.restart_requested());
+}

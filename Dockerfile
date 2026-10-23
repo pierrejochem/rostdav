@@ -16,7 +16,9 @@ RUN useradd --system --uid 10001 --home-dir /data --shell /usr/sbin/nologin rost
     && install -d -o rostdav -g rostdav -m 0700 /data
 COPY --from=build /out/rostdav /usr/local/bin/rostdav
 USER rostdav
-ENV ROSTDAV_SERVER__LISTEN=0.0.0.0:8080 \
+# the program does not replace itself in a container: it tells the administrator to pull the new image
+ENV ROSTDAV_INSTALL=container \
+    ROSTDAV_SERVER__LISTEN=0.0.0.0:8080 \
     ROSTDAV_STORAGE__DATA_DIR=/data \
     ROSTDAV_LOG__FORMAT=json
 VOLUME /data

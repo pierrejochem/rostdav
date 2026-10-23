@@ -44,3 +44,16 @@ The user manual is `site/content/manual/`; the other pages come from `docs/` and
 
 Dependabot (`.github/dependabot.yml`) opens pull requests for Cargo, GitHub Actions and Docker updates; CI runs the tests, clippy and `cargo deny` on each. The `turso` crates are ignored on purpose: the version is pinned exactly ([ADR 0008](docs/adr/0008-metadata-database-turso.md)) and changed by hand.
 
+## Release signing key (maintainer, once)
+
+The updater only installs files signed with the project's minisign key; its public half is compiled into the program from `crates/rostdav-app/update-key.pub`.
+
+```sh
+minisign -G -p update-key.pub -s ~/rostdav-release.key     # asks for a password; keep the .key file and the password safe
+cp update-key.pub crates/rostdav-app/update-key.pub        # commit this file
+gh secret set MINISIGN_SECRET_KEY < ~/rostdav-release.key
+gh secret set MINISIGN_PASSWORD                            # paste the password
+```
+
+Until the public key is committed, builds report "no update signing key" and the updater stays off. The release workflow signs every bare binary and checks the signature against the committed public key before it creates the release. A lost or leaked key means a new key, a new release, and a manual update for every server (the key in a running program cannot be replaced remotely).
+

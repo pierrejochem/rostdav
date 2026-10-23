@@ -28,6 +28,9 @@ mod two_factor;
 mod update;
 #[cfg(test)]
 mod update_tests;
+mod updater;
+#[cfg(test)]
+mod updater_tests;
 mod uploads;
 mod versions;
 mod web;
@@ -52,6 +55,7 @@ pub use trash::{TrashEntry, TrashOptions};
 pub use tunables::{Tunable, TunableView};
 pub use two_factor::{SignIn, TotpKeySource, TwoFactorSetup, TwoFactorStatus};
 pub use update::{LatestRelease, UpdateStatus};
+pub use updater::{EXIT_FOR_RESTART, InstallSupport};
 pub use uploads::UploadListing;
 pub use versions::{VersionEntry, VersionListing, VersioningOptions};
 pub use web::{Profile, UsageOverview, WebOptions, WebSession};
@@ -86,6 +90,13 @@ struct Inner {
     maintenance: std::sync::atomic::AtomicBool,
     /// Address of the version check (ADR 0009); tests point it at a local server.
     update_source: std::sync::Mutex<String>,
+    /// What the updater works with (ADR 0009); tests replace the parts that point outside.
+    updater: std::sync::Mutex<updater::UpdaterEnv>,
+    /// An update is being installed.
+    installing: std::sync::atomic::AtomicBool,
+    /// An update was installed: the process shuts down and exits with `EXIT_FOR_RESTART`.
+    restart_requested: std::sync::atomic::AtomicBool,
+    restart: tokio::sync::Notify,
 }
 
 pub fn now_secs() -> i64 {
@@ -169,6 +180,10 @@ impl AppState {
                 server_key,
                 maintenance: maintenance.into(),
                 update_source: std::sync::Mutex::new(update::RELEASES_API.to_owned()),
+                updater: std::sync::Mutex::new(updater::UpdaterEnv::default()),
+                installing: false.into(),
+                restart_requested: false.into(),
+                restart: tokio::sync::Notify::new(),
             }),
         })
     }
@@ -207,6 +222,10 @@ impl AppState {
                         .lock()
                         .map_or_else(|e| e.into_inner().clone(), |s| s.clone()),
                 ),
+                updater: std::sync::Mutex::new(updater::UpdaterEnv::default()),
+                installing: false.into(),
+                restart_requested: false.into(),
+                restart: tokio::sync::Notify::new(),
             }),
         }
     }

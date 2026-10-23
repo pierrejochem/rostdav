@@ -88,10 +88,15 @@ jobs:
           cp rostdav LICENSE-APACHE LICENSE-MIT README.md CHANGELOG.md rostdav.example.toml "$name/"
           tar czf "$name.tar.gz" "$name"
           sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+          # the bare binary: what the updater of a running server downloads (signed in the release job)
+          mkdir bare
+          cp rostdav "bare/$name"
       - uses: actions/upload-artifact@v4
         with:
           name: binary-${{ matrix.arch }}
-          path: rostdav-*.tar.gz*
+          path: |
+            rostdav-*.tar.gz*
+            bare/rostdav-*
           if-no-files-found: error
       - name: Push this architecture by digest (the tags come in the next job)
         id: push
@@ -158,6 +163,27 @@ jobs:
         with:
           pattern: binary-*
           merge-multiple: true
+      - name: Sign the bare binaries (minisign)
+        env:
+          MINISIGN_SECRET_KEY: ${{ secrets.MINISIGN_SECRET_KEY }}
+          MINISIGN_PASSWORD: ${{ secrets.MINISIGN_PASSWORD }}
+        run: |
+          # artifacts keep their folder: bare/rostdav-<version>-<target>
+          mkdir -p assets
+          mv bare/rostdav-* assets/ 2>/dev/null || true
+          if [ -z "$MINISIGN_SECRET_KEY" ]; then
+            echo "::warning::no MINISIGN_SECRET_KEY secret: the release is not signed, so a running server cannot install it by itself"
+            exit 0
+          fi
+          sudo apt-get update -qq && sudo apt-get install -y minisign
+          key="$RUNNER_TEMP/minisign.key"
+          (umask 077; printf '%s\n' "$MINISIGN_SECRET_KEY" > "$key")
+          for f in assets/rostdav-*; do
+            printf '%s\n' "$MINISIGN_PASSWORD" | minisign -S -H -s "$key" -m "$f" -x "$f.minisig" -t "rostdav ${{ needs.verify.outputs.version }}"
+            # it must verify with the public key that is built into the program, or the updater refuses it
+            minisign -V -p crates/rostdav-app/update-key.pub -m "$f" -x "$f.minisig"
+          done
+          shred -u "$key"
       - name: Release notes from CHANGELOG.md
         run: |
           awk -v v="${{ needs.verify.outputs.version }}" '
@@ -175,4 +201,4 @@ jobs:
           # a tag that is pushed again (after a fix) replaces its release; the tag itself stays
           gh release delete "$GITHUB_REF_NAME" --yes 2>/dev/null || true
           gh release create "$GITHUB_REF_NAME" $flags --title "Rostdav ${{ needs.verify.outputs.version }}" \
-            --notes-file notes.md rostdav-*.tar.gz rostdav-*.tar.gz.sha256
+            --notes-file notes.md rostdav-*.tar.gz rostdav-*.tar.gz.sha256 assets/rostdav-*

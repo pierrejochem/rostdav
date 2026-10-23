@@ -102,7 +102,18 @@ Users turn on TOTP (authenticator app) themselves under Devices & security; see 
 
 ## Version check
 
-Off by default. Administration, Server, "Updates" turns it on: the server then asks the GitHub releases API once a day (and on "Check now") which version is the newest, and shows a newer one with its release notes. The request carries only `User-Agent: rostdav/<version>`. While it is off, the server makes no outbound connection. After an error the server tries again in an hour; the page shows the reason. The switch is kept in the database, so a restart keeps it. Events: `admin.update_check_on`, `admin.update_check_off`. The About page (every user) shows the release notes of the running build and the versions before it; they are compiled in and need no network. Installing an update from the page is not built yet ([ADR 0009](adr/0009-version-check-and-updater.md)): replace the binary or pull the new image, with a backup first.
+Off by default. Administration, Server, "Updates" turns it on: the server then asks the GitHub releases API once a day (and on "Check now") which version is the newest, and shows a newer one with its release notes. The request carries only `User-Agent: rostdav/<version>`. While it is off, the server makes no outbound connection. After an error the server tries again in an hour; the page shows the reason. The switch is kept in the database, so a restart keeps it. Events: `admin.update_check_on`, `admin.update_check_off`, `admin.update_installed`. The About page (every user) shows the release notes of the running build and the versions before it; they are compiled in and need no network. 
+
+### Installing an update from the page
+
+When a newer version is found, the card offers the next step that fits this server:
+
+- **Container image:** the card shows the steps (make a backup, `docker compose pull`, `docker compose up -d`). The image is replaced, never patched in place.
+- **Plain binary with an update signing key built in, and a program folder the server may write to:** the card asks for **your password** and an **Install version x.y.z** button. The server then downloads the release file from GitHub, checks its minisign signature against the key compiled into the program, runs it once with `--version`, saves the database to `backups/before-x.y.z.sqlite` in the data directory, keeps the old program as `rostdav.previous` next to it, replaces its program file and exits with status 75. **Something must start it again**: systemd with `Restart=on-failure` (as in the example unit) does.
+- **No key in this build, or a read-only program folder:** the card says so and you replace the program file by hand.
+
+If the new version does not work: stop the server, move `rostdav.previous` back over the program file and, if the update converted the database (the release notes say so), restore the backup over `db/rostdav.sqlite`. A failed check of any step (signature, version, backup) installs nothing. Details: [ADR 0009](adr/0009-version-check-and-updater.md).
+
 
 ## Event log
 

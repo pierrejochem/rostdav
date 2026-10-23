@@ -405,3 +405,12 @@ You run the newest version.	Du verwendest die neueste Version.
 The last check failed: {0}	Die letzte Prüfung ist fehlgeschlagen: {0}
 Last checked {0}.	Zuletzt geprüft {0}.
 Check now	Jetzt prüfen
+The server downloads the new version, checks its signature, saves the database to the backups folder in the data directory, replaces its program file and restarts. The old program stays next to it as "rostdav.previous". Something must start the server again after it stops (for example systemd with Restart=on-failure).	Der Server lädt die neue Version herunter, prüft ihre Signatur, sichert die Datenbank im Ordner „backups“ des Datenverzeichnisses, ersetzt seine Programmdatei und startet neu. Das alte Programm bleibt als „rostdav.previous“ daneben liegen. Nach dem Anhalten muss etwas den Server wieder starten (zum Beispiel systemd mit Restart=on-failure).
+Your password	Dein Passwort
+Install version {0}	Version {0} installieren
+This server runs from a container image. Make a backup, then pull the new image and recreate the container (docker compose pull, then docker compose up -d).	Dieser Server läuft aus einem Container-Image. Mache eine Sicherung, hole dann das neue Image und erstelle den Container neu (docker compose pull, danach docker compose up -d).
+This build has no update signing key, so it cannot install updates itself. Download the new version from the release page and replace the program file.	Dieser Build hat keinen Signaturschlüssel für Updates und kann sich daher nicht selbst aktualisieren. Lade die neue Version von der Seite der Version herunter und ersetze die Programmdatei.
+There is no release file for this machine. Build the new version from source.	Für diese Maschine gibt es keine fertige Datei. Baue die neue Version aus dem Quellcode.
+The server may not write to the folder of its program file, so it cannot install updates itself. Replace the program file by hand.	Der Server darf nicht in den Ordner seiner Programmdatei schreiben und kann sich daher nicht selbst aktualisieren. Ersetze die Programmdatei von Hand.
+Version {0} is installed. The server restarts now.	Version {0} ist installiert. Der Server startet jetzt neu.
+Reload this page after a few seconds. If the server does not come back, start it again.	Lade diese Seite nach einigen Sekunden neu. Kommt der Server nicht zurück, starte ihn wieder.
