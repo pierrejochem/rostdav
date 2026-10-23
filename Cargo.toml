@@ -41,7 +41,7 @@ turso = "=0.8.3"
 thiserror = "2"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "signal", "fs", "net", "io-util", "sync", "time", "process"] }
 tower = { version = "0.5", features = ["util"] }
-tower-http = { version = "0.6", features = ["trace", "request-id", "sensitive-headers", "limit", "timeout", "util"] }
+tower-http = { version = "0.7", features = ["trace", "request-id", "sensitive-headers", "limit", "timeout", "util"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json", "fmt"] }
 tempfile = "3"
