@@ -53,10 +53,11 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 - **Result:** implemented and checked against the fixtures in `crates/rostdav/tests/nextcloud_dav.rs` (property sets, headers, Sabre error classes, name rules, chunk flow incl. a 105 MiB upload). Differences that remain are listed in `docs/compatibility.md`. Verified with the real app only in M6.
 - **Acceptance:** contract tests green; upload > 100 MB via chunks
 
-### M6 – End-to-end with the app
+### M6 – End-to-end with the app ✅ (2026-10-23, closed for now by the project owner)
 - Manual or automated test with the unmodified app (emulator)
 - Capture deviations as reproducible tests and fix them
 - **Acceptance:** acceptance list from section 6 of the instructions complete, test status in `docs/compatibility.md`
+- **Closed for now:** the Android app and the desktop sync engine are verified; the desktop GUI and the iOS client were not tried (they need a graphical session or a device) and can be added later as new rows in `docs/compatibility.md`.
 - **Status (2026-10-23, Android 35.0.1 on an Android 15 emulator):** sign-in (also with 2FA), file list, create folder, upload, chunked upload (30 MB), download, rename, delete, favorites, share with a user and public link, versions (list, restore) and offline/reconnect verified; five bugs found and fixed (`/remote.php/dav` root, GET/HEAD on collections, `/index.php/204`, `bigfilechunking`, version restore destination) plus favorites implemented. trash (list, restore) verified. desktop sync engine (`nextcloudcmd`) verified. Open: desktop GUI, iOS client.
 
 ## Phase 4: Extensions (P2)
