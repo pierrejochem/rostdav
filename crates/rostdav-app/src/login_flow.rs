@@ -9,11 +9,14 @@ use rostdav_core::{Error, Result};
 use serde_json::json;
 
 use crate::AppState;
-use crate::secrets::{hash_token, mac, mac_eq, random_token};
+use crate::secrets::{flow_key, hash_token, mac, mac_eq, open, random_token, seal};
 
 const TOKEN_LEN: usize = 128;
 const FLOW_TTL_SECS: i64 = 20 * 60;
 const MAX_CLIENT_NAME: usize = 128;
+/// Open flows at one time. `POST /login/v2` needs no sign-in, so the table must not grow
+/// without bound; past this, new flows wait until old ones expire (ADR 0003).
+const MAX_OPEN_FLOWS: i64 = 1000;
 
 #[derive(Debug, Clone)]
 pub struct StartedFlow {
@@ -61,6 +64,7 @@ impl AppState {
                 &hash_token(&login_token),
                 &clean_client_name(client_name),
                 FLOW_TTL_SECS,
+                MAX_OPEN_FLOWS,
             )
             .await?;
         Ok(StartedFlow {
@@ -152,7 +156,14 @@ impl AppState {
         let (pw_id, token) = self
             .create_app_password_with_id(p.user_id, &flow.client_name)
             .await?;
-        if !self.inner.db.grant_flow(flow.id, p.user_id, &token).await? {
+        // Encrypted while it waits for the poll, bound to the poll token's hash.
+        let sealed = seal(&flow_key(&self.inner.server_key), &flow.poll_hash, &token)?;
+        if !self
+            .inner
+            .db
+            .grant_flow(flow.id, p.user_id, &sealed)
+            .await?
+        {
             // Lost a race (double submit): do not leave an unused credential behind.
             self.inner.db.revoke_app_password(p.user_id, pw_id).await?;
             return Err(Error::NotFound);
@@ -190,9 +201,88 @@ impl AppState {
                     app_password,
                 } => Some(Granted {
                     login_name,
-                    app_password,
+                    app_password: open(
+                        &flow_key(&self.inner.server_key),
+                        &hash_token(poll_token),
+                        &app_password,
+                    )?,
                 }),
             },
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rostdav_meta::{Db, PollResult};
+    use rostdav_storage::LocalStore;
+
+    const PW: &str = "korrekt-pferd-batterie";
+
+    #[tokio::test]
+    async fn the_app_password_waits_for_the_poll_encrypted() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let store = LocalStore::open(dir.path().join("data"))
+            .await
+            .expect("store");
+        let db = Db::open(&Db::default_url(store.root())).await.expect("db");
+        db.migrate().await.expect("migrate");
+        let st = AppState::new(db, store).await.expect("state");
+        st.add_user("anna", PW, false).await.expect("anna");
+        let ip: IpAddr = "192.0.2.10".parse().expect("ip");
+
+        let f = st.start_login_flow("Phone").await.expect("start");
+        let csrf = st.flow_csrf(&f.login_token, "allow");
+        let step = st
+            .flow_allow(&f.login_token, &csrf, "anna", PW, ip)
+            .await
+            .expect("allow");
+        assert!(matches!(step, FlowStep::Granted));
+
+        // What the database holds before the poll: not an app password, but ciphertext.
+        let PollResult::Granted { app_password, .. } = st
+            .inner
+            .db
+            .poll_flow(&hash_token(&f.poll_token))
+            .await
+            .expect("raw poll")
+        else {
+            panic!("granted")
+        };
+        assert!(app_password.len() > crate::auth::APP_PASSWORD_LEN);
+        let clear = open(
+            &flow_key(&st.inner.server_key),
+            &hash_token(&f.poll_token),
+            &app_password,
+        )
+        .expect("decrypts with the poll token's hash");
+        assert_eq!(clear.len(), crate::auth::APP_PASSWORD_LEN);
+        assert!(
+            !app_password.contains(&clear),
+            "the clear value is not stored"
+        );
+
+        // Through the real poll the app gets a working app password, once.
+        let f = st.start_login_flow("Phone").await.expect("start");
+        let csrf = st.flow_csrf(&f.login_token, "allow");
+        st.flow_allow(&f.login_token, &csrf, "anna", PW, ip)
+            .await
+            .expect("allow");
+        let g = st
+            .poll_login_flow(&f.poll_token)
+            .await
+            .expect("poll")
+            .expect("granted");
+        assert_eq!(g.login_name, "anna");
+        st.authenticate("anna", &g.app_password, ip)
+            .await
+            .expect("app password works");
+        assert!(
+            st.poll_login_flow(&f.poll_token)
+                .await
+                .expect("2nd")
+                .is_none()
+        );
     }
 }

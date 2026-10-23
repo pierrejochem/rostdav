@@ -6,6 +6,7 @@ use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use rostdav_app::AppState;
+use rostdav_core::Error;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -46,6 +47,11 @@ pub async fn start(
             },
             "login": format!("{base}/login/v2/flow/{}", f.login_token),
         })),
+        Err(Error::RateLimited { retry_after_secs }) => (
+            StatusCode::TOO_MANY_REQUESTS,
+            [(header::RETRY_AFTER, retry_after_secs.to_string())],
+        )
+            .into_response(),
         Err(e) => {
             tracing::error!(error = %e, "starting login flow failed");
             StatusCode::INTERNAL_SERVER_ERROR.into_response()

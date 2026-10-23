@@ -50,6 +50,57 @@ pub fn mac_eq(a: &str, b: &str) -> bool {
     a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 
+/// Encrypts a short secret for storage: `base64(nonce || ciphertext)`. `aad` ties the
+/// value to its row, so it does not decrypt when copied to another one.
+pub fn seal(key: &[u8; 32], aad: &str, plain: &str) -> rostdav_core::Result<String> {
+    use base64::Engine;
+    use chacha20poly1305::aead::{Aead, KeyInit, Payload};
+    use chacha20poly1305::{ChaCha20Poly1305, Nonce};
+    let nonce: [u8; 12] = random_bytes();
+    let ct = ChaCha20Poly1305::new(key.into())
+        .encrypt(
+            Nonce::from_slice(&nonce),
+            Payload {
+                msg: plain.as_bytes(),
+                aad: aad.as_bytes(),
+            },
+        )
+        .map_err(|_| rostdav_core::Error::Unavailable)?;
+    let mut out = nonce.to_vec();
+    out.extend_from_slice(&ct);
+    Ok(base64::engine::general_purpose::STANDARD.encode(out))
+}
+
+/// Reverses [`seal`]; any mismatch (key, `aad`, damage) is an error.
+pub fn open(key: &[u8; 32], aad: &str, sealed: &str) -> rostdav_core::Result<String> {
+    use base64::Engine;
+    use chacha20poly1305::aead::{Aead, KeyInit, Payload};
+    use chacha20poly1305::{ChaCha20Poly1305, Nonce};
+    let raw = base64::engine::general_purpose::STANDARD
+        .decode(sealed)
+        .map_err(|_| rostdav_core::Error::Unavailable)?;
+    if raw.len() < 12 {
+        return Err(rostdav_core::Error::Unavailable);
+    }
+    let (nonce, ct) = raw.split_at(12);
+    let plain = ChaCha20Poly1305::new(key.into())
+        .decrypt(
+            Nonce::from_slice(nonce),
+            Payload {
+                msg: ct,
+                aad: aad.as_bytes(),
+            },
+        )
+        .map_err(|_| rostdav_core::Error::Unavailable)?;
+    String::from_utf8(plain).map_err(|_| rostdav_core::Error::Unavailable)
+}
+
+/// Key for secrets that wait in the database for a short time (Login Flow), derived
+/// from the server key so no second key file is needed.
+pub fn flow_key(server_key: &[u8; 32]) -> [u8; 32] {
+    blake3::derive_key("rostdav 2026 login flow app password", server_key)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -69,6 +120,19 @@ mod tests {
         assert_eq!(h.len(), 64);
         assert_eq!(h, hash_token("abc"));
         assert_ne!(h, hash_token("abd"));
+    }
+
+    #[test]
+    fn seal_roundtrips_and_is_bound_to_key_and_row() {
+        let k = [3u8; 32];
+        let s = seal(&k, "row1", "secret").expect("seal");
+        assert!(!s.contains("secret"));
+        assert_ne!(s, seal(&k, "row1", "secret").expect("fresh nonce"));
+        assert_eq!(open(&k, "row1", &s).expect("open"), "secret");
+        assert!(open(&k, "row2", &s).is_err(), "other row");
+        assert!(open(&[4u8; 32], "row1", &s).is_err(), "other key");
+        assert!(open(&k, "row1", "AAAA").is_err(), "short");
+        assert_ne!(flow_key(&k), k);
     }
 
     #[test]

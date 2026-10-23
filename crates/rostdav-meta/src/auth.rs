@@ -37,6 +37,7 @@ pub struct Session {
 pub struct LoginFlow {
     pub id: i64,
     pub client_name: String,
+    pub poll_hash: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -169,6 +170,7 @@ impl Db {
         login_hash: &str,
         client_name: &str,
         ttl_secs: i64,
+        max_open: i64,
     ) -> Result<()> {
         let now = now_secs();
         // Opportunistic cleanup keeps the table small without a background job.
@@ -177,6 +179,15 @@ impl Db {
             .execute(self.pool())
             .await
             .map_err(err)?;
+        let (open,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM login_flows")
+            .fetch_one(self.pool())
+            .await
+            .map_err(err)?;
+        if open >= max_open {
+            return Err(Error::RateLimited {
+                retry_after_secs: 60,
+            });
+        }
         sqlx::query(
             "INSERT INTO login_flows (poll_hash, login_hash, client_name, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
         )
@@ -193,15 +204,19 @@ impl Db {
 
     /// An open (not expired, not yet granted) flow by its login token hash.
     pub async fn open_flow_by_login(&self, login_hash: &str) -> Result<Option<LoginFlow>> {
-        let row: Option<(i64, String)> = sqlx::query_as(
-            "SELECT id, client_name FROM login_flows WHERE login_hash = ? AND expires_at >= ? AND user_id IS NULL",
+        let row: Option<(i64, String, String)> = sqlx::query_as(
+            "SELECT id, client_name, poll_hash FROM login_flows WHERE login_hash = ? AND expires_at >= ? AND user_id IS NULL",
         )
         .bind(login_hash)
         .bind(now_secs())
         .fetch_optional(self.pool())
         .await
         .map_err(err)?;
-        Ok(row.map(|(id, client_name)| LoginFlow { id, client_name }))
+        Ok(row.map(|(id, client_name, poll_hash)| LoginFlow {
+            id,
+            client_name,
+            poll_hash,
+        }))
     }
 
     /// Deletes a flow that has not been granted yet.
@@ -595,10 +610,32 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn open_login_flows_are_capped_and_expired_ones_do_not_count() {
+        let (_d, db) = test_db().await;
+        db.create_login_flow("p1", "l1", "A", 600, 2)
+            .await
+            .expect("1");
+        db.create_login_flow("p2", "l2", "B", 600, 2)
+            .await
+            .expect("2");
+        assert!(matches!(
+            db.create_login_flow("p3", "l3", "C", 600, 2).await,
+            Err(Error::RateLimited { .. })
+        ));
+        sqlx::query("UPDATE login_flows SET expires_at = 0 WHERE poll_hash = 'p1'")
+            .execute(db.pool())
+            .await
+            .expect("expire");
+        db.create_login_flow("p3", "l3", "C", 600, 2)
+            .await
+            .expect("room again");
+    }
+
+    #[tokio::test]
     async fn login_flow_grant_and_single_poll() {
         let (_d, db) = test_db().await;
         let anna = user(&db, "anna").await;
-        db.create_login_flow("p", "l", "Phone", 600)
+        db.create_login_flow("p", "l", "Phone", 600, 100)
             .await
             .expect("create");
         assert_eq!(db.poll_flow("p").await.expect("poll"), PollResult::Pending);
@@ -636,7 +673,7 @@ mod tests {
     async fn expired_flows_are_invisible() {
         let (_d, db) = test_db().await;
         let anna = user(&db, "anna").await;
-        db.create_login_flow("p", "l", "Phone", -1)
+        db.create_login_flow("p", "l", "Phone", -1, 100)
             .await
             .expect("create");
         assert!(db.open_flow_by_login("l").await.expect("open").is_none());
