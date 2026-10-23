@@ -132,7 +132,9 @@ State and last run appear under Administration → Status.
 
 Precedence: command line > environment variables (`ROSTDAV_*`) > configuration file (`rostdav.toml`) > database settings from the UI > defaults. Values from the upper three levels are read-only in the UI. Secrets (key for TOTP secrets, possibly DB password) only from the environment or a secret file.
 
-## Threat model (short version, details in `docs/security.md`)
+## Threat model
+
+Short version; the details are in [security.md](security.md).
 
 | Threat (STRIDE) | Example | Mitigation |
 |---|---|---|

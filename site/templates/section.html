@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block head %}
+{{ m::crumbs(title=section.title, url=section.permalink, home=get_url(path="/")) }}
+{% endblock head %}
+{% block content %}
+<div class="wrap docs">
+  {{ m::sidebar(current=section.permalink) }}
+  <main id="main" class="doc">
+    <h1>{{ section.title }}</h1>
+    {% if section.description %}<p class="lede">{{ section.description }}</p>{% endif %}
+    <div class="prose">{{ section.content | safe }}</div>
+    <ul class="cards">
+    {% for p in section.pages %}
+      <li><a href="{{ p.permalink }}"><b>{{ p.title }}</b><span>{{ p.description }}</span></a></li>
+    {% endfor %}
+    {% for sub in section.subsections %}{% set ss = get_section(path=sub) %}
+      <li><a href="{{ ss.permalink }}"><b>{{ ss.title }}</b><span>{{ ss.description }}</span></a></li>
+    {% endfor %}
+    </ul>
+  </main>
+</div>
+{% endblock content %}

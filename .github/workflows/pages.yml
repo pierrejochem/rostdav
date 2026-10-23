@@ -1,0 +1,77 @@
+# Documentation and user manual: builds site/ with Zola and publishes it to GitHub Pages.
+# Pull requests only build (this catches broken links); a push to main also deploys.
+# One-time setting: Settings > Pages > Source = "GitHub Actions".
+name: Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "docs/**"
+      - "CHANGELOG.md"
+      - "assets/brand/**"
+      - "scripts/site-sync.py"
+      - ".github/workflows/pages.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "docs/**"
+      - "CHANGELOG.md"
+      - "assets/brand/**"
+      - "scripts/site-sync.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  ZOLA_VERSION: "0.21.0"
+  # SHA-256 of zola-v0.21.0-x86_64-unknown-linux-gnu.tar.gz
+  ZOLA_SHA256: "5c37a8f706567d6cad3f0dbc0eaebe3b9591cc301bd67089e5ddc0d0401732d6"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Zola
+        run: |
+          curl -sSfL -o zola.tar.gz "https://github.com/getzola/zola/releases/download/v${ZOLA_VERSION}/zola-v${ZOLA_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${ZOLA_SHA256}  zola.tar.gz" | sha256sum -c -
+          tar xzf zola.tar.gz zola
+          ./zola --version
+      - name: Copy the documents into the site
+        run: python3 scripts/site-sync.py
+      - name: Build (broken internal links and anchors fail the build)
+        working-directory: site
+        run: ../zola build
+      - name: Check the result
+        working-directory: site/public
+        run: |
+          for f in index.html sitemap.xml robots.txt 404.html manual/index.html admin/index.html reference/index.html; do test -s "$f" || { echo "missing $f"; exit 1; }; done
+          grep -q 'rel="canonical"' index.html
+          grep -q 'application/ld+json' index.html
+      - uses: actions/upload-pages-artifact@v3
+        if: github.event_name != 'pull_request'
+        with:
+          path: site/public
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

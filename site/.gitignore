@@ -1,0 +1,8 @@
+# Written by scripts/site-sync.py from docs/, CHANGELOG.md and assets/brand/
+/public/
+/content/admin/deployment.md
+/content/admin/administration.md
+/content/reference/*.md
+!/content/reference/_index.md
+/content/reference/adr/0*.md
+/static/img/

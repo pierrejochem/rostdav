@@ -42,3 +42,12 @@ config:
 [confirm("Really delete local ./data?")]
 clean-data:
     rm -rf ./data
+
+# Documentation site (needs Zola 0.21): build into site/public, or preview at http://127.0.0.1:1111
+site:
+    python3 scripts/site-sync.py
+    cd site && zola build
+
+site-serve:
+    python3 scripts/site-sync.py
+    cd site && zola serve

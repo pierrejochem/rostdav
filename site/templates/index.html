@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block head %}
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareApplication","name":"Rostdav","applicationCategory":"BusinessApplication","applicationSubCategory":"File server","operatingSystem":"Linux","description":{{ config.description | json_encode() | safe }},"url":"{{ get_url(path='/') }}","downloadUrl":"{{ config.extra.releases }}","codeRepository":"{{ config.extra.repo }}","softwareHelp":"{{ get_url(path='manual/') }}","license":"https://www.apache.org/licenses/LICENSE-2.0","programmingLanguage":"Rust","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Rostdav","url":"{{ get_url(path='/') }}"}</script>
+{% endblock head %}
+{% block content %}
+<main id="main">
+<section class="hero">
+  <div class="wrap hero-in">
+    <div>
+      <p class="eyebrow">Self-hosted file server</p>
+      <h1>Your files on your server, <span>with the Nextcloud apps you already know.</span></h1>
+      <p class="lede">Rostdav is a lean file server written in Rust. It speaks WebDAV and the parts of the Nextcloud protocol the official apps need: sign in, sync, share, restore. One program, one data folder, no PHP, no extra database server.</p>
+      <p class="cta"><a class="button primary" href="{{ get_url(path='admin/deployment/') }}">Install Rostdav</a> <a class="button" href="{{ get_url(path='manual/') }}">Read the user manual</a></p>
+      <p class="muted-dark">Free and open source · Apache-2.0 or MIT · Linux x86-64 and arm64</p>
+    </div>
+    <img class="hero-mark" src="{{ get_url(path='img/rostdav-mark.svg') }}" alt="The Rostdav logo: a rust-coloured folder with sparks" width="280" height="256">
+  </div>
+</section>
+
+<section class="wrap block">
+  <h2>What you get</h2>
+  <ul class="features">
+    <li><h3>Works with the Nextcloud apps</h3><p>Sign in from the Android app, the desktop client or the iOS app with Login Flow v2. Every device gets its own app password that you can revoke.</p></li>
+    <li><h3>Sharing that you control</h3><p>Share with other users or by public link, with a password, an expiry date and view, edit or upload-only access.</p></li>
+    <li><h3>Versions and a trash bin</h3><p>Overwritten files keep their older versions; deleted files wait in the trash. Both have limits you set, so the disk does not fill up unnoticed.</p></li>
+    <li><h3>A web interface that matches</h3><p>Browse, upload folders by drag and drop, share, restore, and administer. Light and dark, English and German, works on a phone.</p></li>
+    <li><h3>Small and safe by design</h3><p>One binary, Argon2id passwords, hashed tokens, optional two-factor sign-in, an event log and a consistency check.</p></li>
+    <li><h3>Honest about compatibility</h3><p>Every compatibility claim names its source: a recording of Nextcloud 35, the client code, or a real app. <a href="{{ get_url(path='reference/compatibility/') }}">See what was tested</a>.</p></li>
+  </ul>
+</section>
+
+<section class="band">
+  <div class="wrap">
+    <h2>Try it in two minutes</h2>
+    <pre><code>docker run -d --name rostdav -p 127.0.0.1:8080:8080 -v rostdav-data:/data ghcr.io/pierrejochem/rostdav:latest
+read -rs -p 'Password for alice: ' PW; echo
+printf '%s\n' "$PW" | docker exec -i rostdav rostdav admin user add alice --admin</code></pre>
+    <p>Then open <code>http://127.0.0.1:8080</code> and sign in. For real use put a reverse proxy with HTTPS in front: the <a href="{{ get_url(path='admin/deployment/') }}">installation guide</a> has a ready Compose file.</p>
+  </div>
+</section>
+
+<section class="wrap block">
+  <h2>Where to go next</h2>
+  <ul class="cards">
+    <li><a href="{{ get_url(path='manual/') }}"><b>User manual</b><span>Sign in, connect the apps, share files, restore versions, secure your account.</span></a></li>
+    <li><a href="{{ get_url(path='admin/') }}"><b>Administrator guide</b><span>Install, configure, back up, upgrade, and keep an eye on the server.</span></a></li>
+    <li><a href="{{ get_url(path='reference/') }}"><b>Reference</b><span>Architecture, security concept, compatibility results, endpoints and design decisions.</span></a></li>
+  </ul>
+</section>
+</main>
+{% endblock content %}

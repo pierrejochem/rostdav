@@ -1,6 +1,6 @@
 # Security concept
 
-Binding requirements: section 5 of the [instructions](instructions.md). Short version of the threat model: [architecture.md](architecture.md#threat-model-short-version-details-in-docssecuritymd).
+Binding requirements: section 5 of the [instructions](instructions.md). Short version of the threat model: [architecture.md](architecture.md#threat-model).
 
 ## Trust boundaries
 

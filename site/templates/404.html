@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% block title %}Page not found · Rostdav{% endblock title %}
+{% block content %}
+<main id="main" class="wrap doc narrow">
+  <h1>Page not found</h1>
+  <p class="lede">This page does not exist (any more). Try the <a href="{{ get_url(path='manual/') }}">user manual</a>, the <a href="{{ get_url(path='admin/') }}">administrator guide</a> or the <a href="{{ get_url(path='reference/') }}">reference</a>.</p>
+</main>
+{% endblock content %}

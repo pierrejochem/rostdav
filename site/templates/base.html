@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+{%- set_global page_title = "Rostdav · Lean self-hosted file server with WebDAV for the Nextcloud apps" %}
+{%- set_global page_desc = config.description %}
+{%- if page %}{% set_global page_title = page.title ~ " · Rostdav" %}{% if page.description %}{% set_global page_desc = page.description %}{% endif %}
+{%- elif section and section.path != "/" %}{% set_global page_title = section.title ~ " · Rostdav" %}{% if section.description %}{% set_global page_desc = section.description %}{% endif %}{% endif %}
+{%- set cu = current_url | default(value="") %}
+{%- set canonical = cu | default(value=get_url(path="/")) %}
+<title>{% block title %}{{ page_title }}{% endblock title %}</title>
+<meta name="description" content="{{ page_desc }}">
+<link rel="canonical" href="{{ canonical }}">
+<meta name="theme-color" content="#15171C">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="{{ get_url(path='img/favicon.svg') }}" type="image/svg+xml">
+<meta property="og:site_name" content="Rostdav">
+<meta property="og:type" content="{% if cu == get_url(path="/") %}website{% else %}article{% endif %}">
+<meta property="og:title" content="{{ page_title }}">
+<meta property="og:description" content="{{ page_desc }}">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="og:image" content="{{ get_url(path=config.extra.image) }}">
+<meta property="og:image:alt" content="Rostdav: lean self-hosted file server">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{ page_title }}">
+<meta name="twitter:description" content="{{ page_desc }}">
+<meta name="twitter:image" content="{{ get_url(path=config.extra.image) }}">
+<link rel="stylesheet" href="{{ get_url(path='site.css') }}">
+<link rel="preload" href="{{ get_url(path='fonts/SpaceGrotesk-latin.woff2') }}" as="font" type="font/woff2" crossorigin>
+{% block head %}{% endblock head %}
+</head>
+<body>
+<a class="skip" href="#main">Skip to the content</a>
+<header class="top">
+  <div class="wrap bar">
+    <a class="brand" href="{{ get_url(path='/') }}" aria-label="Rostdav, home"><img src="{{ get_url(path='img/rostdav-mark.svg') }}" alt="" width="36" height="33"><span class="wordmark">rost<b>dav</b></span></a>
+    <nav aria-label="Main">
+      <a href="{{ get_url(path='manual/') }}"{% if "/manual/" in cu %} aria-current="true"{% endif %}>User manual</a>
+      <a href="{{ get_url(path='admin/') }}"{% if "/admin/" in cu %} aria-current="true"{% endif %}>Administrator guide</a>
+      <a href="{{ get_url(path='reference/') }}"{% if "/reference/" in cu %} aria-current="true"{% endif %}>Reference</a>
+      <a class="ext" href="{{ config.extra.releases }}">Download</a>
+      <a class="ext" href="{{ config.extra.repo }}">GitHub</a>
+    </nav>
+  </div>
+</header>
+{% block content %}{% endblock content %}
+<footer class="foot">
+  <div class="wrap">
+    <p><b class="wordmark">rost<b>dav</b></b> is open source under <a href="{{ config.extra.repo }}/blob/main/LICENSE-APACHE">Apache-2.0</a> or <a href="{{ config.extra.repo }}/blob/main/LICENSE-MIT">MIT</a>, at your option.</p>
+    <p class="muted">Rostdav is not a Nextcloud product and is not affiliated with Nextcloud GmbH. It implements only the interfaces the Nextcloud apps need for the supported features.</p>
+    <p class="muted"><a href="{{ config.extra.repo }}">Source code</a> · <a href="{{ config.extra.releases }}">Releases</a> · <a href="{{ config.extra.repo }}/issues">Report a problem</a> · <a href="{{ get_url(path='reference/changelog/') }}">Changelog</a></p>
+  </div>
+</footer>
+</body>
+</html>

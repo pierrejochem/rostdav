@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% import "macros.html" as m %}
+{% block head %}
+{{ m::crumbs(title=page.title, url=page.permalink, home=get_url(path="/")) }}
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":{{ page.title | json_encode() | safe }},"description":{{ page.description | default(value="") | json_encode() | safe }},"url":"{{ page.permalink }}","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"Rostdav","url":"{{ get_url(path='/') }}"},"publisher":{"@type":"Organization","name":"Rostdav"}}</script>
+{% endblock head %}
+{% block content %}
+<div class="wrap docs">
+  {{ m::sidebar(current=page.permalink) }}
+  <main id="main" class="doc">
+    <h1>{{ page.title }}</h1>
+    {% if page.description %}<p class="lede">{{ page.description }}</p>{% endif %}
+    <div class="prose">{{ page.content | safe }}</div>
+    {% if page.extra.source %}<p class="muted edit">This page is generated from <a href="{{ config.extra.repo }}/blob/main/{{ page.extra.source }}"><code>{{ page.extra.source }}</code></a> in the repository.</p>
+    {% elif page.extra.edit %}<p class="muted edit"><a href="{{ config.extra.repo }}/blob/main/site/content/{{ page.extra.edit }}">Suggest a change to this page</a></p>{% endif %}
+  </main>
+  {% if page.toc %}
+  <aside class="toc" aria-label="On this page">
+    <p class="eyebrow">On this page</p>
+    <ul>{% for h in page.toc %}<li><a href="#{{ h.id }}">{{ h.title }}</a>{% if h.children %}<ul>{% for c in h.children %}<li><a href="#{{ c.id }}">{{ c.title }}</a></li>{% endfor %}</ul>{% endif %}</li>{% endfor %}</ul>
+  </aside>
+  {% endif %}
+</div>
+{% endblock content %}
