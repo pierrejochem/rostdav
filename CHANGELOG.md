@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-23
+
 ### Added
 
 - About page (`/about`, in the navigation under the account entries): version, licence, source code, and the release notes of every version. The notes are `CHANGELOG.md` compiled into the binary, so they work offline and describe exactly what is running; the running version is marked and open.
@@ -17,6 +19,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
+- Dependencies: `hmac` 0.13, `sha1` 0.11, `chacha20poly1305` 0.11, `base64` 0.23, `ulid` 3, `tower-http` 0.7, and the transitive `ctutils` 0.4.5 (RUSTSEC-2026-0385, non-constant-time masks in 0.4.2). Secrets sealed by earlier versions still open (a test holds a value sealed by the old library). The Rust version needed to build is now 1.87 (was 1.85). Dependabot proposes updates from now on.
 - Sign-in pages (sign-in, second factor, device connection): the full Rostdav logo from `assets/brand` (mark and wordmark, set in the page's own font) beside the form on a dark brand panel, with a short tagline; on phones the panel becomes a band above the form.
 
 ## [0.3.0] - 2026-10-23
