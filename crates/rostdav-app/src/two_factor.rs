@@ -94,7 +94,7 @@ pub(crate) fn base32_encode(data: &[u8]) -> String {
 
 /// The 6-digit TOTP value for a counter (RFC 4226 dynamic truncation).
 pub(crate) fn hotp(secret: &[u8], counter: u64) -> u32 {
-    let mut m = <Hmac<Sha1> as Mac>::new_from_slice(secret).expect("HMAC takes any key length");
+    let mut m = <Hmac<Sha1> as KeyInit>::new_from_slice(secret).expect("HMAC takes any key length");
     m.update(&counter.to_be_bytes());
     let h = m.finalize().into_bytes();
     let off = usize::from(h[19] & 0x0f);
@@ -110,7 +110,7 @@ fn encrypt(key: &[u8; 32], user_id: i64, plain: &[u8]) -> Result<(Vec<u8>, Vec<u
     let c = ChaCha20Poly1305::new(key.into());
     let ct = c
         .encrypt(
-            Nonce::from_slice(&nonce),
+            &Nonce::from(nonce),
             Payload {
                 msg: plain,
                 aad: &user_id.to_le_bytes(),
@@ -126,7 +126,7 @@ fn decrypt(key: &[u8; 32], user_id: i64, ct: &[u8], nonce: &[u8]) -> Result<Vec<
     }
     ChaCha20Poly1305::new(key.into())
         .decrypt(
-            Nonce::from_slice(nonce),
+            &Nonce::try_from(nonce).map_err(|_| Error::Unavailable)?,
             Payload {
                 msg: ct,
                 aad: &user_id.to_le_bytes(),

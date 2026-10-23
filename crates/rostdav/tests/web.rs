@@ -2892,7 +2892,7 @@ async fn fonts_are_served_from_the_same_origin() {
 // ---- two-factor authentication (ADR 0007) ----------------------------------------------------
 
 fn totp_now(secret_b32: &str, offset: i64) -> String {
-    use hmac::{Hmac, Mac};
+    use hmac::{Hmac, KeyInit, Mac};
     const B32: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
     let (mut buf, mut bits, mut key) = (0u32, 0u32, Vec::new());
     for c in secret_b32.bytes() {
@@ -2915,7 +2915,7 @@ fn totp_now(secret_b32: &str, offset: i64) -> String {
             / 30
     });
     let counter = u64::try_from(i64::try_from(step).expect("step") + offset).expect("counter");
-    let mut m = <Hmac<sha1::Sha1> as Mac>::new_from_slice(&key).expect("key");
+    let mut m = <Hmac<sha1::Sha1> as KeyInit>::new_from_slice(&key).expect("key");
     m.update(&counter.to_be_bytes());
     let h = m.finalize().into_bytes();
     let o = usize::from(h[19] & 15);

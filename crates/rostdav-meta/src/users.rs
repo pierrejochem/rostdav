@@ -102,7 +102,7 @@ pub(crate) fn now_secs() -> i64 {
 
 /// Random ETag (a ULID suffices: unique, not guessable enough for cache validation).
 pub(crate) fn new_etag() -> String {
-    ulid::Ulid::new().to_string().to_lowercase()
+    ulid::Ulid::generate().to_string().to_lowercase()
 }
 
 #[cfg(test)]

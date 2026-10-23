@@ -59,7 +59,7 @@ pub fn seal(key: &[u8; 32], aad: &str, plain: &str) -> rostdav_core::Result<Stri
     let nonce: [u8; 12] = random_bytes();
     let ct = ChaCha20Poly1305::new(key.into())
         .encrypt(
-            Nonce::from_slice(&nonce),
+            &Nonce::from(nonce),
             Payload {
                 msg: plain.as_bytes(),
                 aad: aad.as_bytes(),
@@ -85,7 +85,7 @@ pub fn open(key: &[u8; 32], aad: &str, sealed: &str) -> rostdav_core::Result<Str
     let (nonce, ct) = raw.split_at(12);
     let plain = ChaCha20Poly1305::new(key.into())
         .decrypt(
-            Nonce::from_slice(nonce),
+            &Nonce::try_from(nonce).map_err(|_| rostdav_core::Error::Unavailable)?,
             Payload {
                 msg: ct,
                 aad: aad.as_bytes(),
@@ -145,5 +145,18 @@ mod tests {
         assert!(mac_eq(&mac(&k1, &["a"]), &mac(&k1, &["a"])));
         assert!(!mac_eq(&mac(&k1, &["a"]), &mac(&k1, &["b"])));
         assert!(!mac_eq("abc", "abcd"));
+    }
+
+    /// Written by the version of the library that was in use when this test was added; every
+    /// later version of `chacha20poly1305` must still read what earlier ones stored.
+    #[test]
+    fn open_reads_a_value_sealed_by_an_earlier_library_version() {
+        let key: [u8; 32] = std::array::from_fn(|i| i as u8);
+        let sealed = "oKGio6SlpqeoqaqrbdsIcj2Hsd7XYIFw0cvPyDQ3OUahxWu/YdQhmwK/M0w=";
+        assert_eq!(
+            open(&key, "flow:42", sealed).expect("open"),
+            "app-password-123"
+        );
+        assert!(open(&key, "flow:43", sealed).is_err(), "other row");
     }
 }

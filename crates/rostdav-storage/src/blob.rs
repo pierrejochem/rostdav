@@ -11,7 +11,7 @@ pub struct BlobId(String);
 
 impl BlobId {
     pub fn generate() -> Self {
-        Self(ulid::Ulid::new().to_string())
+        Self(ulid::Ulid::generate().to_string())
     }
 
     pub fn parse(s: &str) -> Result<Self> {
