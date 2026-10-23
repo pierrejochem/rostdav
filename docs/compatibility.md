@@ -281,7 +281,7 @@ The web interface, the sign-in pages (including Login Flow), `/healthz` and `/re
 | Feature | App behavior without support | Source |
 |---|---|---|
 | Preview images | server answers 404 (`06-misc/01`); app behavior: observe in M6 | |
-| Notifications, activities, push | [observe] | |
+| Notifications, activities, push | the Android app 35.0.1 tolerates the 404 answers (notifications, user status, avatar) and works normally | M6, Android 35.0.1 |
 | End-to-end encryption | [observe] | |
 | Talk, calendar, contacts | not planned | |
 
