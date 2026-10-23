@@ -7,6 +7,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Added
 
 - About page (`/about`, in the navigation under the account entries): version, licence, source code, and the release notes of every version. The notes are `CHANGELOG.md` compiled into the binary, so they work offline and describe exactly what is running; the running version is marked and open.
+- Version check, off by default ([ADR 0009](docs/adr/0009-version-check-and-updater.md)): an administrator can switch it on (Administration, Server, "Updates"). Then the server asks the GitHub releases API once a day, and on "Check now", which version is the newest, and shows a newer one with its release notes. The request carries only `User-Agent: rostdav/<version>`: no user, file or server data. While the check is off, the server makes no outbound connection at all. A failed check is shown on the page and never affects serving files. This adds an HTTPS client (`ureq`, rustls, bundled root certificates) to the program.
 
 ### Fixed
 

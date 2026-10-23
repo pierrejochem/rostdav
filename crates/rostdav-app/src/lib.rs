@@ -25,6 +25,9 @@ mod shares;
 mod trash;
 mod tunables;
 mod two_factor;
+mod update;
+#[cfg(test)]
+mod update_tests;
 mod uploads;
 mod versions;
 mod web;
@@ -48,6 +51,7 @@ pub use shares::{
 pub use trash::{TrashEntry, TrashOptions};
 pub use tunables::{Tunable, TunableView};
 pub use two_factor::{SignIn, TotpKeySource, TwoFactorSetup, TwoFactorStatus};
+pub use update::{LatestRelease, UpdateStatus};
 pub use uploads::UploadListing;
 pub use versions::{VersionEntry, VersionListing, VersioningOptions};
 pub use web::{Profile, UsageOverview, WebOptions, WebSession};
@@ -80,6 +84,8 @@ struct Inner {
     server_key: [u8; 32],
     /// Maintenance mode: WebDAV and OCS answer 503, `status.php` says so (stored in `settings`).
     maintenance: std::sync::atomic::AtomicBool,
+    /// Address of the version check (ADR 0009); tests point it at a local server.
+    update_source: std::sync::Mutex<String>,
 }
 
 pub fn now_secs() -> i64 {
@@ -162,6 +168,7 @@ impl AppState {
                 instance_id,
                 server_key,
                 maintenance: maintenance.into(),
+                update_source: std::sync::Mutex::new(update::RELEASES_API.to_owned()),
             }),
         })
     }
@@ -195,6 +202,11 @@ impl AppState {
                     .maintenance
                     .load(std::sync::atomic::Ordering::Relaxed)
                     .into(),
+                update_source: std::sync::Mutex::new(
+                    old.update_source
+                        .lock()
+                        .map_or_else(|e| e.into_inner().clone(), |s| s.clone()),
+                ),
             }),
         }
     }

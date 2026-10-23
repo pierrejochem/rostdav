@@ -100,6 +100,10 @@ Users turn on TOTP (authenticator app) themselves under Devices & security; see 
 - **Lockout.** Five wrong codes lock the second step for that user for 15 minutes. A user who lost the authenticator and the recovery codes needs `rostdav admin user reset-2fa <login>` or Administration › Users › Manage › Reset two-factor authentication.
 - **Event log:** `auth.2fa_enabled`, `auth.2fa_disabled`, `auth.2fa_codes_regenerated`, `admin.2fa_reset`, failed codes as `auth.login_failed` with `second_factor`. Codes and secrets are never logged.
 
+## Version check
+
+Off by default. Administration, Server, "Updates" turns it on: the server then asks the GitHub releases API once a day (and on "Check now") which version is the newest, and shows a newer one with its release notes. The request carries only `User-Agent: rostdav/<version>`. While it is off, the server makes no outbound connection. After an error the server tries again in an hour; the page shows the reason. The switch is kept in the database, so a restart keeps it. Events: `admin.update_check_on`, `admin.update_check_off`. The About page (every user) shows the release notes of the running build and the versions before it; they are compiled in and need no network. Installing an update from the page is not built yet ([ADR 0009](adr/0009-version-check-and-updater.md)): replace the binary or pull the new image, with a backup first.
+
 ## Event log
 
 Fields: timestamp, actor, action, target, IP, details as JSON. Never file contents, passwords or tokens. Export as JSON Lines (`rostdav admin audit export`):

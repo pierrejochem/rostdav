@@ -396,3 +396,12 @@ Fixed	Behoben
 Removed	Entfernt
 Deprecated	Veraltet
 Security	Sicherheit
+Updates	Aktualisierungen
+When this is on, the server asks GitHub once a day which version is the newest. The request contains the name and version of this program and nothing else: no user, file or server data. When it is off, the server makes no outbound connections.	Wenn das eingeschaltet ist, fragt der Server einmal am Tag bei GitHub, welche Version die neueste ist. Die Anfrage enthält nur Name und Version dieses Programms, keine Benutzer-, Datei- oder Serverdaten. Ist es ausgeschaltet, baut der Server keine ausgehenden Verbindungen auf.
+The version check is off.	Die Versionsprüfung ist ausgeschaltet.
+Version {0} is available (you run {1}).	Version {0} ist verfügbar (du verwendest {1}).
+Release page	Seite der Version
+You run the newest version.	Du verwendest die neueste Version.
+The last check failed: {0}	Die letzte Prüfung ist fehlgeschlagen: {0}
+Last checked {0}.	Zuletzt geprüft {0}.
+Check now	Jetzt prüfen

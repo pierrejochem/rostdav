@@ -4939,3 +4939,116 @@ async fn the_about_page_shows_version_licence_and_release_notes() {
         StatusCode::SEE_OTHER
     );
 }
+
+/// A one-answer HTTP server on localhost standing in for the GitHub API.
+async fn fake_releases(body: String) -> String {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let listener = tokio::net::TcpListener::bind(("127.0.0.1", 0))
+        .await
+        .expect("bind");
+    let url = format!("http://{}/latest", listener.local_addr().expect("addr"));
+    tokio::spawn(async move {
+        while let Ok((mut sock, _)) = listener.accept().await {
+            let mut buf = vec![0u8; 4096];
+            let _ = sock.read(&mut buf).await;
+            let reply = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            );
+            let _ = sock.write_all(reply.as_bytes()).await;
+        }
+    });
+    url
+}
+
+#[tokio::test]
+async fn the_version_check_is_off_until_an_administrator_turns_it_on() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let anna = login(&e, "anna").await;
+    let release = serde_json::json!({
+        "tag_name": "v99.1.0",
+        "html_url": "https://github.com/pierrejochem/rostdav/releases/tag/v99.1.0",
+        "published_at": "2026-12-01T10:00:00Z",
+        "body": "### Added\n\n- A shiny <b>thing</b> with `code`",
+    })
+    .to_string();
+    e.state.set_update_source(&fake_releases(release).await);
+
+    // off: says so, offers to turn on, nothing was asked
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(page.contains("The version check is off.") && page.contains("Turn on"));
+    assert!(!page.contains("is available"));
+
+    // turning it on needs the CSRF value and an administrator
+    let csrf = page_csrf(&e, &root).await;
+    let r = post_form(
+        &e,
+        "/admin/server/update",
+        &root,
+        &[("csrf", "wrong"), ("on", "1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let csrf_a = page_csrf(&e, &anna).await;
+    let r = post_form(
+        &e,
+        "/admin/server/update",
+        &anna,
+        &[("csrf", &csrf_a), ("on", "1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    assert!(
+        get(&e, "/admin/server", &root)
+            .await
+            .text()
+            .contains("The version check is off.")
+    );
+
+    let r = post_form(
+        &e,
+        "/admin/server/update",
+        &root,
+        &[("csrf", &csrf), ("on", "1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    let page = get(&e, "/admin/server", &root).await.text();
+    assert!(page.contains("Version 99.1.0 is available"), "{page}");
+    // the notes are shown as text and formatted, never as markup
+    assert!(page.contains("<code>code</code>") && page.contains("&lt;b&gt;thing&lt;/b&gt;"));
+    assert!(!page.contains("<b>thing</b>"));
+    assert!(page.contains("href=\"https://github.com/pierrejochem/rostdav/releases/tag/v99.1.0\""));
+
+    // "check now" and "turn off" need the same checks, and off means off again
+    let r = post_form(
+        &e,
+        "/admin/server/update/check",
+        &anna,
+        &[("csrf", &csrf_a), ("on", "1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        "/admin/server/update/check",
+        &root,
+        &[("csrf", &csrf), ("on", "1")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    post_form(
+        &e,
+        "/admin/server/update",
+        &root,
+        &[("csrf", &csrf), ("on", "0")],
+    )
+    .await;
+    assert!(
+        get(&e, "/admin/server", &root)
+            .await
+            .text()
+            .contains("The version check is off.")
+    );
+}

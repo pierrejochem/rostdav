@@ -69,14 +69,24 @@ fn notes_html(a: &Authed, list: &[Release]) -> String {
             esc(&r.version.to_string()),
             esc(&r.date),
         ));
-        for s in &r.sections {
-            out.push_str(&format!("<h3>{}</h3><ul>", esc(&t(lang, &s.heading))));
-            for item in &s.items {
-                out.push_str(&format!("<li>{}</li>", inline(item)));
-            }
-            out.push_str("</ul>");
-        }
+        out.push_str(&sections_html(lang, &r.sections));
         out.push_str("</details>");
+    }
+    out
+}
+
+/// The headings and entries of one release's notes.
+pub(crate) fn sections_html(
+    lang: crate::i18n::Lang,
+    sections: &[rostdav_core::release::Section],
+) -> String {
+    let mut out = String::new();
+    for s in sections {
+        out.push_str(&format!("<h3>{}</h3><ul>", esc(&t(lang, &s.heading))));
+        for item in &s.items {
+            out.push_str(&format!("<li>{}</li>", inline(item)));
+        }
+        out.push_str("</ul>");
     }
     out
 }

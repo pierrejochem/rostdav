@@ -886,6 +886,10 @@ async fn server_page(state: &AppState, a: &Authed) -> Response {
             ))
         ),
     );
+    let updates = match state.update_status(&actor).await {
+        Ok(u) => ui::card(lang, "Updates", "", &updates_html(a, &u)),
+        Err(e) => return error_page(a, &e, "/files"),
+    };
     let rows: String = rows
         .iter()
         .map(|(k, v)| {
@@ -908,10 +912,116 @@ async fn server_page(state: &AppState, a: &Authed) -> Response {
         "Server",
         "server",
         &format!(
-            "{adjustable}{}",
+            "{adjustable}{updates}{}",
             ui::card(lang, "Effective settings", "", &body)
         ),
     )
+}
+
+/// The version check: off by default, with what it does and does not send said plainly.
+fn updates_html(a: &Authed, u: &rostdav_app::UpdateStatus) -> String {
+    let lang = a.lang;
+    let csrf = esc(&a.csrf);
+    let form = |action: &str, on: &str, label: &str, class: &str| {
+        format!(
+            "<form class=\"inline\" method=\"post\" action=\"{action}\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+             <input type=\"hidden\" name=\"on\" value=\"{on}\"><button{class} type=\"submit\">{}</button></form>",
+            esc(&t(lang, label))
+        )
+    };
+    let mut out = format!(
+        "<p class=\"muted\">{}</p>",
+        esc(&t(
+            lang,
+            "When this is on, the server asks GitHub once a day which version is the newest. The request contains the name and version of this program and nothing else: no user, file or server data. When it is off, the server makes no outbound connections."
+        ))
+    );
+    if !u.enabled {
+        out.push_str(&format!(
+            "<p><strong>{}</strong></p>{}",
+            esc(&t(lang, "The version check is off.")),
+            form("/admin/server/update", "1", "Turn on", "")
+        ));
+        return out;
+    }
+    match (u.available(), &u.latest) {
+        (Some(l), _) => {
+            out.push_str(&format!(
+                "<p><strong>{}</strong> <a href=\"{}\" rel=\"noopener noreferrer\">{}</a></p>{}",
+                esc(&tf(
+                    lang,
+                    "Version {0} is available (you run {1}).",
+                    &[&l.version.to_string(), rostdav_core::VERSION]
+                )),
+                esc(&l.url),
+                esc(&t(lang, "Release page")),
+                crate::about::sections_html(lang, &rostdav_core::release::parse_notes(&l.notes)),
+            ));
+        }
+        (None, Some(_)) => out.push_str(&format!(
+            "<p><strong>{}</strong></p>",
+            esc(&t(lang, "You run the newest version."))
+        )),
+        (None, None) => {}
+    }
+    if let Some(e) = &u.error {
+        out.push_str(&format!(
+            "<p class=\"muted\">{}</p>",
+            esc(&tf(lang, "The last check failed: {0}", &[e]))
+        ));
+    } else if let Some(at) = u.checked_at {
+        out.push_str(&format!(
+            "<p class=\"muted\">{}</p>",
+            esc(&tf(lang, "Last checked {0}.", &[&ui::friendly(lang, at)]))
+        ));
+    }
+    out.push_str(&format!(
+        "<div class=\"row-actions\">{}{}</div>",
+        form("/admin/server/update/check", "1", "Check now", ""),
+        form("/admin/server/update", "0", "Turn off", "")
+    ));
+    out
+}
+
+#[derive(Deserialize)]
+pub struct UpdateForm {
+    csrf: String,
+    #[serde(default)]
+    on: String,
+}
+
+pub async fn set_update_check(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    Form(f): Form<UpdateForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state
+        .update_set_enabled(&Actor::User(&a.session.principal), f.on == "1")
+        .await
+    {
+        Ok(_) => Redirect::to("/admin/server").into_response(),
+        Err(e) => error_page(&a, &e, "/admin/server"),
+    }
+}
+
+pub async fn update_check_now(
+    State(state): State<AppState>,
+    Admin(a): Admin,
+    Form(f): Form<UpdateForm>,
+) -> Response {
+    if !csrf_ok(&state, &a, &f.csrf) {
+        return forbidden();
+    }
+    match state
+        .update_check_now(&Actor::User(&a.session.principal))
+        .await
+    {
+        Ok(_) => Redirect::to("/admin/server").into_response(),
+        Err(e) => error_page(&a, &e, "/admin/server"),
+    }
 }
 
 #[derive(Deserialize)]

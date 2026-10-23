@@ -1,6 +1,6 @@
 # ADR 0009: Version check and updater
 
-- Status: **Proposed** (approval point 1: a new outbound HTTPS client is a new part of the stack; the update path is also a new trust root). The About page and the embedded release notes need no decision and are already built; everything below is not.
+- Status: **Version check accepted** by the project owner on 2026-10-23 (approval point 1: the HTTPS client dependency) and built. **Updater: proposed, not built.** It waits for the owner's decision on the signing key (see "What stays the owner's"). The About page and the embedded release notes needed no decision.
 - Date: 2026-10-23
 
 ## Context
@@ -13,14 +13,14 @@ The version check and the updater are different in kind. Until now the server ma
 
 ### Version check (opt-in)
 
-- **Off by default.** An administrator switches it on (Administration, Server; `update.check` in the configuration, locked there when set as for the other limits). Reason: a file server that calls out without being told to surprises people who run it on an isolated network.
+- **Off by default.** An administrator switches it on (Administration, Server, card "Updates"; stored in the `settings` table, not in the configuration file). Reason: a file server that calls out without being told to surprises people who run it on an isolated network.
 - Once a day and on "Check now": `GET https://api.github.com/repos/pierrejochem/rostdav/releases/latest`. The request carries no instance identifier, no user data and no cookies; the only thing that identifies the caller is `User-Agent: rostdav/<version>`. Pre-releases and drafts are ignored (that endpoint already skips them). Response size is capped (1 MiB), time-out 10 s.
 - The answer is parsed as JSON; only `tag_name` (must parse as a SemVer version), `html_url` (must start with `https://github.com/pierrejochem/rostdav/`), `published_at` and `body` are used. A failure is shown on the page and logged; it never affects serving files.
 - The notes of a newer version are the release `body`, which the release workflow writes from the `CHANGELOG.md` section of that version. They are rendered by the same restricted Markdown renderer as the embedded notes (text, `code`, **bold**, links to https and repository paths; no HTML).
 - Result and time of the last check are kept in the `settings` table (`update.latest`, `update.checked_at`), so a restart does not trigger a check.
-- A banner on the administration pages says "version x.y.z is available" for administrators only.
+- The card "Updates" on the Server page says "version x.y.z is available" with its release notes, for administrators only. (No banner on every administration page: those pages have no access to the state, and the card is where the switch is.)
 
-New dependency: a small HTTPS client, **`ureq`** (blocking, run on `spawn_blocking`) with **rustls** and bundled root certificates (`webpki-roots`), so the container image needs no CA package. Cost to be measured and recorded here before acceptance: binary size and the licences it brings (`cargo deny`).
+New dependency: a small HTTPS client, **`ureq` 3** (blocking, run on `spawn_blocking`) with **rustls** (ring) and bundled root certificates (`webpki-roots`), so the container image needs no CA package. Measured: the release binary is 47.3 MiB (0.3.0 was about 47 MB: no visible growth). Licences: everything it brings passes `cargo deny` except one addition to `deny.toml`, `CDLA-Permissive-2.0` (the data licence of the Mozilla root certificate list in `webpki-roots`). Its root certificates are compiled in: a revoked or new root needs a new Rostdav release, which is the price of not depending on the container's CA package.
 
 ### Updater
 

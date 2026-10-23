@@ -88,6 +88,7 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
     );
 
     spawn_garbage_collection(state.clone());
+    spawn_version_check(state.clone());
 
     let listener = tokio::net::TcpListener::bind(cfg.server.listen)
         .await
@@ -118,6 +119,17 @@ fn spawn_garbage_collection(state: rostdav_app::AppState) {
                 Ok(n) => tracing::info!(removed = n, "unreferenced blobs removed"),
                 Err(err) => tracing::warn!(error = %err, "garbage collection failed"),
             }
+        }
+    });
+}
+
+/// The version check (ADR 0009): does nothing unless an administrator switched it on.
+fn spawn_version_check(state: rostdav_app::AppState) {
+    tokio::spawn(async move {
+        let mut tick = tokio::time::interval(std::time::Duration::from_secs(600));
+        loop {
+            tick.tick().await;
+            state.update_check_if_due().await;
         }
     });
 }

@@ -16,6 +16,8 @@ allow = [
     "Zlib",
     # permissive, MIT-like; used by libloading (a dependency of the Turso database engine)
     "ISC",
+    # permissive data licence of the Mozilla root certificates (webpki-roots, used by the version check, ADR 0009)
+    "CDLA-Permissive-2.0",
 ]
 confidence-threshold = 0.9
 

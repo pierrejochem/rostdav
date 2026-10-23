@@ -184,6 +184,15 @@ pub fn parse_changelog(text: &str) -> Vec<Release> {
     releases
 }
 
+/// The sections of one release's notes as GitHub holds them (the text of one changelog section).
+pub fn parse_notes(body: &str) -> Vec<Section> {
+    parse_changelog(&format!("## [0.0.0] - -\n{body}"))
+        .into_iter()
+        .next()
+        .map(|r| r.sections)
+        .unwrap_or_default()
+}
+
 /// The release notes of this build, newest first.
 pub fn releases() -> Vec<Release> {
     parse_changelog(CHANGELOG)
