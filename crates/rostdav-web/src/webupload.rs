@@ -145,6 +145,50 @@ pub async fn abort(
     }
 }
 
+#[derive(Deserialize)]
+pub struct MkdirBody {
+    /// The folder to make, below the user's root (`a/b`); its parent must exist.
+    path: String,
+}
+
+/// `POST /web/mkdir`: makes one folder, for the browser's folder uploads. Asking for a folder
+/// that is there already is fine (200); a file of that name is a conflict.
+pub async fn mkdir(
+    State(state): State<AppState>,
+    a: Authed,
+    headers: HeaderMap,
+    Json(b): Json<MkdirBody>,
+) -> Response {
+    if !csrf_ok(&state, &a, &headers) {
+        return forbidden();
+    }
+    let p = &a.session.principal;
+    let res = async {
+        let path = parse_plain(&b.path)?;
+        if path.is_root() {
+            return Err(Error::BadRequest("no folder name"));
+        }
+        match state.stat(p, &path).await {
+            Ok(n) if n.kind == rostdav_meta::NodeKind::Dir => Ok(false),
+            Ok(_) => Err(Error::Conflict("a file has that name")),
+            Err(Error::NotFound) => state.mkcol(p, &path).await.map(|_| true),
+            Err(e) => Err(e),
+        }
+    }
+    .await;
+    match res {
+        Ok(created) => json_response(
+            if created {
+                StatusCode::CREATED
+            } else {
+                StatusCode::OK
+            },
+            &json!({ "created": created }),
+        ),
+        Err(e) => api_error(&e),
+    }
+}
+
 struct Adapter<S>(S);
 
 impl<S> futures_core::Stream for Adapter<S>

@@ -4542,3 +4542,211 @@ async fn apps_fetch_the_picture_with_an_app_password() {
         );
     }
 }
+
+async fn json_post(e: &Env, uri: &str, cookie: &str, csrf: Option<&str>, body: &str) -> Res {
+    let o = origin();
+    let mut h = vec![
+        ("cookie", cookie),
+        ("origin", o.as_str()),
+        ("content-type", "application/json"),
+    ];
+    if let Some(c) = csrf {
+        h.push(("x-csrf-token", c));
+    }
+    send(e, "POST", uri, &h, Body::from(body.to_owned())).await
+}
+
+#[tokio::test]
+async fn folder_uploads_make_folders_one_at_a_time_and_files_go_into_them() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let mk = |path: &'static str| {
+        let (e, ca, csrf) = (&e, &ca, &csrf);
+        async move {
+            json_post(
+                e,
+                "/web/mkdir",
+                ca,
+                Some(csrf),
+                &format!("{{\"path\":\"{path}\"}}"),
+            )
+            .await
+        }
+    };
+
+    // created, then "already there" is fine, children need their parent
+    let r = mk("Photos").await;
+    assert_eq!(
+        (r.status, r.text().contains("\"created\":true")),
+        (StatusCode::CREATED, true)
+    );
+    let r = mk("Photos").await;
+    assert_eq!(
+        (r.status, r.text().contains("\"created\":false")),
+        (StatusCode::OK, true)
+    );
+    assert_eq!(mk("Photos/2026").await.status, StatusCode::CREATED);
+    assert_eq!(
+        mk("Nope/Child").await.status,
+        StatusCode::CONFLICT,
+        "no parent"
+    );
+
+    // a file with that name is a conflict; bad names are refused
+    upload(
+        &e,
+        &ca,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, ""),
+            ("file", Some("f.txt"), "x"),
+        ],
+    )
+    .await;
+    assert_eq!(mk("f.txt").await.status, StatusCode::CONFLICT);
+    for bad in ["", "..", "a/../b", "Photos/..", "."] {
+        let r = json_post(
+            &e,
+            "/web/mkdir",
+            &ca,
+            Some(&csrf),
+            &format!("{{\"path\":\"{bad}\"}}"),
+        )
+        .await;
+        assert!(r.status.is_client_error(), "{bad:?}: {}", r.status);
+        assert!(
+            !e.state
+                .users_list(&rostdav_app::Actor::Cli)
+                .await
+                .expect("list")
+                .is_empty()
+        );
+    }
+    let r = json_post(&e, "/web/mkdir", &ca, Some(&csrf), "not json").await;
+    assert!(r.status.is_client_error());
+
+    // token and sign-in are required; trees are separate per user
+    assert_eq!(
+        json_post(&e, "/web/mkdir", &ca, None, "{\"path\":\"X\"}")
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    assert_eq!(
+        json_post(&e, "/web/mkdir", &ca, Some("forged"), "{\"path\":\"X\"}")
+            .await
+            .status,
+        StatusCode::FORBIDDEN
+    );
+    let r = send(
+        &e,
+        "POST",
+        "/web/mkdir",
+        &[("content-type", "application/json"), ("origin", &origin())],
+        Body::from("{\"path\":\"X\"}"),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    let cb = login(&e, "bob").await;
+    assert_eq!(
+        get(&e, "/files/Photos", &cb).await.status,
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        get(&e, "/files/X", &ca).await.status,
+        StatusCode::NOT_FOUND,
+        "nothing made without a token"
+    );
+
+    // a file lands in the nested folder through the chunked API (what the script does)
+    let id = "w-test-1";
+    assert_eq!(
+        api(
+            &e,
+            "POST",
+            &format!("/web/upload/{id}"),
+            &ca,
+            Some(&csrf),
+            vec![]
+        )
+        .await
+        .status,
+        StatusCode::CREATED
+    );
+    // the script starts a transfer with POST and reads it only when it exists already
+    assert_eq!(
+        api(
+            &e,
+            "POST",
+            &format!("/web/upload/{id}"),
+            &ca,
+            Some(&csrf),
+            vec![]
+        )
+        .await
+        .status,
+        StatusCode::CONFLICT
+    );
+    assert_eq!(
+        api(
+            &e,
+            "PUT",
+            &format!("/web/upload/{id}/000000"),
+            &ca,
+            Some(&csrf),
+            b"inside".to_vec()
+        )
+        .await
+        .status,
+        StatusCode::OK
+    );
+    let r = json_post(
+        &e,
+        &format!("/web/upload/{id}/finish"),
+        &ca,
+        Some(&csrf),
+        "{\"dir\":\"Photos/2026\",\"name\":\"n.txt\",\"total\":6}",
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    let r = get(&e, "/download/Photos/2026/n.txt", &ca).await;
+    assert_eq!(
+        (r.status, r.body.as_slice()),
+        (StatusCode::OK, &b"inside"[..])
+    );
+    assert!(get(&e, "/files/Photos", &ca).await.text().contains("2026"));
+}
+
+#[tokio::test]
+async fn pages_offer_dropzones_and_load_the_scripts_the_policy_allows() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let files = get(&e, "/files", &ca).await;
+    let html = files.text();
+    assert!(
+        html.contains("class=\"dropzone dropzone-compact\"") && html.contains("/static/upload.js")
+    );
+    assert!(html.contains("or drop files and folders anywhere on this page"));
+    let settings = get(&e, "/settings", &ca).await;
+    let html = settings.text();
+    assert!(html.contains("id=\"avatar-zone\"") && html.contains("accept=\"image/*\""));
+    assert!(html.contains("/static/copy.js") && html.contains("/static/avatar.js"));
+    // the scripts are plain files from the same origin: the policy needs no inline script
+    let csp = settings.h("content-security-policy").to_owned();
+    assert!(
+        csp.contains("script-src 'self'")
+            && !csp.contains("unsafe-inline")
+            && !csp.contains("unsafe-eval")
+    );
+    assert!(!html.contains("<script>"), "no inline script");
+    for (name, needle) in [
+        ("upload.js", "webkitGetAsEntry"),
+        ("avatar.js", "createImageBitmap"),
+    ] {
+        let r = send(&e, "GET", &format!("/static/{name}"), &[], Body::empty()).await;
+        assert_eq!(r.status, StatusCode::OK, "{name}");
+        assert!(r.h("content-type").starts_with("text/javascript"));
+        assert!(r.text().contains(needle), "{name}");
+    }
+}

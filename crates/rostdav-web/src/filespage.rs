@@ -280,7 +280,10 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
          <label>{folder_name}<input type=\"text\" name=\"name\" required></label><button class=\"primary\" type=\"submit\">{create_folder}</button></form></details>\
          <details class=\"pop\"><summary class=\"button primary\"><svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4\"/><path d=\"M7 9l5-5 5 5\"/><path d=\"M5 20h14\"/></svg>{upload}</summary>\
          <form id=\"upload-form\" class=\"popover\" method=\"post\" action=\"/action/upload\" enctype=\"multipart/form-data\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><input type=\"hidden\" name=\"dir\" value=\"{dir}\">\
-         <label>{file}<input type=\"file\" name=\"file\" multiple required></label><button class=\"primary\" type=\"submit\">{upload}</button></form></details>",
+         <label class=\"dropzone dropzone-compact\"><input type=\"file\" name=\"file\" multiple required>\
+         <svg class=\"i dz-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4\"/><path d=\"M7 9l5-5 5 5\"/><path d=\"M5 20h14\"/></svg>\
+         <span class=\"dz-title\">{choose_files}</span><span class=\"dz-hint\">{drop_hint}</span></label>\
+         <button class=\"primary\" type=\"submit\">{upload}</button></form></details>",
         esc(&url_of("/files", &path)),
         esc(&q.q),
         search = esc(&t(lang, "Search in this folder")),
@@ -288,7 +291,8 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
         folder_name = esc(&t(lang, "Folder name")),
         create_folder = esc(&t(lang, "Create folder")),
         upload = esc(&t(lang, "Upload")),
-        file = esc(&t(lang, "File")),
+        choose_files = esc(&t(lang, "Choose files")),
+        drop_hint = esc(&t(lang, "or drop files and folders anywhere on this page")),
     );
 
     let body = format!(

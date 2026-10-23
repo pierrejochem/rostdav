@@ -9,6 +9,7 @@ const APP_CSS: &str = include_str!("../static/app.css");
 const UPLOAD_JS: &str = include_str!("../static/upload.js");
 const COPY_JS: &str = include_str!("../static/copy.js");
 const PASSWORD_JS: &str = include_str!("../static/password.js");
+const AVATAR_JS: &str = include_str!("../static/avatar.js");
 
 const SPACE_GROTESK: &[u8] = include_bytes!("../static/fonts/SpaceGrotesk-latin.woff2");
 const JETBRAINS_MONO: &[u8] = include_bytes!("../static/fonts/JetBrainsMono-500-latin.woff2");
@@ -56,6 +57,10 @@ fn icon(name: &str) -> &'static str {
             "<path d=\"M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z\"/>"
         }
         "trash" => "<path d=\"M4 7h16\"/><path d=\"M9 7V4h6v3\"/><path d=\"M6 7l1 13h10l1-13\"/>",
+        "recent" => "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>",
+        "shares" => {
+            "<circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><path d=\"M8.6 13.5l6.8 4M15.4 6.5l-6.8 4\"/>"
+        }
         "devices" => {
             "<path d=\"M4 5h12v10H4Z\"/><path d=\"M2 19h16\"/><path d=\"M19 9h3v10h-3Z\"/>"
         }
@@ -155,7 +160,7 @@ pub struct Chrome<'a> {
 /// Optional parts of a signed-in page.
 #[derive(Default)]
 pub struct Opts<'a> {
-    /// One script from `/static/`, loaded at the end of the page.
+    /// Scripts from `/static/` (names separated by spaces), loaded at the end of the page.
     pub script: Option<&'a str>,
     /// Markup for the left side of the top bar (search, actions).
     pub toolbar: Option<&'a str>,
@@ -237,9 +242,14 @@ pub fn app_opts(
     body: &str,
     opts: &Opts<'_>,
 ) -> Response {
-    let script = opts
+    // one or more scripts from `/static/`, separated by spaces (fixed names, never user input)
+    let script: String = opts
         .script
-        .map(|s| format!("<script src=\"/static/{s}\"></script>"))
+        .map(|s| {
+            s.split_whitespace()
+                .map(|n| format!("<script src=\"/static/{n}\"></script>"))
+                .collect()
+        })
         .unwrap_or_default();
     let toolbar = opts.toolbar.unwrap_or_default();
     let main_class = if opts.bare_main { "bare" } else { "panel" };
@@ -338,6 +348,7 @@ pub async fn static_file(
         "favicon.svg" => (favicon.as_bytes(), "image/svg+xml"),
         "copy.js" => (COPY_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "password.js" => (PASSWORD_JS.as_bytes(), "text/javascript; charset=utf-8"),
+        "avatar.js" => (AVATAR_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "SpaceGrotesk-latin.woff2" => (SPACE_GROTESK, "font/woff2"),
         "JetBrainsMono-500-latin.woff2" => (JETBRAINS_MONO, "font/woff2"),
         _ => return StatusCode::NOT_FOUND.into_response(),

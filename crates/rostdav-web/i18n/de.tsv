@@ -368,9 +368,12 @@ Set by configuration	Von der Konfiguration gesetzt
 The configuration file or an environment variable sets this; change it there.	Die Konfigurationsdatei oder eine Umgebungsvariable setzt dies; dort ändern.
 Profile picture	Profilbild
 Choose a picture	Bild wählen
-PNG or JPEG, square works best, 16 to 1024 pixels on each side, at most 256 KiB.	PNG oder JPEG, quadratisch ist am besten, 16 bis 1024 Pixel pro Seite, höchstens 256 KiB.
 Remove picture	Bild entfernen
 No picture was sent.	Es wurde kein Bild gesendet.
 The file is not a PNG or JPEG picture	Die Datei ist kein PNG- oder JPEG-Bild
 The picture is larger than 256 KiB	Das Bild ist größer als 256 KiB
 The picture must be between 16 and 1024 pixels on each side	Das Bild muss auf jeder Seite zwischen 16 und 1024 Pixel groß sein
+or drop it here	oder hier ablegen
+Any picture works: it is cropped to a square and shrunk in your browser. Without JavaScript, send a PNG or JPEG of 16 to 1024 pixels and at most 256 KiB.	Jedes Bild geht: Es wird quadratisch zugeschnitten und in deinem Browser verkleinert. Ohne JavaScript sende ein PNG oder JPEG mit 16 bis 1024 Pixeln und höchstens 256 KiB.
+Choose files	Dateien wählen
+or drop files and folders anywhere on this page	oder Dateien und Ordner irgendwo auf dieser Seite ablegen

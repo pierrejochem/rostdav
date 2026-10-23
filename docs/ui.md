@@ -43,6 +43,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/share?path=`, `/share/{user,link,delete}` | Sharing dialog: share with a user, create/stop public links (password, expiry, view/edit/upload-only) |
 | `/versions?path=`, `/versions/{restore,delete}` | Versions panel of a file |
 | `/files[/<path>]?q=&sel=&sort=&dir=` | Files page as designed (column headers sort by name, size or modified, folders stay first): search/filter box, tiles per type, "Shared" chip, details panel (selected file via `sel`, else the open folder: download, share, delete, versions with restore, shares, file ID and ETag), upload progress card, storage meter in the sidebar |
+| `POST /web/mkdir` | Makes one folder (JSON `{"path": "a/b"}`, `X-CSRF-Token`); an existing folder answers 200, a file of that name 409. Used by the page script to recreate dropped or picked folders |
 | `/web/upload/<id>[/<chunk>\|/finish]` | Chunked, resumable browser upload (used by `/static/upload.js`; session + `X-CSRF-Token` header) |
 | `/admin/users`, `/admin/users/{create,manage,disabled,role,quota,password,delete}` | Administration: users (add, block, role, quota, password reset, delete with transfer) |
 | `/admin/events` | Administration: event log (period filter, newest 500) |

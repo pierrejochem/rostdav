@@ -501,11 +501,14 @@ async fn settings_page(
         "Profile picture",
         "",
         &format!(
-            "<div class=\"avatarrow\">{}<div><form class=\"stack-form\" method=\"post\" action=\"/settings/avatar\" enctype=\"multipart/form-data\">\
+            "<div class=\"avatarrow\">{}<div><form id=\"avatar-form\" class=\"stack-form\" method=\"post\" action=\"/settings/avatar\" enctype=\"multipart/form-data\">\
              <input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
-             <label>{}<input type=\"file\" name=\"file\" accept=\"image/png,image/jpeg\" required></label>\
-             <p class=\"muted\">{}</p>\
-             <div class=\"actions\"><button class=\"primary\" type=\"submit\">{}</button></div></form>{}</div></div>",
+             <label id=\"avatar-zone\" class=\"dropzone\"><input type=\"file\" name=\"file\" accept=\"image/*\" required>\
+             <canvas id=\"avatar-preview\" class=\"dz-preview\" width=\"96\" height=\"96\" hidden aria-hidden=\"true\"></canvas>\
+             <svg class=\"i dz-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4\"/><path d=\"M7 9l5-5 5 5\"/><path d=\"M5 20h14\"/></svg>\
+             <span class=\"dz-title\">{}</span><span class=\"dz-hint\">{}</span></label>\
+             <p id=\"avatar-msg\" class=\"muted\" role=\"status\">{}</p>\
+             <div class=\"actions\"><button id=\"avatar-save\" class=\"primary\" type=\"submit\">{}</button></div></form>{}</div></div>",
             if has_avatar {
                 format!(
                     "<img class=\"avatar-big\" src=\"/avatar/{}/128\" alt=\"\" width=\"96\" height=\"96\">",
@@ -515,9 +518,10 @@ async fn settings_page(
                 ui::avatar(&p.name)
             },
             esc(&t(lang, "Choose a picture")),
+            esc(&t(lang, "or drop it here")),
             esc(&t(
                 lang,
-                "PNG or JPEG, square works best, 16 to 1024 pixels on each side, at most 256 KiB."
+                "Any picture works: it is cropped to a square and shrunk in your browser. Without JavaScript, send a PNG or JPEG of 16 to 1024 pixels and at most 256 KiB."
             )),
             esc(&t(lang, "Upload")),
             if has_avatar {
@@ -670,7 +674,7 @@ async fn settings_page(
     );
     let opts = crate::layout::Opts {
         bare_main: true,
-        script: Some("copy.js"),
+        script: Some("copy.js avatar.js"),
         ..crate::layout::Opts::default()
     };
     crate::layout::app_opts(

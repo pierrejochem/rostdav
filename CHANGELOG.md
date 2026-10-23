@@ -2,6 +2,18 @@
 
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow [Semantic Versioning](https://semver.org/). What was tested with which client version is in [docs/compatibility.md](docs/compatibility.md); the design decisions are in [docs/adr/](docs/adr/).
 
+## [Unreleased]
+
+### Added
+
+- Files page: drag and drop of files and whole folders anywhere on the page (empty folders included), a "Choose a folder" button, and one progress bar for the whole batch. A file that cannot be stored (for example a refused name) is reported at the end; the rest of the batch still uploads.
+- Profile picture: any picture can be chosen or dropped. The browser crops it to a square, shrinks it and re-encodes it so that it fits what the server stores (at most 256 KiB, 16 to 1024 pixels), and shows a preview before it is saved.
+- File inputs are drop zones (Settings, Files), with sidebar icons for "Recent" and "Shares".
+
+### Changed
+
+- The page upload no longer probes every file with a request that answers 404 (it starts the transfer and reads it only when it exists).
+
 ## [0.2.0] - 2026-10-23
 
 ### Added

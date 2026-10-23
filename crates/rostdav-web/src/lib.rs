@@ -67,6 +67,7 @@ pub fn router() -> Router<AppState> {
                 .post(webupload::create)
                 .delete(webupload::abort),
         )
+        .route("/web/mkdir", post(webupload::mkdir))
         .route("/web/upload/{id}/finish", post(webupload::finish))
         .route("/web/upload/{id}/{chunk}", put(webupload::chunk))
         .route("/share", get(sharing::share_page))
