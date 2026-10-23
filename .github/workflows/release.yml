@@ -1,0 +1,134 @@
+# Release: runs when a version tag is pushed (git tag v0.1.0 && git push origin v0.1.0).
+# It checks the tag against Cargo.toml and CHANGELOG.md, runs the tests, builds the Linux binary
+# and the container image (ghcr.io/<owner>/rostdav), and creates the GitHub release.
+name: Release
+
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag, Cargo.toml and CHANGELOG.md agree
+        id: v
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          cargo_version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n1)"
+          test "$version" = "$cargo_version" || { echo "tag $version, Cargo.toml $cargo_version"; exit 1; }
+          grep -q "^## \[$version\]" CHANGELOG.md || { echo "no CHANGELOG.md section for $version"; exit 1; }
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Tests
+        run: cargo test --workspace --locked
+
+  binary:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Build
+        run: cargo build --release --locked -p rostdav
+      - name: Smoke test the release binary
+        run: scripts/smoke.sh ./target/release/rostdav
+      - name: Package
+        run: |
+          name="rostdav-${{ needs.verify.outputs.version }}-x86_64-unknown-linux-gnu"
+          mkdir "$name"
+          cp target/release/rostdav LICENSE-APACHE LICENSE-MIT README.md CHANGELOG.md rostdav.example.toml "$name/"
+          tar czf "$name.tar.gz" "$name"
+          sha256sum "$name.tar.gz" > "$name.tar.gz.sha256"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: binary
+          path: rostdav-*.tar.gz*
+          if-no-files-found: error
+
+  image:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # 0.1.0 -> 0.1.0, 0.1, 0 and latest; a pre-release (0.2.0-rc.1) gets only its own tag
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}},enable=${{ !contains(github.ref_name, '-') }}
+      - name: Build the image and check it before it is pushed
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: rostdav:release-check
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Start it and check health, user and data directory mode
+        run: |
+          docker run -d --name rd -p 127.0.0.1:18080:8080 rostdav:release-check
+          for i in $(seq 1 30); do curl -sf http://127.0.0.1:18080/readyz && break; sleep 1; done
+          curl -sf http://127.0.0.1:18080/readyz
+          test "$(docker exec rd id -u)" = 10001
+          test "$(docker exec rd stat -c %a /data)" = 700
+          docker exec rd rostdav healthcheck
+          docker rm -f rd
+      - name: Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+
+  release:
+    needs: [verify, binary, image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: binary
+      - name: Release notes from CHANGELOG.md
+        run: |
+          awk -v v="${{ needs.verify.outputs.version }}" '
+            $0 ~ "^## \\[" v "\\]" { on = 1; next }
+            on && /^## \[/ { exit }
+            on { print }
+          ' CHANGELOG.md > notes.md
+          test -s notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          flags=""
+          case "$GITHUB_REF_NAME" in *-*) flags="--prerelease";; esac
+          gh release create "$GITHUB_REF_NAME" $flags --title "Rostdav ${{ needs.verify.outputs.version }}" \
+            --notes-file notes.md rostdav-*.tar.gz rostdav-*.tar.gz.sha256

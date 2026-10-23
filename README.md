@@ -8,7 +8,7 @@ A lean, self-hosted file server in Rust with WebDAV that works with the official
 
 ## Status
 
-**Version 0.1.0 (not released yet).** Everything planned for the first release is implemented: WebDAV with the Nextcloud extensions, Login Flow v2 with app passwords, chunked upload, favorites, versions, shares and public links, trash, a German/English web interface with administration, optional two-factor authentication, and an admin CLI with backup. It was checked against recordings of Nextcloud 35.0.2 and used with the real Nextcloud Android app (35.0.1) and the desktop sync engine (4.0.6); the desktop GUI and the iOS client were not tried. Details: [docs/compatibility.md](docs/compatibility.md), [CHANGELOG.md](CHANGELOG.md), progress: [docs/plan.md](docs/plan.md).
+**Version 0.1.0.** Everything planned for the first release is implemented: WebDAV with the Nextcloud extensions, Login Flow v2 with app passwords, chunked upload, favorites, versions, shares and public links, trash, a German/English web interface with administration, optional two-factor authentication, and an admin CLI with backup. It was checked against recordings of Nextcloud 35.0.2 and used with the real Nextcloud Android app (35.0.1) and the desktop sync engine (4.0.6); the desktop GUI and the iOS client were not tried. Details: [docs/compatibility.md](docs/compatibility.md), [CHANGELOG.md](CHANGELOG.md), progress: [docs/plan.md](docs/plan.md).
 
 ## Quick start
 
