@@ -4,6 +4,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-24
+
+### Fixed
+
+- File names with the characters U+007F and U+0080 to U+009F are accepted. Nextcloud forbids only the characters 0 to 31 (`FilenameValidator.php`), and real data directories contain such names (an emoji decoded as Latin-1); Rostdav refused them, so those files could not be imported or synced. Found with a real Nextcloud data directory.
+
 ## [0.5.0] - 2026-10-24
 
 ### Added
