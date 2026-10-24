@@ -1,0 +1,112 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "SEARCH",
+    "path": "/remote.php/dav/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "text/xml",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 613,
+      "sha256": "ff2529922d69eef2b069e04c634a11789a20aa3abdd1c43b97c1a752eaa0f38f",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><d:searchrequest xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:basicsearch><d:select><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/><d:getcontentlength/><d:resourcetype/><d:getetag/><oc:fileid/><oc:size/><oc:favorite/><oc:owner-id/><oc:permissions/></d:prop></d:select><d:from><d:scope><d:href>/remote.php/dav/files/admin/{{folder}}</d:href><d:depth>infinity</d:depth></d:scope></d:from><d:where><d:like><d:prop><d:displayname/></d:prop><d:literal>%</d:literal></d:like></d:where></d:basicsearch></d:searchrequest>"
+    }
+  },
+  "response": {
+    "status": 404,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:30 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "228"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 228,
+      "sha256": "82cf290ab37567ea5539f7b62f814a767385dfdedec5842491918d6d81d85d8e",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>Sabre\\DAV\\Exception\\NotFound</s:exception>\n  <s:message>File not found: remote.php in 'root'</s:message>\n</d:error>\n"
+    }
+  }
+}

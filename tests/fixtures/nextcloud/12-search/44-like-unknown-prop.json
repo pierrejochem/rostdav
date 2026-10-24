@@ -1,0 +1,120 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "SEARCH",
+    "path": "/remote.php/dav/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "text/xml",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 595,
+      "sha256": "fca7d1412d38afc05085294964543b7195ca799ac7b46154334a15ae28750418",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><d:searchrequest xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:basicsearch><d:select><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/><d:getcontentlength/><d:resourcetype/><d:getetag/><oc:fileid/><oc:size/><oc:favorite/><oc:owner-id/><oc:permissions/></d:prop></d:select><d:from><d:scope><d:href>/files/admin/{{folder}}</d:href><d:depth>infinity</d:depth></d:scope></d:from><d:where><d:like><d:prop><d:nonsense/></d:prop><d:literal>x</d:literal></d:like></d:where></d:basicsearch></d:searchrequest>"
+    }
+  },
+  "response": {
+    "status": 400,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:32 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "X-Request-Id",
+        "mmP7C60MSCi8LAllzBIk"
+      ],
+      [
+        "Content-Length",
+        "64"
+      ],
+      [
+        "Connection",
+        "close"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=\"utf-8\""
+      ]
+    ],
+    "body": {
+      "length": 64,
+      "sha256": "933ba1d20bcfbc12636abe87d451cbe54200b392c79394d7098e92b9898eddab",
+      "text": "requested search property is not a valid property for this scope"
+    }
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "SEARCH",
+    "path": "/remote.php/dav/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "text/xml",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 594,
+      "sha256": "4afcb6c5e4cea39c153a706980b988227d28b9eae2cf4f37b7672aee70a09b01",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><d:searchrequest xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:basicsearch><d:select><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/><d:getcontentlength/><d:resourcetype/><d:getetag/><oc:fileid/><oc:size/><oc:favorite/><oc:owner-id/><oc:permissions/></d:prop></d:select><d:from><d:scope><d:href>/files/admin/{{folder}}</d:href><d:depth>infinity</d:depth></d:scope></d:from><d:where><d:eq><d:prop><oc:owner-id/></d:prop><d:literal>bob</d:literal></d:eq></d:where></d:basicsearch></d:searchrequest>"
+    }
+  },
+  "response": {
+    "status": 500,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:21 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "284"
+      ],
+      [
+        "Connection",
+        "close"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 284,
+      "sha256": "18923d60a1cb7e969a3fe815d54c477eb74fd182fc7125122bb153c925e8d0c9",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<d:error xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\">\n  <s:exception>InvalidArgumentException</s:exception>\n  <s:message>Invalid search value for '{http://owncloud.org/ns}owner-id', only the current user id is allowed</s:message>\n</d:error>\n"
+    }
+  }
+}

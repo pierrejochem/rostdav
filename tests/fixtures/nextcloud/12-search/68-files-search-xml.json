@@ -1,0 +1,126 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v2.php/search/providers/files/search?term=report",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:43 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "3P3T5h2FyWIY8rIR7vYW"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "2056"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 2056,
+      "sha256": "435ef92e52fe52784e8fbec9757d736055b32e564542f5a3ceda1dcc890ebbba",
+      "text": "<?xml version=\"1.0\"?>\n<ocs>\n <meta>\n  <status>ok</status>\n  <statuscode>200</statuscode>\n  <message>OK</message>\n </meta>\n <data>\n  <name>Files</name>\n  <isPaginated>1</isPaginated>\n  <entries>\n   <element>\n    <thumbnailUrl>http://{{host}}/core/preview?x=32&amp;y=32&amp;fileId=63</thumbnailUrl>\n    <title>Report.odt</title>\n    <subline>in Templates</subline>\n    <resourceUrl>http://{{host}}/f/63</resourceUrl>\n    <icon>/apps/theming/img/core/filetypes/x-office-document.svg?v=68423728</icon>\n    <rounded></rounded>\n    <attributes>\n     <fileId>63</fileId>\n     <path>/Templates/Report.odt</path>\n    </attributes>\n   </element>\n   <element>\n    <thumbnailUrl>http://{{host}}/core/preview?x=32&amp;y=32&amp;fileId=39</thumbnailUrl>\n    <title>Expense report.ods</title>\n    <subline>in Templates</subline>\n    <resourceUrl>http://{{host}}/f/39</resourceUrl>\n    <icon>/apps/theming/img/core/filetypes/x-office-spreadsheet.svg?v=68423728</icon>\n    <rounded></rounded>\n    <attributes>\n     <fileId>39</fileId>\n     <path>/Templates/Expense report.ods</path>\n    </attributes>\n   </element>\n   <element>\n    <thumbnailUrl>http://{{host}}/core/preview?x=32&amp;y=32&amp;fileId=360</thumbnailUrl>\n    <title>Report 2024.txt</title>\n    <subline>in {{folder}}</subline>\n    <resourceUrl>http://{{host}}/f/360</resourceUrl>\n    <icon>/apps/theming/img/core/filetypes/text.svg?v=68423728</icon>\n    <rounded></rounded>\n    <attributes>\n     <fileId>360</fileId>\n     <path>/{{folder}}/Report 2024.txt</path>\n    </attributes>\n   </element>\n   <element>\n    <thumbnailUrl></thumbnailUrl>\n    <title>report-final.pdf</title>\n    <subline>in {{folder}}</subline>\n    <resourceUrl>http://{{host}}/f/361</resourceUrl>\n    <icon>/apps/theming/img/core/filetypes/application-pdf.svg?v=68423728</icon>\n    <rounded></rounded>\n    <attributes>\n     <fileId>361</fileId>\n     <path>/{{folder}}/report-final.pdf</path>\n    </attributes>\n   </element>\n  </entries>\n  <cursor>5</cursor>\n </data>\n</ocs>\n"
+    }
+  }
+}

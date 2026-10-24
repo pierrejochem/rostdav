@@ -1,0 +1,130 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v2.php/search/providers",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:42 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "y1l8HXKAqsU4nTyROfRt"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "ETag",
+        "\"6c33a21f7144732363dbd0f19f0efa08\""
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "2517"
+      ],
+      [
+        "Vary",
+        "Accept-Encoding"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 2517,
+      "sha256": "96d4fac0f193a5bfe3c10786f049ed304a0e660a55b9143d0d227ae6790fa7a7",
+      "text": "<?xml version=\"1.0\"?>\n<ocs>\n <meta>\n  <status>ok</status>\n  <statuscode>200</statuscode>\n  <message>OK</message>\n </meta>\n <data>\n  <element>\n   <id>appstore</id>\n   <appId>appstore</appId>\n   <name>Apps</name>\n   <icon>/core/img/appstore.svg</icon>\n   <order>-50</order>\n   <isExternalProvider></isExternalProvider>\n   <triggers>\n    <element>appstore</element>\n   </triggers>\n   <filters>\n    <term>string</term>\n   </filters>\n   <inAppSearch></inAppSearch>\n  </element>\n  <element>\n   <id>files</id>\n   <appId>files</appId>\n   <name>Files</name>\n   <icon>/apps/files/img/app.svg</icon>\n   <order>5</order>\n   <isExternalProvider></isExternalProvider>\n   <triggers>\n    <element>files</element>\n   </triggers>\n   <filters>\n    <term>string</term>\n    <since>datetime</since>\n    <until>datetime</until>\n    <person>person</person>\n    <min-size>int</min-size>\n    <max-size>int</max-size>\n    <mime>string</mime>\n    <type>string</type>\n    <path>string</path>\n    <is-favorite>bool</is-favorite>\n    <title-only>bool</title-only>\n   </filters>\n   <inAppSearch></inAppSearch>\n  </element>\n  <element>\n   <id>systemtags</id>\n   <appId>systemtags</appId>\n   <name>Tags</name>\n   <icon>/apps/systemtags/img/app.svg</icon>\n   <order>6</order>\n   <isExternalProvider></isExternalProvider>\n   <triggers>\n    <element>systemtags</element>\n   </triggers>\n   <filters>\n    <term>string</term>\n   </filters>\n   <inAppSearch></inAppSearch>\n  </element>\n  <element>\n   <id>circles</id>\n   <appId>circles</appId>\n   <name>Teams</name>\n   <icon>/apps/circles/img/circles.svg</icon>\n   <order>9</order>\n   <isExternalProvider></isExternalProvider>\n   <triggers>\n    <element>circles</element>\n   </triggers>\n   <filters>\n    <term>string</term>\n   </filters>\n   <inAppSearch></inAppSearch>\n  </element>\n  <element>\n   <id>comments</id>\n   <appId>comments</appId>\n   <name>Comments</name>\n   <icon>/apps/comments/img/comments.svg</icon>\n   <order>10</order>\n   <isExternalProvider></isExternalProvider>\n   <triggers>\n    <element>comments</element>\n   </triggers>\n   <filters>\n    <term>string</term>\n   </filters>\n   <inAppSearch></inAppSearch>\n  </element>\n  <element>\n   <id>settings</id>\n   <appId>settings</appId>\n   <name>Settings</name>\n   <icon>/apps/settings/img/settings.svg</icon>\n   <order>500</order>\n   <isExternalProvider></isExternalProvider>\n   <triggers>\n    <element>settings</element>\n   </triggers>\n   <filters>\n    <term>string</term>\n   </filters>\n   <inAppSearch></inAppSearch>\n  </element>\n </data>\n</ocs>\n"
+    }
+  }
+}

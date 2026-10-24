@@ -1,0 +1,125 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v2.php/search/providers?format=json",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:42 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "Foy4clzmgWtMSLN7rxnO"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "ETag",
+        "\"6c33a21f7144732363dbd0f19f0efa08\""
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "1468"
+      ],
+      [
+        "Content-Type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 1468,
+      "sha256": "677f309aacbadbec10429de47a7340819b9858e21717a6abf9c3fa7df9875b44",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":200,\"message\":\"OK\"},\"data\":[{\"id\":\"appstore\",\"appId\":\"appstore\",\"name\":\"Apps\",\"icon\":\"\\/core\\/img\\/appstore.svg\",\"order\":-50,\"isExternalProvider\":false,\"triggers\":[\"appstore\"],\"filters\":{\"term\":\"string\"},\"inAppSearch\":false},{\"id\":\"files\",\"appId\":\"files\",\"name\":\"Files\",\"icon\":\"\\/apps\\/files\\/img\\/app.svg\",\"order\":5,\"isExternalProvider\":false,\"triggers\":[\"files\"],\"filters\":{\"term\":\"string\",\"since\":\"datetime\",\"until\":\"datetime\",\"person\":\"person\",\"min-size\":\"int\",\"max-size\":\"int\",\"mime\":\"string\",\"type\":\"string\",\"path\":\"string\",\"is-favorite\":\"bool\",\"title-only\":\"bool\"},\"inAppSearch\":false},{\"id\":\"systemtags\",\"appId\":\"systemtags\",\"name\":\"Tags\",\"icon\":\"\\/apps\\/systemtags\\/img\\/app.svg\",\"order\":6,\"isExternalProvider\":false,\"triggers\":[\"systemtags\"],\"filters\":{\"term\":\"string\"},\"inAppSearch\":false},{\"id\":\"circles\",\"appId\":\"circles\",\"name\":\"Teams\",\"icon\":\"\\/apps\\/circles\\/img\\/circles.svg\",\"order\":9,\"isExternalProvider\":false,\"triggers\":[\"circles\"],\"filters\":{\"term\":\"string\"},\"inAppSearch\":false},{\"id\":\"comments\",\"appId\":\"comments\",\"name\":\"Comments\",\"icon\":\"\\/apps\\/comments\\/img\\/comments.svg\",\"order\":10,\"isExternalProvider\":false,\"triggers\":[\"comments\"],\"filters\":{\"term\":\"string\"},\"inAppSearch\":false},{\"id\":\"settings\",\"appId\":\"settings\",\"name\":\"Settings\",\"icon\":\"\\/apps\\/settings\\/img\\/settings.svg\",\"order\":500,\"isExternalProvider\":false,\"triggers\":[\"settings\"],\"filters\":{\"term\":\"string\"},\"inAppSearch\":false}]}}"
+    }
+  }
+}

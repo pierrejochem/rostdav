@@ -1,0 +1,122 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "GET",
+    "path": "/ocs/v2.php/search/providers/files/search?format=json&term=report%25",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "OCS-APIRequest": "true",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "empty": true
+    }
+  },
+  "response": {
+    "status": 200,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:46 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-Request-Id",
+        "yY6UaceUFDcMgCc05PHK"
+      ],
+      [
+        "Cache-Control",
+        "no-cache, no-store, must-revalidate"
+      ],
+      [
+        "Feature-Policy",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "Content-Length",
+        "1450"
+      ],
+      [
+        "Content-Type",
+        "application/json; charset=utf-8"
+      ]
+    ],
+    "body": {
+      "length": 1450,
+      "sha256": "aeb6ef4711d0cec0a05c5bca8dcc2d204b54be3e51770d24f318774d346609e8",
+      "text": "{\"ocs\":{\"meta\":{\"status\":\"ok\",\"statuscode\":200,\"message\":\"OK\"},\"data\":{\"name\":\"Files\",\"isPaginated\":true,\"entries\":[{\"thumbnailUrl\":\"http:\\/\\/{{host}}\\/core\\/preview?x=32&y=32&fileId=63\",\"title\":\"Report.odt\",\"subline\":\"in Templates\",\"resourceUrl\":\"http:\\/\\/{{host}}\\/f\\/63\",\"icon\":\"\\/apps\\/theming\\/img\\/core\\/filetypes\\/x-office-document.svg?v=68423728\",\"rounded\":false,\"attributes\":{\"fileId\":\"63\",\"path\":\"\\/Templates\\/Report.odt\"}},{\"thumbnailUrl\":\"http:\\/\\/{{host}}\\/core\\/preview?x=32&y=32&fileId=39\",\"title\":\"Expense report.ods\",\"subline\":\"in Templates\",\"resourceUrl\":\"http:\\/\\/{{host}}\\/f\\/39\",\"icon\":\"\\/apps\\/theming\\/img\\/core\\/filetypes\\/x-office-spreadsheet.svg?v=68423728\",\"rounded\":false,\"attributes\":{\"fileId\":\"39\",\"path\":\"\\/Templates\\/Expense report.ods\"}},{\"thumbnailUrl\":\"http:\\/\\/{{host}}\\/core\\/preview?x=32&y=32&fileId=360\",\"title\":\"Report 2024.txt\",\"subline\":\"in {{folder}}\",\"resourceUrl\":\"http:\\/\\/{{host}}\\/f\\/360\",\"icon\":\"\\/apps\\/theming\\/img\\/core\\/filetypes\\/text.svg?v=68423728\",\"rounded\":false,\"attributes\":{\"fileId\":\"360\",\"path\":\"\\/{{folder}}\\/Report 2024.txt\"}},{\"thumbnailUrl\":\"\",\"title\":\"report-final.pdf\",\"subline\":\"in {{folder}}\",\"resourceUrl\":\"http:\\/\\/{{host}}\\/f\\/361\",\"icon\":\"\\/apps\\/theming\\/img\\/core\\/filetypes\\/application-pdf.svg?v=68423728\",\"rounded\":false,\"attributes\":{\"fileId\":\"361\",\"path\":\"\\/{{folder}}\\/report-final.pdf\"}}],\"cursor\":5}}}"
+    }
+  }
+}

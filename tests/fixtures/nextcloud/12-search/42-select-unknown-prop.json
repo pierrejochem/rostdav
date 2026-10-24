@@ -1,0 +1,116 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "SEARCH",
+    "path": "/remote.php/dav/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "text/xml",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 446,
+      "sha256": "9ef41efd007bc6aae3410a9703c9c86ede4ed1bf40bacd41aaac81bfc665c55e",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><d:searchrequest xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:basicsearch><d:select><d:prop><d:nonsense/></d:prop></d:select><d:from><d:scope><d:href>/files/admin/{{folder}}</d:href><d:depth>infinity</d:depth></d:scope></d:from><d:where><d:like><d:prop><d:displayname/></d:prop><d:literal>%report%</d:literal></d:like></d:where></d:basicsearch></d:searchrequest>"
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:31 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "X-Request-Id",
+        "L0BQ14Jfx0P7vurY7v9m"
+      ],
+      [
+        "Content-Length",
+        "570"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=\"utf-8\""
+      ]
+    ],
+    "body": {
+      "length": 570,
+      "sha256": "7538886458df83364547e1a370cb2e02bfada3d42c6525b31bd10c3f44204270",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/files/admin/{{folder}}/Report%202024.txt</d:href><d:propstat><d:prop><d:nonsense/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/admin/{{folder}}/report-final.pdf</d:href><d:propstat><d:prop><d:nonsense/></d:prop><d:status>HTTP/1.1 404 Not Found</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}

@@ -1,0 +1,116 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "SEARCH",
+    "path": "/remote.php/dav/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "text/xml",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 590,
+      "sha256": "1ff54e88ed013978c1d96641ce30deb2ed0709e251cb9cd09686852aaec83f85",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><d:searchrequest xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:basicsearch><d:select><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/><d:getcontentlength/><d:resourcetype/><d:getetag/><oc:fileid/><oc:size/><oc:favorite/><oc:owner-id/><oc:permissions/></d:prop></d:select><d:from><d:scope><d:href>/files/admin</d:href><d:depth>infinity</d:depth></d:scope></d:from><d:where><d:like><d:prop><d:displayname/></d:prop><d:literal>%report%</d:literal></d:like></d:where></d:basicsearch></d:searchrequest>"
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:27 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "X-Request-Id",
+        "eayxuvb4sT7Smj46ewSJ"
+      ],
+      [
+        "Content-Length",
+        "2691"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=\"utf-8\""
+      ]
+    ],
+    "body": {
+      "length": 2691,
+      "sha256": "9ac56083b9af3c4e1f13461efa4e478dc39419f98ffc14611ed40c83a7d9a7f2",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/files/admin/{{folder}}/Report%202024.txt</d:href><d:propstat><d:prop><d:displayname>Report 2024.txt</d:displayname><d:getcontenttype>text/plain</d:getcontenttype><d:getlastmodified>Tue, 14 Nov 2023 22:13:20 GMT</d:getlastmodified><d:getcontentlength>17</d:getcontentlength><d:resourcetype/><d:getetag>&quot;452d6bc2f5fb7d72024e7cb9510b6b73&quot;</d:getetag><oc:fileid>360</oc:fileid><oc:size>17</oc:size><oc:favorite>1</oc:favorite><oc:owner-id>admin</oc:owner-id><oc:permissions>RGDNVW</oc:permissions></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/admin/{{folder}}/report-final.pdf</d:href><d:propstat><d:prop><d:displayname>report-final.pdf</d:displayname><d:getcontenttype>application/pdf</d:getcontenttype><d:getlastmodified>Tue, 14 Nov 2023 22:13:20 GMT</d:getlastmodified><d:getcontentlength>24</d:getcontentlength><d:resourcetype/><d:getetag>&quot;16e2cac17a32c5eeaf95552229a8816d&quot;</d:getetag><oc:fileid>361</oc:fileid><oc:size>24</oc:size><oc:favorite>0</oc:favorite><oc:owner-id>admin</oc:owner-id><oc:permissions>RGDNVW</oc:permissions></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/admin/Templates/Expense%20report.ods</d:href><d:propstat><d:prop><d:displayname>Expense report.ods</d:displayname><d:getcontenttype>application/vnd.oasis.opendocument.spreadsheet</d:getcontenttype><d:getlastmodified>Wed, 21 Oct 2026 21:47:50 GMT</d:getlastmodified><d:getcontentlength>19026</d:getcontentlength><d:resourcetype/><d:getetag>&quot;686f78f7f1bd7a49c3d4f475abb26db0&quot;</d:getetag><oc:fileid>39</oc:fileid><oc:size>19026</oc:size><oc:favorite>0</oc:favorite><oc:owner-id>admin</oc:owner-id><oc:permissions>RGDNVW</oc:permissions></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/admin/Templates/Report.odt</d:href><d:propstat><d:prop><d:displayname>Report.odt</d:displayname><d:getcontenttype>application/vnd.oasis.opendocument.text</d:getcontenttype><d:getlastmodified>Wed, 21 Oct 2026 21:47:52 GMT</d:getlastmodified><d:getcontentlength>34163</d:getcontentlength><d:resourcetype/><d:getetag>&quot;c553fa70db856f219f7b043b9de9f1c3&quot;</d:getetag><oc:fileid>63</oc:fileid><oc:size>34163</oc:size><oc:favorite>0</oc:favorite><oc:owner-id>admin</oc:owner-id><oc:permissions>RGDNVW</oc:permissions></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}

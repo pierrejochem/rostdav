@@ -1,0 +1,116 @@
+{
+  "synthetic_request": true,
+  "note": null,
+  "request": {
+    "method": "SEARCH",
+    "path": "/remote.php/dav/",
+    "headers": {
+      "User-Agent": "Rostdav-Recorder/0.1 (synthetic)",
+      "Content-Type": "text/xml",
+      "Authorization": "<redacted>"
+    },
+    "body": {
+      "length": 695,
+      "sha256": "3c2c410f9acbb863ce0fe4fc1c0dd2d3bf21df1f32294caa39ec88c3e65422bc",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><d:searchrequest xmlns:d=\"DAV:\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:basicsearch><d:select><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/><d:getcontentlength/><d:resourcetype/><d:getetag/><oc:fileid/><oc:size/><oc:favorite/><oc:owner-id/><oc:permissions/></d:prop></d:select><d:from><d:scope><d:href>/files/admin/{{folder}}</d:href><d:depth>infinity</d:depth></d:scope></d:from><d:where><d:or><d:like><d:prop><d:displayname/></d:prop><d:literal>%notes%</d:literal></d:like><d:like><d:prop><d:displayname/></d:prop><d:literal>%big%</d:literal></d:like></d:or></d:where></d:basicsearch></d:searchrequest>"
+    }
+  },
+  "response": {
+    "status": 207,
+    "headers": [
+      [
+        "Date",
+        "Sat, 24 Oct 2026 17:07:22 GMT"
+      ],
+      [
+        "Server",
+        "Apache/2.4.69 (Debian)"
+      ],
+      [
+        "X-Content-Type-Options",
+        "nosniff"
+      ],
+      [
+        "X-Frame-Options",
+        "SAMEORIGIN"
+      ],
+      [
+        "X-Permitted-Cross-Domain-Policies",
+        "none"
+      ],
+      [
+        "X-Robots-Tag",
+        "noindex, nofollow"
+      ],
+      [
+        "Referrer-Policy",
+        "no-referrer"
+      ],
+      [
+        "X-Powered-By",
+        "PHP/8.5.12"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Content-Security-Policy",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "Set-Cookie",
+        "<redacted>"
+      ],
+      [
+        "X-User-Id",
+        "admin"
+      ],
+      [
+        "X-Request-Id",
+        "sq2t2PdxKm6IamkBGN8a"
+      ],
+      [
+        "Content-Length",
+        "1383"
+      ],
+      [
+        "Content-Type",
+        "application/xml; charset=\"utf-8\""
+      ]
+    ],
+    "body": {
+      "length": 1383,
+      "sha256": "bcc3b6e2d8e26042976fba45e620722d30791b27377bd56091db11a8bba981d0",
+      "text": "<?xml version=\"1.0\"?>\n<d:multistatus xmlns:d=\"DAV:\" xmlns:s=\"http://sabredav.org/ns\" xmlns:oc=\"http://owncloud.org/ns\" xmlns:nc=\"http://nextcloud.org/ns\"><d:response><d:href>/remote.php/dav/files/admin/{{folder}}/Sub/Notes.md</d:href><d:propstat><d:prop><d:displayname>Notes.md</d:displayname><d:getcontenttype>text/markdown</d:getcontenttype><d:getlastmodified>Tue, 14 Nov 2023 22:13:20 GMT</d:getlastmodified><d:getcontentlength>25</d:getcontentlength><d:resourcetype/><d:getetag>&quot;4858cd32c5a499ce0d89c00e3e5a83da&quot;</d:getetag><oc:fileid>362</oc:fileid><oc:size>25</oc:size><oc:favorite>0</oc:favorite><oc:owner-id>admin</oc:owner-id><oc:permissions>RGDNVW</oc:permissions></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>/remote.php/dav/files/admin/{{folder}}/big.bin</d:href><d:propstat><d:prop><d:displayname>big.bin</d:displayname><d:getcontenttype>application/x-bin</d:getcontenttype><d:getlastmodified>Tue, 14 Nov 2023 22:13:20 GMT</d:getlastmodified><d:getcontentlength>5000</d:getcontentlength><d:resourcetype/><d:getetag>&quot;0c413851a46273a05aabdb006d74452f&quot;</d:getetag><oc:fileid>364</oc:fileid><oc:size>5000</oc:size><oc:favorite>0</oc:favorite><oc:owner-id>admin</oc:owner-id><oc:permissions>RGDNVW</oc:permissions></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>\n"
+    }
+  }
+}

@@ -6,7 +6,7 @@ one flow directory per run. It signs in with the admin password via Basic
 (the sign-in flow itself is recorded by the main script).
 
 Usage: scripts/record_nextcloud_extra.py <flow> [--host 127.0.0.1:18081] [--user admin] [--password ...]
-Flows: versions, shares, trash
+Flows: versions, shares, trash, search
 """
 import argparse
 import hashlib
@@ -433,16 +433,162 @@ def trash(r, a):
     rec.finalize(r)
 
 
+def search(r, a):
+    """WebDAV SEARCH (d:basicsearch) and the unified search provider `files`."""
+    f = "12-search"
+    d = rec.OUT / f
+    if d.exists():
+        shutil.rmtree(d)
+    r.counters.pop(f, None)
+    admin = (a.user, a.password)
+    dav = f"/remote.php/dav/files/{a.user}"
+    tag = str(int(time.time()))
+    folder = f"Srch{tag}"
+    r.secret(folder, "{{folder}}")
+    form = {"Content-Type": "application/x-www-form-urlencoded", **OCS}
+    # a second user, to try scopes of others (an existing user is fine: the call just fails)
+    r.call(f, "setup-bob", "POST", "/ocs/v2.php/cloud/users?format=json", form, "userid=bob&password=bob-reference-password-1", auth=admin, record=False)
+    bob = ("bob", "bob-reference-password-1")
+    r.secret("bob-reference-password-1", "{{bob_password}}")
+    r.call(f, "setup-folder", "MKCOL", f"{dav}/{folder}", auth=admin)
+    r.call(f, "setup-sub", "MKCOL", f"{dav}/{folder}/Sub", auth=admin)
+    files = [
+        (f"{folder}/Report 2024.txt", b"quarterly report\n"),
+        (f"{folder}/report-final.pdf", b"%PDF-1.4 not a real pdf\n"),
+        (f"{folder}/Sub/Notes.md", b"# notes about the report\n"),
+        (f"{folder}/Sub/\u00dcbung.txt", "\u00dcbung macht den Meister\n".encode()),
+        (f"{folder}/big.bin", b"x" * 5000),
+    ]
+    import urllib.parse as _u
+    for path, body in files:
+        r.call(f, "setup-put", "PUT", f"{dav}/{_u.quote(path)}", {"X-OC-MTime": "1700000000"}, body, auth=admin, record=False)
+    r.call(f, "setup-favorite", "PROPPATCH", f"{dav}/{_u.quote(files[0][0])}", XML,
+           '<?xml version="1.0"?><d:propertyupdate xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns"><d:set><d:prop><oc:favorite>1</oc:favorite></d:prop></d:set></d:propertyupdate>', auth=admin, record=False)
+
+    sel = ("<d:select><d:prop><d:displayname/><d:getcontenttype/><d:getlastmodified/><d:getcontentlength/>"
+           "<d:resourcetype/><d:getetag/><oc:fileid/><oc:size/><oc:favorite/><oc:owner-id/><oc:permissions/></d:prop></d:select>")
+    ns = 'xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns"'
+
+    def q(where="", scope=None, order="", limit="", depth="infinity", select=sel):
+        scope = scope if scope is not None else f"/files/{a.user}/{folder}"
+        return (f'<?xml version="1.0" encoding="UTF-8"?><d:searchrequest {ns}><d:basicsearch>{select}'
+                f"<d:from><d:scope><d:href>{scope}</d:href><d:depth>{depth}</d:depth></d:scope></d:from>"
+                f"{where}{order}{limit}</d:basicsearch></d:searchrequest>")
+
+    def like(v, prop="d:displayname"):
+        return f"<d:where><d:like><d:prop><{prop}/></d:prop><d:literal>{v}</d:literal></d:like></d:where>"
+
+    S = lambda name, body, auth=admin, hdr=None, path="/remote.php/dav/": r.call(
+        f, name, "SEARCH", path, {"Content-Type": "text/xml", **(hdr or {})}, body, auth=auth)
+
+    r.call(f, "options-dav-root", "OPTIONS", "/remote.php/dav/", auth=admin)
+    r.call(f, "options-files", "OPTIONS", f"{dav}/", auth=admin)
+    S("like-name-percent", q(like("%report%")))
+    S("like-name-percent-raw", q(like("%report%")))
+    S("like-case-and-accent", q(like("%ubung%")))
+    S("like-umlaut", q(like("%\u00dcbung%")))
+    S("like-underscore", q(like("report_final.pdf")))
+    S("like-no-wildcard", q(like("Report 2024.txt")))
+    S("like-empty", q(like("")))
+    S("no-where", q(""))
+    S("eq-name", q("<d:where><d:eq><d:prop><d:displayname/></d:prop><d:literal>Notes.md</d:literal></d:eq></d:where>"))
+    S("like-mime", q("<d:where><d:like><d:prop><d:getcontenttype/></d:prop><d:literal>text/%</d:literal></d:like></d:where>"))
+    S("is-collection", q("<d:where><d:is-collection/></d:where>"))
+    S("not-collection", q("<d:where><d:not><d:is-collection/></d:not></d:where>"))
+    S("gt-size", q("<d:where><d:gt><d:prop><oc:size/></d:prop><d:literal>1000</d:literal></d:gt></d:where>"))
+    S("lt-size", q("<d:where><d:lt><d:prop><oc:size/></d:prop><d:literal>20</d:literal></d:lt></d:where>"))
+    S("gte-lte-mtime", q("<d:where><d:and><d:gte><d:prop><d:getlastmodified/></d:prop><d:literal>Tue, 14 Nov 2023 22:00:00 GMT</d:literal></d:gte><d:lte><d:prop><d:getlastmodified/></d:prop><d:literal>Wed, 15 Nov 2023 22:00:00 GMT</d:literal></d:lte></d:and></d:where>"))
+    S("eq-favorite", q("<d:where><d:eq><d:prop><oc:favorite/></d:prop><d:literal>1</d:literal></d:eq></d:where>"))
+    S("eq-fileid-unknown", q("<d:where><d:eq><d:prop><oc:fileid/></d:prop><d:literal>999999999</d:literal></d:eq></d:where>"))
+    S("eq-owner-id", q(f"<d:where><d:eq><d:prop><oc:owner-id/></d:prop><d:literal>{a.user}</d:literal></d:eq></d:where>"))
+    S("eq-owner-id-other", q("<d:where><d:eq><d:prop><oc:owner-id/></d:prop><d:literal>bob</d:literal></d:eq></d:where>"))
+    S("and", q("<d:where><d:and><d:like><d:prop><d:displayname/></d:prop><d:literal>%report%</d:literal></d:like><d:not><d:is-collection/></d:not></d:and></d:where>"))
+    S("or", q("<d:where><d:or><d:like><d:prop><d:displayname/></d:prop><d:literal>%notes%</d:literal></d:like><d:like><d:prop><d:displayname/></d:prop><d:literal>%big%</d:literal></d:like></d:or></d:where>"))
+    S("orderby-size-desc", q(like("%"), order="<d:orderby><d:order><d:prop><oc:size/></d:prop><d:descending/></d:order></d:orderby>"))
+    S("orderby-name-asc", q(like("%"), order="<d:orderby><d:order><d:prop><d:displayname/></d:prop><d:ascending/></d:order></d:orderby>"))
+    S("limit-2", q(like("%"), limit="<d:limit><d:nresults>2</d:nresults></d:limit>"))
+    S("limit-0", q(like("%"), limit="<d:limit><d:nresults>0</d:nresults></d:limit>"))
+    S("limit-not-a-number", q(like("%"), limit="<d:limit><d:nresults>abc</d:nresults></d:limit>"))
+    S("depth-1", q(like("%"), depth="1"))
+    S("depth-0", q(like("%"), depth="0"))
+    S("scope-subfolder", q(like("%"), scope=f"/files/{a.user}/{folder}/Sub"))
+    S("scope-root", q(like("%report%"), scope=f"/files/{a.user}"))
+    S("scope-single-file", q(like("%"), scope=f"/files/{a.user}/{_u.quote(files[0][0])}"))
+    S("scope-missing", q(like("%"), scope=f"/files/{a.user}/nothere{tag}"))
+    S("scope-other-user", q(like("%"), scope="/files/bob"))
+    S("scope-no-files-prefix", q(like("%"), scope=f"/{folder}"))
+    S("scope-dotdot", q(like("%"), scope=f"/files/{a.user}/{folder}/../.."))
+    S("scope-absolute-url", q(like("%"), scope=f"{dav}/{folder}"))
+    S("select-minimal", q(like("%report%"), select="<d:select><d:prop><d:displayname/></d:prop></d:select>"))
+    S("select-unknown-prop", q(like("%report%"), select="<d:select><d:prop><d:nonsense/></d:prop></d:select>"))
+    S("select-allprop", q(like("%report%"), select="<d:select><d:allprop/></d:select>"))
+    S("like-unknown-prop", q("<d:where><d:like><d:prop><d:nonsense/></d:prop><d:literal>x</d:literal></d:like></d:where>"))
+    S("bob-searches-own", q(like("%"), scope="/files/bob"), auth=bob)
+    S("bob-searches-admin-scope", q(like("%"), scope=f"/files/{a.user}/{folder}"), auth=bob)
+    S("no-auth", q(like("%")), auth=None)
+    S("at-files-url", q(like("%report%")), path=f"{dav}/")
+    S("at-folder-url", q(like("%report%")), path=f"{dav}/{folder}")
+    S("malformed-xml", "<d:searchrequest")
+    S("empty-body", "")
+    S("wrong-root", f'<?xml version="1.0"?><d:propfind {ns}><d:prop><d:displayname/></d:prop></d:propfind>')
+    S("no-basicsearch", f'<?xml version="1.0"?><d:searchrequest {ns}></d:searchrequest>')
+    S("two-selects", q(like("%")).replace("</d:select>", "</d:select>" + sel, 1))
+    S("doctype-entity", '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY e "report">]>' + q(like("%&e;%")).split("?>", 1)[1])
+    S("external-entity", '<?xml version="1.0"?><!DOCTYPE x [<!ENTITY e SYSTEM "file:///etc/hostname">]>' + q(like("%&e;%")).split("?>", 1)[1])
+    many = "".join("<d:like><d:prop><d:displayname/></d:prop><d:literal>%a%</d:literal></d:like>" for _ in range(101))
+    S("101-operators", q(f"<d:where><d:or>{many}</d:or></d:where>"))
+    ok = "".join("<d:like><d:prop><d:displayname/></d:prop><d:literal>%a%</d:literal></d:like>" for _ in range(50))
+    S("50-operators", q(f"<d:where><d:or>{ok}</d:or></d:where>"))
+    S("content-type-json", q(like("%report%")), hdr={"Content-Type": "application/json"})
+    S("content-type-xml", q(like("%report%")), hdr={"Content-Type": "application/xml"})
+    r.call(f, "trashed-file-setup", "DELETE", f"{dav}/{folder}/big.bin", auth=admin)
+    S("after-delete-big", q(like("%big%")))
+
+    # unified search
+    api = "/ocs/v2.php/search"
+    r.call(f, "providers", "GET", f"{api}/providers?format=json", OCS, auth=admin)
+    r.call(f, "providers-xml", "GET", f"{api}/providers", OCS, auth=admin)
+    r.call(f, "providers-no-ocs-header", "GET", f"{api}/providers?format=json", auth=admin)
+    r.call(f, "providers-no-auth", "GET", f"{api}/providers?format=json", OCS)
+    fs = f"{api}/providers/files/search"
+    r.call(f, "files-search", "GET", f"{fs}?format=json&term=report", OCS, auth=admin)
+    r.call(f, "files-search-xml", "GET", f"{fs}?term=report", OCS, auth=admin)
+    r.call(f, "files-search-case", "GET", f"{fs}?format=json&term=REPORT", OCS, auth=admin)
+    r.call(f, "files-search-accent", "GET", f"{fs}?format=json&term=ubung", OCS, auth=admin)
+    r.call(f, "files-search-unicode", "GET", f"{fs}?format=json&term=%C3%9Cbung", OCS, auth=admin)
+    r.call(f, "files-search-two-words", "GET", f"{fs}?format=json&term=report+2024", OCS, auth=admin)
+    r.call(f, "files-search-wildcard", "GET", f"{fs}?format=json&term=report%25", OCS, auth=admin)
+    r.call(f, "files-search-empty", "GET", f"{fs}?format=json&term=", OCS, auth=admin)
+    r.call(f, "files-search-no-term", "GET", f"{fs}?format=json", OCS, auth=admin)
+    r.call(f, "files-search-limit-1", "GET", f"{fs}?format=json&term=report&limit=1", OCS, auth=admin)
+    r.call(f, "files-search-limit-0", "GET", f"{fs}?format=json&term=report&limit=0", OCS, auth=admin)
+    r.call(f, "files-search-limit-huge", "GET", f"{fs}?format=json&term=report&limit=100000", OCS, auth=admin)
+    r.call(f, "files-search-cursor-1", "GET", f"{fs}?format=json&term=r&limit=1&cursor=1", OCS, auth=admin)
+    r.call(f, "files-search-cursor-garbage", "GET", f"{fs}?format=json&term=r&limit=1&cursor=abc", OCS, auth=admin)
+    r.call(f, "files-search-cursor-past-end", "GET", f"{fs}?format=json&term=report&cursor=500", OCS, auth=admin)
+    r.call(f, "files-search-since", "GET", f"{fs}?format=json&term=report&since=2000-01-01T00:00:00%2B00:00", OCS, auth=admin)
+    r.call(f, "files-search-until-old", "GET", f"{fs}?format=json&term=report&until=2000-01-01T00:00:00%2B00:00", OCS, auth=admin)
+    r.call(f, "files-search-type-folder", "GET", f"{fs}?format=json&term=sub&type=folder", OCS, auth=admin)
+    r.call(f, "files-search-folder-name", "GET", f"{fs}?format=json&term=Sub", OCS, auth=admin)
+    r.call(f, "files-search-bob", "GET", f"{fs}?format=json&term=report", OCS, auth=bob)
+    r.call(f, "files-search-no-auth", "GET", f"{fs}?format=json&term=report", OCS)
+    r.call(f, "provider-unknown", "GET", f"{api}/providers/nonsense/search?format=json&term=x", OCS, auth=admin)
+    r.call(f, "files-search-post", "POST", f"{fs}?format=json&term=report", form, "", auth=admin)
+    r.call(f, "capabilities", "GET", "/ocs/v2.php/cloud/capabilities?format=json", OCS, auth=admin)
+    r.call(f, "cleanup", "DELETE", f"{dav}/{folder}", auth=admin, record=False)
+    rec.finalize(r)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("flow", choices=["versions", "shares", "trash"])
+    ap.add_argument("flow", choices=["versions", "shares", "trash", "search"])
     ap.add_argument("--host", default="127.0.0.1:18081")
     ap.add_argument("--user", default="admin")
     ap.add_argument("--password", default="admin-ref-password-1")
     a = ap.parse_args()
     r = rec.Recorder(a.host)
     r.secret(a.password, "{{password}}")
-    {"versions": versions, "shares": shares, "trash": trash}[a.flow](r, a)
+    {"versions": versions, "shares": shares, "trash": trash, "search": search}[a.flow](r, a)
 
 
 if __name__ == "__main__":
