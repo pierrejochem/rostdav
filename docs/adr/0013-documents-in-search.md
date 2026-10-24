@@ -1,6 +1,6 @@
 # ADR 0013: PDF and Office files in the search
 
-- Status: **Proposed**. Built on the owner's request of 2026-10-24 ("Next options are PDF and Office text"), stage 5 of the search plan ([ADR 0012](0012-search-index.md)). New dependencies are an approval point: the owner accepts this ADR with the release.
+- Status: **Accepted** by the project owner with the release of 0.8.0 (2026-10-24), on whose request of the same day ("Next options are PDF and Office text") it was built as stage 5 of the search plan ([ADR 0012](0012-search-index.md)).
 - Date: 2026-10-24
 
 ## Context

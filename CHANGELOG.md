@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-24
+
 ### Added
 
 - **Search in PDF and Office files**: the text of PDF, Word (`docx`, `doc`), Excel (`xlsx`, `xls`), PowerPoint (`pptx`, `ppt`) and OpenDocument (`odt`, `ods`, `odp`) files is found like the text of other files. The readers run in a separate short-lived process with a memory limit, a CPU limit and a time-out, so a damaged or hostile file cannot take the server down. On by default; Administration, Server, "Search PDF and Office files" switches it off (the stored texts are then removed). Files read before are read again once. [ADR 0013](docs/adr/0013-documents-in-search.md).
