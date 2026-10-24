@@ -8,6 +8,7 @@ mod auth;
 mod avatars;
 mod favorites;
 mod nodes;
+mod search_index;
 mod shares;
 mod trash;
 mod two_factor;
@@ -20,6 +21,10 @@ pub use auth::{
 };
 pub use avatars::StoredAvatar;
 pub use nodes::{CommitOpts, NewBlob, Node, NodeKind, VersionPolicy, WriteCondition, Written};
+pub use search_index::{
+    Candidate, Content, DocFacts, FORMAT_VERSION as SEARCH_FORMAT_VERSION, IndexStatus, MAX_FAILS,
+    NodeFacts, Pending, SearchIndex, state as search_state,
+};
 pub use shares::{
     NewShare, PERM_ALL, PERM_CREATE, PERM_DELETE, PERM_READ, PERM_UPDATE, Share, ShareKind,
     ShareUpdate,

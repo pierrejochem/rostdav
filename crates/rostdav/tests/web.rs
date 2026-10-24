@@ -5408,3 +5408,79 @@ async fn search_results_are_paged_and_the_files_filter_offers_the_global_search(
         page.contains("Nothing matches the filter.") && page.contains("/search?q=nomatchatall")
     );
 }
+
+#[tokio::test]
+async fn the_search_page_finds_words_in_files_and_shows_a_safe_snippet() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let cb = login(&e, "bob").await;
+    let csrf = page_csrf(&e, &ca).await;
+    upload(
+        &e,
+        &ca,
+        &[
+            ("csrf", None, &csrf),
+            ("dir", None, ""),
+            (
+                "file",
+                Some("minutes.txt"),
+                "The team agreed on the <script>alert(1)</script> zeppelin budget today.",
+            ),
+        ],
+    )
+    .await;
+    // not yet read by the indexer
+    assert!(
+        !get(&e, "/search?q=zeppelin", &ca)
+            .await
+            .text()
+            .contains("minutes.txt")
+    );
+    for _ in 0..5 {
+        if e.state.indexer_pass().await.expect("pass").pending == 0 {
+            break;
+        }
+    }
+    let page = get(&e, "/search?q=zeppelin", &ca).await.text();
+    assert!(
+        page.contains("minutes.txt") && page.contains("In the text"),
+        "{page}"
+    );
+    // the searched word is marked, the rest of the file's text is escaped
+    assert!(page.contains("<mark>zeppelin</mark>"));
+    assert!(page.contains("&lt;script&gt;alert(1)&lt;/script&gt;"));
+    assert!(!page.contains("<script>alert(1)</script>"));
+    // a link to the file's folder with the file selected
+    assert!(page.contains("/files?sel=minutes.txt"));
+    // somebody else finds nothing, neither the name nor the text
+    let other = get(&e, "/search?q=zeppelin", &cb).await.text();
+    assert!(!other.contains("minutes.txt") && !other.contains("zeppelin</mark>"));
+    // an administrator sees the index in the administration; others get 403
+    let root = login(&e, "root").await;
+    let admin = get(&e, "/admin/server", &root).await.text();
+    assert!(admin.contains("Search index") && admin.contains("Files in the index"));
+    assert_eq!(
+        get(&e, "/admin/server", &ca).await.status,
+        StatusCode::FORBIDDEN
+    );
+    // the setting is there; turning content off hides the hit again
+    assert!(admin.contains("search.content_indexing"));
+    let csrf_root = page_csrf(&e, &root).await;
+    post_form(
+        &e,
+        "/admin/server/set",
+        &root,
+        &[
+            ("csrf", &csrf_root),
+            ("key", "search.content_indexing"),
+            ("value", "0"),
+        ],
+    )
+    .await;
+    assert!(
+        !get(&e, "/search?q=zeppelin", &ca)
+            .await
+            .text()
+            .contains("minutes.txt")
+    );
+}

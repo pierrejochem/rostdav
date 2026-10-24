@@ -329,3 +329,7 @@ header.top.flat details.account{position:static}
 .searchbar input[type=search]{min-width:min(280px,100%);min-height:46px;padding:0 14px;border-radius:12px;border:1px solid var(--field-border);background:var(--field);color:var(--text);font-size:15px;box-shadow:inset 0 2px 5px rgba(0,0,0,.16)}
 .pager{display:flex;gap:10px;margin-top:14px}
 @media (max-width:760px){.searchbar label{flex:1 1 100%}.searchbar button{flex:1 1 100%}}
+.snippet{display:block;margin-top:4px;font-size:13px;font-weight:400;color:var(--text-2);line-height:1.45}
+.snippet .chip{margin-right:6px}
+.snippet mark{background:rgba(242,166,90,.28);color:var(--text);border-radius:4px;padding:0 2px}
+a.name>span{min-width:0}

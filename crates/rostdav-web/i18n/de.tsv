@@ -431,3 +431,24 @@ Previous	Zurück
 Next	Weiter
 The search stopped before it had looked everywhere. Narrow it to a folder.	Die Suche wurde beendet, bevor sie überall gesucht hat. Schränke sie auf einen Ordner ein.
 Search all folders	In allen Ordnern suchen
+Search the text of files	Den Text von Dateien durchsuchen
+1 reads the text of files into the search index, 0 searches names only and deletes the stored text.	1 liest den Text von Dateien in den Suchindex, 0 durchsucht nur Namen und löscht den gespeicherten Text.
+Largest file whose text is read	Größte Datei, deren Text gelesen wird
+MiB, 1 to 4096.	MiB, 1 bis 4096.
+Most text kept per file	Höchstens gespeicherter Text pro Datei
+KiB, 16 to 16384.	KiB, 16 bis 16384.
+In the text	Im Text
+Type part of a name, or words from a text, to search.	Gib einen Teil eines Namens oder Wörter aus einem Text ein.
+Find files and folders by name, and files by the words in their text, in everything you can reach.	Finde Dateien und Ordner nach Namen und Dateien nach Wörtern in ihrem Text, in allem, was du erreichen kannst.
+Search index	Suchindex
+Files in the index	Dateien im Index
+Text read	Text gelesen
+Waiting to be read	Warten aufs Lesen
+Too big	Zu groß
+Not text	Kein Text
+Failed	Fehlgeschlagen
+Size on disk	Größe auf der Platte
+Last pass	Letzter Durchlauf
+not yet	noch nicht
+The search index is not open yet. The server opens it a few seconds after it starts.	Der Suchindex ist noch nicht geöffnet. Der Server öffnet ihn einige Sekunden nach dem Start.
+The index is built in the background. It holds the text of files in a file of its own in the data directory and can be removed at any time with the command rostdav admin search rebuild.	Der Index wird im Hintergrund aufgebaut. Er enthält den Text von Dateien in einer eigenen Datei im Datenverzeichnis und kann jederzeit mit dem Befehl rostdav admin search rebuild entfernt werden.

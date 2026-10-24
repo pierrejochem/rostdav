@@ -22,10 +22,13 @@ pub enum Tunable {
     VersionQuotaShare,
     TrashRetentionDays,
     EventLogRetentionDays,
+    SearchContent,
+    SearchMaxFileMiB,
+    SearchMaxTextKiB,
 }
 
 impl Tunable {
-    pub const ALL: [Tunable; 7] = [
+    pub const ALL: [Tunable; 10] = [
         Tunable::DefaultQuota,
         Tunable::UploadRetentionHours,
         Tunable::MaxVersions,
@@ -33,6 +36,9 @@ impl Tunable {
         Tunable::VersionQuotaShare,
         Tunable::TrashRetentionDays,
         Tunable::EventLogRetentionDays,
+        Tunable::SearchContent,
+        Tunable::SearchMaxFileMiB,
+        Tunable::SearchMaxTextKiB,
     ];
 
     /// The name in the configuration file (`section.name`) and, after `cfg.`, in the database.
@@ -45,6 +51,9 @@ impl Tunable {
             Tunable::VersionQuotaShare => "versioning.max_quota_share_percent",
             Tunable::TrashRetentionDays => "trash.retention_days",
             Tunable::EventLogRetentionDays => "audit.retention_days",
+            Tunable::SearchContent => "search.content_indexing",
+            Tunable::SearchMaxFileMiB => "search.max_file_mib",
+            Tunable::SearchMaxTextKiB => "search.max_text_kib",
         }
     }
 
@@ -62,6 +71,9 @@ impl Tunable {
             Tunable::VersionQuotaShare => c.versioning.max_quota_share_percent.to_string(),
             Tunable::TrashRetentionDays => c.trash.retention_days.to_string(),
             Tunable::EventLogRetentionDays => c.audit.retention_days.to_string(),
+            Tunable::SearchContent => u8::from(c.search.content).to_string(),
+            Tunable::SearchMaxFileMiB => (c.search.max_file_bytes >> 20).to_string(),
+            Tunable::SearchMaxTextKiB => (c.search.max_text_bytes >> 10).to_string(),
         }
     }
 
@@ -99,6 +111,23 @@ impl Tunable {
             }
             Tunable::EventLogRetentionDays => {
                 c.audit.retention_days = number(3650, "days must be a number from 0 to 3650")?;
+            }
+            Tunable::SearchContent => {
+                c.search.content = number(1, "must be 1 (on) or 0 (off)")? == 1;
+            }
+            Tunable::SearchMaxFileMiB => {
+                let n = number(4096, "MiB must be a number from 1 to 4096")?;
+                if n == 0 {
+                    return Err(Error::BadRequest("MiB must be a number from 1 to 4096"));
+                }
+                c.search.max_file_bytes = u64::from(n) << 20;
+            }
+            Tunable::SearchMaxTextKiB => {
+                let n = number(16384, "KiB must be a number from 16 to 16384")?;
+                if n < 16 {
+                    return Err(Error::BadRequest("KiB must be a number from 16 to 16384"));
+                }
+                c.search.max_text_bytes = (n as usize) << 10;
             }
         }
         Ok(())

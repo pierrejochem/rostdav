@@ -11,6 +11,17 @@ use clap::{Args, Subcommand};
 use rostdav_app::{Actor, AppState, DeleteMode, FsckOptions, ImportOptions};
 use rostdav_core::time::rfc3339;
 
+impl AdminCommand {
+    /// Does the command read a line from standard input (a password)? Only then does the
+    /// command line read it, so that `rostdav admin user list` never waits for typing.
+    pub fn reads_stdin(&self) -> bool {
+        matches!(
+            self,
+            AdminCommand::User(UserCommand::Add { .. } | UserCommand::SetPassword { .. })
+        )
+    }
+}
+
 #[derive(Subcommand)]
 pub enum AdminCommand {
     /// User management.
@@ -30,6 +41,18 @@ pub enum AdminCommand {
     /// Event log.
     #[command(subcommand)]
     Audit(AuditCommand),
+    /// The search index (names and the text of files).
+    #[command(subcommand)]
+    Search(SearchCommand),
+}
+
+#[derive(Subcommand)]
+pub enum SearchCommand {
+    /// Shows how many files are indexed, wait to be read, were too big, or failed.
+    Status,
+    /// Throws the index away; it is built again from the database and the files (this takes a
+    /// while for many files; search by name keeps working).
+    Rebuild,
 }
 
 #[derive(Subcommand)]
@@ -255,6 +278,17 @@ pub async fn run(
                 r.bytes,
                 r.blobs - r.copied,
                 r.copied
+            )?;
+        }
+        AdminCommand::Search(SearchCommand::Status) => search_status(state, &actor, out).await?,
+        AdminCommand::Search(SearchCommand::Rebuild) => {
+            state
+                .search_rebuild(&actor)
+                .await
+                .map_err(|e| anyhow::anyhow!("{e}"))?;
+            writeln!(
+                out,
+                "the search index was removed; the server builds it again"
             )?;
         }
         AdminCommand::Audit(AuditCommand::Export { since }) => {
@@ -621,6 +655,46 @@ async fn import_nextcloud(
     }
     if r.users.is_empty() {
         writeln!(out, "no user was imported")?;
+    }
+    Ok(())
+}
+
+async fn search_status(
+    state: &AppState,
+    actor: &Actor<'_>,
+    out: &mut (dyn Write + Send),
+) -> anyhow::Result<()> {
+    let s = state
+        .search_status(actor)
+        .await
+        .map_err(|e| anyhow::anyhow!("{e}"))?;
+    if !s.ready {
+        writeln!(
+            out,
+            "the search index is not open (the server opens it on its first pass, a few seconds after the start)"
+        )?;
+        return Ok(());
+    }
+    let i = &s.index;
+    writeln!(out, "files and folders in the index: {}", i.docs)?;
+    writeln!(
+        out,
+        "text read: {}, waiting: {}, too big: {}, not text: {}, failed: {}",
+        i.indexed, i.pending, i.too_big, i.unsupported, i.failed
+    )?;
+    writeln!(
+        out,
+        "content indexing: {}",
+        if i.content_enabled { "on" } else { "off" }
+    )?;
+    writeln!(
+        out,
+        "size on disk: {}",
+        format_size(i64::try_from(i.size_bytes).unwrap_or(i64::MAX))
+    )?;
+    match i.last_pass_at {
+        Some(t) => writeln!(out, "last pass: {}", rfc3339(t))?,
+        None => writeln!(out, "last pass: not yet")?,
     }
     Ok(())
 }

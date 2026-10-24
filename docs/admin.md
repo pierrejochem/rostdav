@@ -29,6 +29,7 @@ The CLI works on the data directory directly, next to a running server. It is tr
 | `rostdav admin user set-password <login> [--revoke-devices]` | New password from stdin; optionally sign out all devices |
 | `rostdav admin user delete <login> [--transfer-to <login>] --yes` | Delete the account; the files are deleted, or moved to the folder `<login> (transferred)` of the other user |
 | `rostdav admin import-nextcloud <data-dir> [--map NC=USER] [--only NC] [--update] [--dry-run]` | Import a Nextcloud data directory (files with their times, and versions); read-only on the source, repeatable, see [below](#migrating-from-nextcloud) |
+| `rostdav admin search status` / `rebuild` | The search index: numbers, or throw it away and build it again, see [Search](#search) |
 | `rostdav admin fsck [--verify] [--repair] [--min-orphan-age <s>]` | Consistency check, see below; exit code 1 if damage remains |
 | `rostdav admin import <path> --user <login> [--dest <folder>] [--overwrite]` | Copy a host directory into a user's files |
 | `rostdav admin backup <new-dir> [--include-key]` | Consistent copy of database and blobs while the server runs (hard links on the same file system), see [deployment.md](deployment.md) |
@@ -50,6 +51,16 @@ Without `--repair` nothing is changed. Run `--verify` off-peak: it reads every b
 ### import
 
 Walks the directory without following symbolic links (they are skipped and reported), keeps modification times, applies the same name rules as uploads (`.part`, control characters, ... are skipped and reported), respects the user's quota (and stops when it is exceeded), and by default skips files that already exist.
+
+## Search
+
+Users search by name and by the words in the text of their files (`/search`). Names are found by any part of them; text is found by **whole words** (not word beginnings, and in Chinese, Japanese or Korean text only whole runs). The index lives in `<data_dir>/db/search.sqlite`, is built and kept up to date in the background (first start: a few seconds for the names, then the text of files a little at a time, newest first) and can be removed at any time: it is built again from the database and the files ([ADR 0012](adr/0012-search-index.md)).
+
+- **What is read:** files with a text name (`txt`, `md`, `csv`, `json`, `xml`, `html`, source code, `README`, …) whose content is text, up to 64 MiB, keeping at most 1 MiB of text per file. PDF and Office files are not read yet.
+- **Privacy:** the index holds the **text of these files in plain form**, in a file in the data directory (mode 0700), so it is as sensitive as the files. It is not part of `rostdav admin backup` (restore, and it is built again). Administration, Server, "Search the text of files" (or `[search] content_indexing = false` in the configuration) switches reading off: the stored texts are removed at the next pass, names stay searchable; switching it on reads every file again.
+- **Limits** (same page): "Largest file whose text is read" and "Most text kept per file".
+- **Commands:** `rostdav admin search status` (files read, waiting, too big, not text, failed, size) and `rostdav admin search rebuild`. The Server page shows the same numbers.
+- **Access:** a search never shows a file the user could not open: own files and received shares only, nothing in the trash, and a share that ends stops showing at once.
 
 ## Migrating from Nextcloud
 

@@ -337,6 +337,35 @@ impl Db {
         rows.into_iter().map(to_node).collect()
     }
 
+    /// Nodes with an id above `after`, in id order, for the search indexer. Trashed nodes are
+    /// included: they stay in the index so that a restore needs no new reading, and the search
+    /// hides them when it checks access.
+    pub async fn nodes_after(&self, after: i64, limit: i64) -> Result<Vec<crate::NodeFacts>> {
+        type R = (i64, i64, String, String, String, Option<String>, i64, i64);
+        let rows: Vec<R> = sql::query_as(
+            "SELECT id, owner_id, name_key, name, kind, blob_id, size, mtime FROM nodes
+             WHERE id > ? AND parent_id IS NOT NULL ORDER BY id LIMIT ?",
+        )
+        .bind(after)
+        .bind(limit)
+        .fetch_all(self.pool())
+        .await
+        .map_err(db_err)?;
+        Ok(rows
+            .into_iter()
+            .map(|r| crate::NodeFacts {
+                node_id: r.0,
+                owner_id: r.1,
+                name_fold: rostdav_core::fold::fold_loose(&r.3),
+                name_key: r.2,
+                is_dir: r.4 == "dir",
+                blob_id: r.5,
+                size: r.6,
+                mtime: r.7,
+            })
+            .collect())
+    }
+
     /// Total size of all files in the subtree (what clients show for a folder).
     pub async fn subtree_size(&self, id: i64) -> Result<i64> {
         let mut conn = self.pool().acquire().await.map_err(Error::internal)?;

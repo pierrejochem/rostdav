@@ -86,9 +86,14 @@ async fn admin(cfg: Config, cmd: rostdav::cli::AdminCommand) -> anyhow::Result<(
     let socket = rostdav::admin_socket::path_for(&cfg.storage.data_dir);
     if socket.exists() {
         let cwd = std::env::current_dir().ok();
+        // only a command that asks for a password reads (and waits for) standard input
+        let input = if cmd.reads_stdin() {
+            read_stdin()?
+        } else {
+            String::new()
+        };
         let sent =
-            rostdav::admin_socket::call(&socket, &admin_words(), &read_stdin()?, cwd.as_deref())
-                .await;
+            rostdav::admin_socket::call(&socket, &admin_words(), &input, cwd.as_deref()).await;
         match sent {
             Ok(reply) => {
                 std::io::stdout().write_all(reply.stdout.as_bytes())?;
@@ -156,6 +161,7 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
         tracing::warn!(error = %err, "no admin socket: `rostdav admin` needs the server stopped");
     }
     spawn_version_check(state.clone());
+    spawn_indexer(state.clone());
 
     let listener = tokio::net::TcpListener::bind(cfg.server.listen)
         .await
@@ -190,6 +196,35 @@ fn spawn_garbage_collection(state: rostdav_app::AppState) {
                 Ok(n) => tracing::info!(removed = n, "unreferenced blobs removed"),
                 Err(err) => tracing::warn!(error = %err, "garbage collection failed"),
             }
+        }
+    });
+}
+
+/// Keeps the search index in step with the files (ADR 0012): names first, then the text of
+/// files a little at a time. Quick while there is work, a pass every 30 seconds otherwise.
+fn spawn_indexer(state: rostdav_app::AppState) {
+    tokio::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+        loop {
+            let pause = match state.indexer_pass().await {
+                Ok(r) => {
+                    if r.names_written + r.names_removed + r.texts_read > 0 {
+                        tracing::info!(
+                            names_written = r.names_written,
+                            names_removed = r.names_removed,
+                            texts_read = r.texts_read,
+                            pending = r.pending,
+                            "search index updated"
+                        );
+                    }
+                    if r.pending > 0 { 1 } else { 30 }
+                }
+                Err(err) => {
+                    tracing::warn!(error = %err, "search indexer pass failed");
+                    60
+                }
+            };
+            tokio::time::sleep(std::time::Duration::from_secs(pause)).await;
         }
     });
 }

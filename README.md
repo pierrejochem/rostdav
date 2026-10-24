@@ -37,6 +37,7 @@ With [`just`](https://github.com/casey/just): `just run`, `just check`, `just sm
 - WebDAV for files and folders, streaming of large files, chunked upload
 - Sign-in from the Nextcloud app via Login Flow v2 with a separate app password per device
 - Versions, shares, trash
+- Search by name and by the text of files, over everything you can reach
 - Web interface with light and dark mode, administration, optional two-factor authentication
 - Maintenance mode, event log, consistency check, backup and restore from the command line
 

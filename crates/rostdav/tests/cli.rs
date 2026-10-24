@@ -707,3 +707,93 @@ fn import_nextcloud_reads_a_data_directory_and_leaves_it_alone() {
     let o = c.run(&["import-nextcloud", "nowhere"], "");
     assert_eq!(o.code, 1);
 }
+
+#[test]
+fn admin_search_shows_the_index_and_can_remove_it() {
+    let c = Cli::new();
+    assert_eq!(c.run(&["user", "add", "anna"], &format!("{PW}\n")).code, 0);
+    let o = c.run(&["search", "status"], "");
+    assert_eq!(o.code, 0, "{}", o.stderr);
+    assert!(
+        o.stdout.contains("files and folders in the index: 0"),
+        "{}",
+        o.stdout
+    );
+    assert!(o.stdout.contains("content indexing: on"), "{}", o.stdout);
+    assert!(c.dir.path().join("data/db/search.sqlite").exists());
+    let o = c.run(&["search", "rebuild"], "");
+    assert_eq!(o.code, 0, "{}", o.stderr);
+    assert!(!c.dir.path().join("data/db/search.sqlite").exists());
+    // bad subcommand
+    assert_eq!(c.run(&["search", "frobnicate"], "").code, 2);
+}
+
+#[tokio::test]
+async fn the_admin_socket_works_for_a_data_directory_with_a_very_long_path() {
+    let dir = tempfile::tempdir().expect("dir");
+    let mut data = dir.path().to_path_buf();
+    for _ in 0..4 {
+        data.push("a-rather-long-directory-name");
+    }
+    assert!(rostdav::admin_socket::path_for(&data).as_os_str().len() > 107);
+    let mut cfg = rostdav::config::Config::default();
+    cfg.storage.data_dir = data.clone();
+    let state = rostdav::build_state(&cfg).await.expect("state");
+    rostdav::admin_socket::serve(state, &data)
+        .await
+        .expect("serve");
+    assert!(data.join("admin.sock").exists());
+    let r = rostdav::admin_socket::call(
+        &rostdav::admin_socket::path_for(&data),
+        &["user".into(), "list".into()],
+        "",
+        None,
+    )
+    .await
+    .expect("call");
+    assert_eq!(r.code, 0, "{}", r.stderr);
+}
+
+/// A command that needs no password must not wait for standard input, with a server running
+/// (through the admin socket) and without one. The input stays open and silent, as in a terminal
+/// where nobody types.
+#[test]
+fn commands_without_a_password_do_not_wait_for_standard_input() {
+    fn finishes(c: &Cli, args: &[&str]) -> bool {
+        let mut child = Command::new(env!("CARGO_BIN_EXE_rostdav"))
+            .arg("admin")
+            .args(args)
+            .env("ROSTDAV_STORAGE__DATA_DIR", c.dir.path().join("data"))
+            .current_dir(c.dir.path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn");
+        let _open_input = child.stdin.take();
+        for _ in 0..100 {
+            if child.try_wait().expect("wait").is_some() {
+                return true;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        let _ = child.kill();
+        let _ = child.wait();
+        false
+    }
+    let c = Cli::new();
+    assert_eq!(c.run(&["user", "add", "anna"], &format!("{PW}\n")).code, 0);
+    assert!(finishes(&c, &["user", "list"]), "without a server");
+    assert!(finishes(&c, &["search", "status"]), "without a server");
+    let _server = Server::start(&c);
+    Server::wait_ready(&c, true);
+    assert!(finishes(&c, &["user", "list"]), "through the admin socket");
+    assert!(
+        finishes(&c, &["search", "status"]),
+        "through the admin socket"
+    );
+    assert!(
+        finishes(&c, &["audit", "export"]),
+        "through the admin socket"
+    );
+}

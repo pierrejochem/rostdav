@@ -800,6 +800,21 @@ fn tunable_spec(t: Tunable) -> (&'static str, &'static str, Option<(u32, u32)>) 
             "Days, 0 keeps the event log.",
             Some((0, 3650)),
         ),
+        Tunable::SearchContent => (
+            "Search the text of files",
+            "1 reads the text of files into the search index, 0 searches names only and deletes the stored text.",
+            Some((0, 1)),
+        ),
+        Tunable::SearchMaxFileMiB => (
+            "Largest file whose text is read",
+            "MiB, 1 to 4096.",
+            Some((1, 4096)),
+        ),
+        Tunable::SearchMaxTextKiB => (
+            "Most text kept per file",
+            "KiB, 16 to 16384.",
+            Some((16, 16384)),
+        ),
     }
 }
 
@@ -886,6 +901,10 @@ async fn server_page(state: &AppState, a: &Authed) -> Response {
             ))
         ),
     );
+    let search = match state.search_status(&actor).await {
+        Ok(st) => ui::card(lang, "Search index", "", &search_html(lang, &st)),
+        Err(e) => return error_page(a, &e, "/files"),
+    };
     let updates = match (
         state.update_status(&actor).await,
         state.update_install_support(&actor).await,
@@ -915,9 +934,52 @@ async fn server_page(state: &AppState, a: &Authed) -> Response {
         "Server",
         "server",
         &format!(
-            "{adjustable}{updates}{}",
+            "{adjustable}{search}{updates}{}",
             ui::card(lang, "Effective settings", "", &body)
         ),
+    )
+}
+
+/// The search index: numbers and what it holds.
+fn search_html(lang: crate::i18n::Lang, st: &rostdav_app::SearchStatus) -> String {
+    if !st.ready {
+        return format!(
+            "<p class=\"muted\">{}</p>",
+            esc(&t(
+                lang,
+                "The search index is not open yet. The server opens it a few seconds after it starts."
+            ))
+        );
+    }
+    let i = &st.index;
+    let row = |label: &str, value: String| {
+        format!(
+            "<tr><td>{}</td><td class=\"num\">{}</td></tr>",
+            esc(&t(lang, label)),
+            esc(&value)
+        )
+    };
+    let last = match i.last_pass_at {
+        Some(at) => ui::friendly(lang, at),
+        None => t(lang, "not yet"),
+    };
+    format!(
+        "<p class=\"muted\">{}</p><table><tbody>{}{}{}{}{}{}{}{}</tbody></table>",
+        esc(&t(
+            lang,
+            "The index is built in the background. It holds the text of files in a file of its own in the data directory and can be removed at any time with the command rostdav admin search rebuild."
+        )),
+        row("Files in the index", i.docs.to_string()),
+        row("Text read", i.indexed.to_string()),
+        row("Waiting to be read", i.pending.to_string()),
+        row("Too big", i.too_big.to_string()),
+        row("Not text", i.unsupported.to_string()),
+        row("Failed", i.failed.to_string()),
+        row(
+            "Size on disk",
+            human(i64::try_from(i.size_bytes).unwrap_or(i64::MAX))
+        ),
+        row("Last pass", last),
     )
 }
 

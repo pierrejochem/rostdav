@@ -6,7 +6,13 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
-- **Search** (`/search`, "Search" in the navigation): finds files and folders by name in everything you can reach, your own and what others shared with you, in all folders at once. You can limit it to a folder and to files or folders; results are paged and the best match comes first. When a folder filter finds nothing, it links to this search. Content search and the search of the Nextcloud apps follow.
+- **Search** (`/search`, "Search" in the navigation): finds files and folders by name in everything you can reach, your own and what others shared with you, in all folders at once. You can limit it to a folder and to files or folders; results are paged and the best match comes first. When a folder filter finds nothing, it links to this search. 
+- **Search in the text of files**: `/search` also finds files by the words in them (text files: txt, md, csv, json, xml, html, source code, …), shows where, with the words marked, and lists name hits first. Whole words only. A background indexer reads the files a little at a time into a search index of its own (`db/search.sqlite`, rebuildable, not in backups). On by default; Administration, Server can switch it off (the stored texts are then removed) and set the size limits. The index holds the text of files in plain form in the data directory, so it is as sensitive as the files. `rostdav admin search status|rebuild`. [ADR 0012](docs/adr/0012-search-index.md). PDF and Office files and the search of the Nextcloud apps follow.
+
+### Fixed
+
+- `rostdav admin …` commands that need no password (`user list`, `search status`, …) waited for a line of input when a server was running (since 0.4.1): in a terminal you had to press Enter, with an open pipe they never finished. Only `user add` and `user set-password` read standard input now.
+- The admin socket was not created when the path of the data directory is long (a Unix socket address holds at most 107 bytes); the socket is now reached through the open directory, so any path works.
 
 ### Changed
 

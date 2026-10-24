@@ -324,7 +324,16 @@ async fn open_connection(db: &turso::Database) -> Result<turso::Connection> {
 impl Pool {
     /// Opens (and creates, if needed) the database file at `path`, in WAL mode.
     pub async fn open(path: &str) -> Result<Self> {
-        let db = turso::Builder::new_local(path).build().await?;
+        Self::open_with(path, false).await
+    }
+
+    /// Like [`Pool::open`]; `index_methods` switches on the engine's experimental index methods
+    /// (full-text indexes). Only the search index file uses it, never the metadata database.
+    pub async fn open_with(path: &str, index_methods: bool) -> Result<Self> {
+        let db = turso::Builder::new_local(path)
+            .experimental_index_method(index_methods)
+            .build()
+            .await?;
         let writer = open_connection(&db).await?;
         writer.query("PRAGMA journal_mode = WAL", ()).await?;
         let mut readers = Vec::with_capacity(READERS);

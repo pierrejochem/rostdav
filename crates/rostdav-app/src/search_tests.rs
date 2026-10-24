@@ -323,3 +323,339 @@ async fn paging_kind_filter_and_the_scan_limit() {
     };
     assert!(st.search_names(anna, &cut).await.expect("cut").truncated);
 }
+
+// ---- search in the text of files (the index, ADR 0012) ------------------------------------------
+
+async fn put_text(st: &AppState, p: &Principal, path: &str, text: &str) {
+    st.put(p, &lp(path), text.as_bytes(), None, &WriteCondition::None)
+        .await
+        .expect("put");
+}
+
+/// Passes of the indexer until nothing is left to read (a test world is small).
+async fn index(st: &AppState) {
+    for _ in 0..10 {
+        let r = st.indexer_pass().await.expect("pass");
+        if r.pending == 0 {
+            return;
+        }
+    }
+    panic!("the indexer did not finish");
+}
+
+async fn paths(st: &AppState, p: &Principal, q: &str) -> Vec<String> {
+    let page = st.search(p, &SearchQuery::new(q)).await.expect("search");
+    page.hits
+        .iter()
+        .map(|h| {
+            h.path
+                .segments()
+                .iter()
+                .map(|s| s.as_str())
+                .collect::<Vec<_>>()
+                .join("/")
+        })
+        .collect()
+}
+
+#[tokio::test]
+async fn the_text_of_files_is_found_with_a_snippet_and_names_come_first() {
+    let w = world().await;
+    let (st, anna) = (&w.st, &w.anna);
+    st.mkcol(anna, &lp("/Docs")).await.expect("mkcol");
+    put_text(
+        st,
+        anna,
+        "/Docs/minutes.txt",
+        "The committee agreed on the Quarterly budget and the new Café menu.",
+    )
+    .await;
+    put_text(st, anna, "/budget-2026.txt", "figures only").await;
+    put_text(st, anna, "/photo.jpg", "budget hidden in a picture").await;
+    // nothing is found before the indexer has read the files
+    assert_eq!(paths(st, anna, "committee").await, Vec::<String>::new());
+    index(st).await;
+    // by text; accents and case do not matter; a word that is a part of another is not a match
+    assert_eq!(paths(st, anna, "committee").await, ["Docs/minutes.txt"]);
+    assert_eq!(paths(st, anna, "CAFE").await, ["Docs/minutes.txt"]);
+    assert!(
+        paths(st, anna, "committ").await.is_empty(),
+        "whole words only"
+    );
+    // two words: both must be there; a phrase must be in that order
+    assert_eq!(
+        paths(st, anna, "quarterly menu").await,
+        ["Docs/minutes.txt"]
+    );
+    assert_eq!(
+        paths(st, anna, "\"new café menu\"").await,
+        ["Docs/minutes.txt"]
+    );
+    assert!(paths(st, anna, "\"menu new\"").await.is_empty());
+    assert!(paths(st, anna, "committee zzzz").await.is_empty());
+    // a name hit comes before a text hit, and a file is listed once
+    assert_eq!(
+        paths(st, anna, "budget").await,
+        ["budget-2026.txt", "Docs/minutes.txt"]
+    );
+    // only text-like files are read: the picture's "text" is not searched
+    assert!(
+        !paths(st, anna, "hidden")
+            .await
+            .contains(&"photo.jpg".to_owned())
+    );
+    // the snippet shows the words around the hit, with the searched word marked
+    let page = st
+        .search(anna, &SearchQuery::new("budget"))
+        .await
+        .expect("s");
+    let text_hit = page.hits.iter().find(|h| h.rank == 3).expect("text hit");
+    let shown: String = text_hit.snippet.iter().map(|p| p.text.as_str()).collect();
+    assert!(shown.contains("Quarterly budget and the new"), "{shown}");
+    assert_eq!(
+        text_hit
+            .snippet
+            .iter()
+            .filter(|p| p.hit)
+            .map(|p| p.text.trim())
+            .collect::<Vec<_>>(),
+        ["budget"]
+    );
+    // folders have no text: the "folders only" search ignores content
+    let q = SearchQuery {
+        kind: KindFilter::Folders,
+        ..SearchQuery::new("committee")
+    };
+    assert!(st.search(anna, &q).await.expect("s").hits.is_empty());
+}
+
+#[tokio::test]
+async fn nobody_finds_the_text_of_files_they_may_not_read() {
+    let w = world().await;
+    let (st, anna, bob) = (&w.st, &w.anna, &w.bob);
+    st.mkcol(bob, &lp("/Private")).await.expect("mkcol");
+    put_text(
+        st,
+        bob,
+        "/Private/plan.txt",
+        "the secret acquisition of zebrafish",
+    )
+    .await;
+    put_text(st, bob, "/note.txt", "zebrafish are small").await;
+    put_text(st, anna, "/mine.txt", "annas own zebrafish notes").await;
+    index(st).await;
+    // each finds only their own, by text and in the snippets
+    assert_eq!(paths(st, anna, "zebrafish").await, ["mine.txt"]);
+    let mut b = paths(st, bob, "zebrafish").await;
+    b.sort();
+    assert_eq!(b, ["Private/plan.txt", "note.txt"]);
+    let page = st
+        .search(anna, &SearchQuery::new("secret acquisition"))
+        .await
+        .expect("s");
+    assert!(page.hits.is_empty());
+    // a scope in somebody else's tree is not found, for text too
+    let mut q = SearchQuery::new("zebrafish");
+    q.scope = lp("/Private");
+    assert!(matches!(st.search(anna, &q).await, Err(Error::NotFound)));
+}
+
+#[tokio::test]
+async fn text_in_a_received_share_is_found_under_its_mount_until_the_share_ends() {
+    let w = world().await;
+    let (st, anna, bob) = (&w.st, &w.anna, &w.bob);
+    st.mkcol(bob, &lp("/Team")).await.expect("mkcol");
+    st.mkcol(bob, &lp("/Team/deep")).await.expect("mkcol");
+    st.mkcol(bob, &lp("/Elsewhere")).await.expect("mkcol");
+    put_text(
+        st,
+        bob,
+        "/Team/deep/agenda.txt",
+        "discuss the walrus proposal",
+    )
+    .await;
+    put_text(
+        st,
+        bob,
+        "/Elsewhere/other.txt",
+        "the walrus is not for sharing",
+    )
+    .await;
+    index(st).await;
+    assert!(paths(st, anna, "walrus").await.is_empty(), "not shared yet");
+    let s = st
+        .share_create(bob, share("/Team", "anna", 1))
+        .await
+        .expect("share");
+    // read-only is enough; found below the mount point, and only what is in the shared folder
+    assert_eq!(paths(st, anna, "walrus").await, ["Team/deep/agenda.txt"]);
+    // a scope inside the share works, a scope outside it does not widen anything
+    let mut q = SearchQuery::new("walrus");
+    q.scope = lp("/Team/deep");
+    let page = st.search(anna, &q).await.expect("scoped");
+    assert!(matches!(page.hits[0].origin, Origin::Share(id) if id == s.share.id));
+    q.scope = lp("/Elsewhere");
+    assert!(st.search(anna, &q).await.is_err());
+    // stopped: gone at once, without waiting for the indexer
+    st.share_delete(bob, s.share.id).await.expect("revoke");
+    assert!(paths(st, anna, "walrus").await.is_empty());
+}
+
+#[tokio::test]
+async fn edits_moves_deletes_and_restores_are_followed() {
+    let w = world().await;
+    let (st, anna) = (&w.st, &w.anna);
+    st.mkcol(anna, &lp("/A")).await.expect("mkcol");
+    st.mkcol(anna, &lp("/B")).await.expect("mkcol");
+    put_text(st, anna, "/A/doc.txt", "original wording about pelicans").await;
+    index(st).await;
+    assert_eq!(paths(st, anna, "pelicans").await, ["A/doc.txt"]);
+    // edited: the old words stop matching, the new ones match after the next pass
+    put_text(
+        st,
+        anna,
+        "/A/doc.txt",
+        "completely new text about flamingos",
+    )
+    .await;
+    index(st).await;
+    assert!(paths(st, anna, "pelicans").await.is_empty());
+    assert_eq!(paths(st, anna, "flamingos").await, ["A/doc.txt"]);
+    // moved: found at the new place at once (paths are worked out when searching)
+    st.move_to(anna, &lp("/A/doc.txt"), &lp("/B/moved.txt"), false)
+        .await
+        .expect("move");
+    assert_eq!(paths(st, anna, "flamingos").await, ["B/moved.txt"]);
+    index(st).await;
+    assert_eq!(paths(st, anna, "flamingos").await, ["B/moved.txt"]);
+    // deleted: hidden at once, even before a pass; restored: found again, no reading needed
+    st.delete(anna, &lp("/B/moved.txt"), None)
+        .await
+        .expect("delete");
+    assert!(paths(st, anna, "flamingos").await.is_empty());
+    index(st).await;
+    assert!(paths(st, anna, "flamingos").await.is_empty());
+    let item = st
+        .trash_list(anna)
+        .await
+        .expect("trash")
+        .into_iter()
+        .next()
+        .expect("item");
+    st.trash_restore(anna, &item.entry_name())
+        .await
+        .expect("restore");
+    assert_eq!(paths(st, anna, "flamingos").await.len(), 1);
+    // purged for good: gone from the index with the next pass
+    st.delete(anna, &lp("/B/moved.txt"), None).await.ok();
+    let item = st.trash_list(anna).await.expect("trash").into_iter().next();
+    if let Some(item) = item {
+        st.trash_delete(anna, &item.entry_name())
+            .await
+            .expect("purge");
+    }
+    index(st).await;
+    assert!(paths(st, anna, "flamingos").await.is_empty());
+    let status = st.search_status(&Actor::Cli).await.expect("status");
+    assert!(status.ready && status.index.docs >= 2, "{status:?}");
+}
+
+#[tokio::test]
+async fn switching_content_indexing_off_removes_the_texts_and_on_reads_them_again() {
+    let w = world().await;
+    let (st, anna) = (&w.st, &w.anna);
+    put_text(st, anna, "/notes.txt", "mention of the narwhal here").await;
+    index(st).await;
+    assert_eq!(paths(st, anna, "narwhal").await, ["notes.txt"]);
+    st.set_tunable(&Actor::Cli, "search.content_indexing", "0")
+        .await
+        .expect("off");
+    // no content hit at once; the stored texts are removed by the next pass
+    assert!(paths(st, anna, "narwhal").await.is_empty());
+    index(st).await;
+    let s = st.search_status(&Actor::Cli).await.expect("status").index;
+    assert_eq!((s.indexed, s.content_enabled), (0, false));
+    // names are still found
+    assert_eq!(paths(st, anna, "notes").await, ["notes.txt"]);
+    st.set_tunable(&Actor::Cli, "search.content_indexing", "1")
+        .await
+        .expect("on");
+    index(st).await;
+    assert_eq!(paths(st, anna, "narwhal").await, ["notes.txt"]);
+}
+
+#[tokio::test]
+async fn limits_decide_what_is_read_and_a_lost_index_is_built_again() {
+    let w = world().await;
+    let (st, anna) = (&w.st, &w.anna);
+    put_text(st, anna, "/small.txt", "findable platypus").await;
+    put_text(st, anna, "/binary.txt", "platypus\u{0}with a NUL byte").await;
+    put_text(
+        st,
+        anna,
+        "/long.txt",
+        &format!("{} platypus", "padding ".repeat(5000)),
+    )
+    .await;
+    st.set_tunable(&Actor::Cli, "search.max_text_kib", "16")
+        .await
+        .expect("limit");
+    index(st).await;
+    // the NUL byte makes it binary; the long file is cut after 16 KiB, before its last word
+    assert_eq!(paths(st, anna, "platypus").await, ["small.txt"]);
+    let s = st.search_status(&Actor::Cli).await.expect("status").index;
+    assert_eq!((s.indexed, s.unsupported), (2, 1), "{s:?}");
+    // the limits are checked
+    assert!(
+        st.set_tunable(&Actor::Cli, "search.max_text_kib", "8")
+            .await
+            .is_err()
+    );
+    assert!(
+        st.set_tunable(&Actor::Cli, "search.max_file_mib", "0")
+            .await
+            .is_err()
+    );
+    assert!(
+        st.set_tunable(&Actor::Cli, "search.content_indexing", "2")
+            .await
+            .is_err()
+    );
+    // throw the index away: the next pass builds it again from the nodes and the blobs
+    st.search_rebuild(&Actor::Cli).await.expect("rebuild");
+    assert!(
+        paths(st, anna, "platypus").await.is_empty(),
+        "empty until it is built"
+    );
+    index(st).await;
+    assert_eq!(paths(st, anna, "platypus").await, ["small.txt"]);
+}
+
+#[tokio::test]
+async fn only_administrators_manage_the_index_and_links_cannot_search_text() {
+    let w = world().await;
+    let (st, anna) = (&w.st, &w.anna);
+    put_text(st, anna, "/a.txt", "words").await;
+    index(st).await;
+    assert!(matches!(
+        st.search_status(&Actor::User(anna)).await,
+        Err(Error::Forbidden)
+    ));
+    assert!(matches!(
+        st.search_rebuild(&Actor::User(anna)).await,
+        Err(Error::Forbidden)
+    ));
+    let node = st.stat(anna, &lp("/")).await.expect("root");
+    let link = Principal {
+        scope: Scope::Link {
+            share_id: 1,
+            node_id: node.id,
+            perms: 1,
+        },
+        ..anna.clone()
+    };
+    assert!(matches!(
+        st.search(&link, &SearchQuery::new("words")).await,
+        Err(Error::Forbidden)
+    ));
+}

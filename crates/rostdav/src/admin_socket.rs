@@ -46,6 +46,21 @@ pub fn path_for(data_dir: &Path) -> PathBuf {
     data_dir.join("admin.sock")
 }
 
+/// A path to the socket that fits into a Unix socket address (at most 107 bytes). A data
+/// directory with a long path is reached through the open directory instead
+/// (`/proc/self/fd/<fd>/admin.sock`), which names the same socket file. The returned file keeps
+/// that descriptor open; hold it for as long as the address is used.
+fn address_of(data_dir: &Path) -> std::io::Result<(PathBuf, Option<std::fs::File>)> {
+    let direct = path_for(data_dir);
+    if direct.as_os_str().len() < 100 {
+        return Ok((direct, None));
+    }
+    use std::os::fd::AsRawFd;
+    let dir = std::fs::File::open(data_dir)?;
+    let via = PathBuf::from(format!("/proc/self/fd/{}/admin.sock", dir.as_raw_fd()));
+    Ok((via, Some(dir)))
+}
+
 /// Root and the owner of the socket (the user the server runs as) may use it.
 pub fn peer_allowed(peer_uid: u32, owner_uid: u32) -> bool {
     peer_uid == 0 || peer_uid == owner_uid
@@ -61,18 +76,20 @@ pub async fn serve(state: AppState, data_dir: &Path) -> anyhow::Result<()> {
         mode & 0o7777
     );
     let path = path_for(data_dir);
-    if path.exists() {
+    // `_dir` keeps the descriptor of a long path's address open until the socket is bound
+    let (address, _dir) = address_of(data_dir)?;
+    if address.exists() {
         // a socket nobody listens on is left over from a crash
         anyhow::ensure!(
-            UnixStream::connect(&path).await.is_err(),
+            UnixStream::connect(&address).await.is_err(),
             "another process listens on {}",
             path.display()
         );
-        std::fs::remove_file(&path)?;
+        std::fs::remove_file(&address)?;
     }
-    let listener = UnixListener::bind(&path)?;
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
-    let owner = std::fs::metadata(&path)?.uid();
+    let listener = UnixListener::bind(&address)?;
+    std::fs::set_permissions(&address, std::fs::Permissions::from_mode(0o600))?;
+    let owner = std::fs::metadata(&address)?.uid();
     tracing::info!(socket = %path.display(), "admin socket ready");
     tokio::spawn(async move {
         loop {
@@ -149,7 +166,12 @@ pub async fn call(
     stdin: &str,
     cwd: Option<&Path>,
 ) -> std::io::Result<Reply> {
-    let mut conn = UnixStream::connect(socket).await?;
+    // `socket` is `<data_dir>/admin.sock`; a long path is reached through the open directory
+    let (address, _dir) = match socket.parent() {
+        Some(dir) if socket.file_name().is_some_and(|n| n == "admin.sock") => address_of(dir)?,
+        _ => (socket.to_path_buf(), None),
+    };
+    let mut conn = UnixStream::connect(&address).await?;
     let request = Request {
         v: PROTOCOL,
         args: args.to_vec(),
@@ -168,7 +190,23 @@ pub async fn call(
 
 #[cfg(test)]
 mod tests {
-    use super::peer_allowed;
+    use super::*;
+
+    #[test]
+    fn a_long_data_directory_path_gets_a_short_address() {
+        let long = std::env::temp_dir()
+            .join("x".repeat(60))
+            .join("y".repeat(60));
+        std::fs::create_dir_all(&long).expect("dirs");
+        assert!(path_for(&long).as_os_str().len() > 107);
+        let (addr, dir) = address_of(&long).expect("address");
+        assert!(dir.is_some() && addr.as_os_str().len() < 60, "{addr:?}");
+        assert!(addr.starts_with("/proc/self/fd/"));
+        // a short one is used as it is
+        let (addr, dir) = address_of(Path::new("/data")).expect("address");
+        assert!(dir.is_none() && addr == Path::new("/data/admin.sock"));
+        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("x".repeat(60)));
+    }
 
     #[test]
     fn only_root_and_the_owner_may_connect() {

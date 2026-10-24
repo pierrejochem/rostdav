@@ -22,6 +22,7 @@ pub struct Config {
     pub audit: Audit,
     pub versioning: Versioning,
     pub trash: Trash,
+    pub search: Search,
     pub web: Web,
     pub security: Security,
     pub log: Log,
@@ -99,6 +100,27 @@ impl Default for Versioning {
             max_versions: 50,
             max_age_days: 365,
             max_quota_share_percent: 50,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Search {
+    /// Read the text of files into the search index (names are searchable either way).
+    pub content_indexing: bool,
+    /// Files larger than this many MiB are not read.
+    pub max_file_mib: u32,
+    /// At most this many KiB of text are kept of one file.
+    pub max_text_kib: u32,
+}
+
+impl Default for Search {
+    fn default() -> Self {
+        Self {
+            content_indexing: true,
+            max_file_mib: 64,
+            max_text_kib: 1024,
         }
     }
 }

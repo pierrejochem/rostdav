@@ -555,7 +555,7 @@ pub async fn search(
     query.limit = SEARCH_PAGE;
     query.offset = page_no.saturating_mul(SEARCH_PAGE);
     let result = if has_query {
-        match state.search_names(&a.session.principal, &query).await {
+        match state.search(&a.session.principal, &query).await {
             Ok(r) => r,
             Err(e) => return error_response_to(&a, &e, "/search", "search"),
         }
@@ -600,7 +600,10 @@ pub async fn search(
     let body = if !has_query {
         format!(
             "<div class=\"empty\">{}</div>",
-            esc(&t(lang, "Type part of a name to search."))
+            esc(&t(
+                lang,
+                "Type part of a name, or words from a text, to search."
+            ))
         )
     } else if result.hits.is_empty() {
         format!(
@@ -632,8 +635,29 @@ pub async fn search(
                 } else {
                     human(h.node.size)
                 };
+                // what the file says around the words, with those words marked; every part is
+                // escaped, the markers are the only markup
+                let snippet = if h.snippet.is_empty() {
+                    String::new()
+                } else {
+                    let body: String = h
+                        .snippet
+                        .iter()
+                        .map(|part| {
+                            if part.hit {
+                                format!("<mark>{}</mark>", esc(&part.text))
+                            } else {
+                                esc(&part.text)
+                            }
+                        })
+                        .collect();
+                    format!(
+                        "<span class=\"snippet\"><span class=\"chip\">{}</span> {body}</span>",
+                        esc(&t(lang, "In the text"))
+                    )
+                };
                 format!(
-                    "<tr><td><a class=\"name\" href=\"{}\">{}<span>{}</span></a></td><td>{}</td><td class=\"hide\">{}</td><td class=\"hide\">{}</td></tr>",
+                    "<tr><td><a class=\"name\" href=\"{}\">{}<span>{}{snippet}</span></a></td><td>{}</td><td class=\"hide\">{}</td><td class=\"hide\">{}</td></tr>",
                     esc(&link),
                     tile(&h.node),
                     esc(&h.node.name),
@@ -688,7 +712,7 @@ pub async fn search(
     let head = ui::page_head(
         lang,
         "Search",
-        "Find files and folders by name in everything you can reach.",
+        "Find files and folders by name, and files by the words in their text, in everything you can reach.",
         "",
     );
     let card = ui::card(lang, "Results", "", &format!("{form}{body}"));

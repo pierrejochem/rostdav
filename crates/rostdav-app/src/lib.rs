@@ -15,6 +15,7 @@ mod avatar;
 mod export;
 mod favorites;
 mod files;
+mod indexer;
 mod login_flow;
 mod password;
 mod ratelimit;
@@ -25,6 +26,7 @@ mod secrets;
 #[cfg(test)]
 mod share_tests;
 mod shares;
+mod textdecode;
 mod trash;
 mod tunables;
 mod two_factor;
@@ -48,10 +50,11 @@ pub use audit::AuditOptions;
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, Scope, UserInfo, Via, authorize};
 pub use avatar::Avatar;
 pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, normalize_checksum};
+pub use indexer::{PassReport, SearchStatus};
 pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
-pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery};
+pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{
     LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,
 };
@@ -101,6 +104,10 @@ struct Inner {
     /// An update was installed: the process shuts down and exits with `EXIT_FOR_RESTART`.
     restart_requested: std::sync::atomic::AtomicBool,
     restart: tokio::sync::Notify,
+    /// The search index, opened by the first indexer pass (ADR 0012).
+    search_index: tokio::sync::RwLock<Option<std::sync::Arc<rostdav_meta::SearchIndex>>>,
+    /// One indexer pass at a time.
+    indexing: tokio::sync::Mutex<()>,
 }
 
 pub fn now_secs() -> i64 {
@@ -118,6 +125,28 @@ struct AppConfig {
     trash: TrashOptions,
     web: WebOptions,
     security: SecurityOptions,
+    search: SearchOptions,
+}
+
+/// Settings of the search index (ADR 0012).
+#[derive(Clone, Copy, Debug)]
+pub struct SearchOptions {
+    /// Read the text of files into the index. Names are searchable either way.
+    pub content: bool,
+    /// Files larger than this are not read.
+    pub max_file_bytes: u64,
+    /// At most this much text is kept of one file.
+    pub max_text_bytes: usize,
+}
+
+impl Default for SearchOptions {
+    fn default() -> Self {
+        Self {
+            content: true,
+            max_file_bytes: 64 << 20,
+            max_text_bytes: 1 << 20,
+        }
+    }
 }
 
 /// Settings of the security features.
@@ -188,6 +217,8 @@ impl AppState {
                 installing: false.into(),
                 restart_requested: false.into(),
                 restart: tokio::sync::Notify::new(),
+                search_index: tokio::sync::RwLock::new(None),
+                indexing: tokio::sync::Mutex::new(()),
             }),
         })
     }
@@ -230,6 +261,8 @@ impl AppState {
                 installing: false.into(),
                 restart_requested: false.into(),
                 restart: tokio::sync::Notify::new(),
+                search_index: tokio::sync::RwLock::new(None),
+                indexing: tokio::sync::Mutex::new(()),
             }),
         }
     }
@@ -284,6 +317,15 @@ impl AppState {
     #[must_use]
     pub fn with_web(self, web: WebOptions) -> Self {
         let config = AppConfig { web, ..self.cfg() };
+        self.reconfigured(config)
+    }
+
+    #[must_use]
+    pub fn with_search(self, search: SearchOptions) -> Self {
+        let config = AppConfig {
+            search,
+            ..self.cfg()
+        };
         self.reconfigured(config)
     }
 
