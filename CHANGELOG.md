@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- `rostdav admin import-nextcloud <data-dir>`: imports a Nextcloud data directory ([ADR 0011](docs/adr/0011-nextcloud-data-import.md)). Every user's files with names and modification times, and the versions Nextcloud kept (`files_versions`), into the Rostdav user of the same name (`--map NC=USER` to rename, `--only` to pick). The directory is only read, so Nextcloud can keep running; the command can be repeated, `--update` replaces files that changed (the old content becomes a version), `--dry-run` writes nothing. Not imported, and listed in the output: the trash, group folders, external storage, shares, favorites and files encrypted by Nextcloud.
+
 ## [0.4.1] - 2026-10-24
 
 ### Fixed

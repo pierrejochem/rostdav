@@ -28,6 +28,7 @@ The CLI works on the data directory directly, next to a running server. It is tr
 | `rostdav admin user set-quota <login> <10G\|500M\|bytes\|unlimited>` | Quota |
 | `rostdav admin user set-password <login> [--revoke-devices]` | New password from stdin; optionally sign out all devices |
 | `rostdav admin user delete <login> [--transfer-to <login>] --yes` | Delete the account; the files are deleted, or moved to the folder `<login> (transferred)` of the other user |
+| `rostdav admin import-nextcloud <data-dir> [--map NC=USER] [--only NC] [--update] [--dry-run]` | Import a Nextcloud data directory (files with their times, and versions); read-only on the source, repeatable, see [below](#migrating-from-nextcloud) |
 | `rostdav admin fsck [--verify] [--repair] [--min-orphan-age <s>]` | Consistency check, see below; exit code 1 if damage remains |
 | `rostdav admin import <path> --user <login> [--dest <folder>] [--overwrite]` | Copy a host directory into a user's files |
 | `rostdav admin backup <new-dir> [--include-key]` | Consistent copy of database and blobs while the server runs (hard links on the same file system), see [deployment.md](deployment.md) |
@@ -49,6 +50,20 @@ Without `--repair` nothing is changed. Run `--verify` off-peak: it reads every b
 ### import
 
 Walks the directory without following symbolic links (they are skipped and reported), keeps modification times, applies the same name rules as uploads (`.part`, control characters, ... are skipped and reported), respects the user's quota (and stops when it is exceeded), and by default skips files that already exist.
+
+## Migrating from Nextcloud
+
+`rostdav admin import-nextcloud` copies the contents of a Nextcloud data directory into Rostdav ([ADR 0011](adr/0011-nextcloud-data-import.md)). It only **reads** the directory, so Nextcloud can keep running, and it can be repeated.
+
+1. Create the users in Rostdav first (`rostdav admin user add alice`; passwords are new, Nextcloud's are not used). Use the same names, or map them with `--map nc_name=rostdav_name`.
+2. Make the directory readable for the Rostdav process. In a container: mount it read-only, for example `-v /data:/nextcloud:ro`, and add the group that owns it (`--group-add 33` for `www-data`).
+3. Look first: `rostdav admin import-nextcloud /nextcloud --dry-run` lists the users and counts files, versions and skipped items.
+4. Run it without `--dry-run`. For a big directory start it in the background (`nohup … > import.log &`) and read the log.
+5. While Nextcloud keeps running, repeat it with `--update` to bring over changed files (the old content becomes a version).
+
+What comes over: every user's files with names and modification times, and the versions Nextcloud kept. What does not, and is listed at the end of the output: the trash bin, group folders, external storage, shares, favorites, tags, comments, and files encrypted by Nextcloud. Files deleted in Nextcloud stay in Rostdav. Rostdav refuses some names Nextcloud allows (a `.part` ending, some characters); they are listed as skipped.
+
+When the import is done and you switched Nextcloud off, recreate the Rostdav container without the mount.
 
 ## Settings and precedence
 

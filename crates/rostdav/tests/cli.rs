@@ -655,3 +655,55 @@ async fn the_socket_refuses_garbage_and_oversized_requests() {
         .expect("call");
     assert_eq!(r.code, 0, "{}", r.stderr);
 }
+
+#[test]
+fn import_nextcloud_reads_a_data_directory_and_leaves_it_alone() {
+    let c = Cli::new();
+    assert_eq!(c.run(&["user", "add", "anna"], &format!("{PW}\n")).code, 0);
+    let nc = c.dir.path().join("ncdata");
+    for (path, text) in [
+        ("anna/files/Docs/a.txt", "three"),
+        ("anna/files_versions/Docs/a.txt.v1700000100", "one"),
+        ("ghost/files/x.txt", "x"),
+    ] {
+        let f = nc.join(path);
+        std::fs::create_dir_all(f.parent().expect("parent")).expect("dirs");
+        std::fs::write(f, text).expect("write");
+    }
+    let o = c.run(&["import-nextcloud", "--dry-run", "ncdata"], "");
+    assert_eq!(o.code, 0, "{}", o.stderr);
+    assert!(
+        o.stdout.contains("anna -> anna: would import 1 files"),
+        "{}",
+        o.stdout
+    );
+    assert!(o.stdout.contains("1 versions"), "{}", o.stdout);
+    assert!(
+        o.stdout.contains("ghost"),
+        "the missing user is named: {}",
+        o.stdout
+    );
+
+    let o = c.run(&["import-nextcloud", "ncdata"], "");
+    assert_eq!(o.code, 0, "{}", o.stderr);
+    assert!(
+        o.stdout.contains("anna -> anna: imported 1 files"),
+        "{}",
+        o.stdout
+    );
+    // the same again: nothing new
+    let o = c.run(&["import-nextcloud", "ncdata"], "");
+    assert!(o.stdout.contains("imported 0 files"), "{}", o.stdout);
+    assert!(o.stdout.contains("1 already there"), "{}", o.stdout);
+    // the source is as it was
+    assert_eq!(
+        std::fs::read_to_string(nc.join("anna/files/Docs/a.txt")).expect("read"),
+        "three"
+    );
+
+    let o = c.run(&["import-nextcloud", "--map", "oops", "ncdata"], "");
+    assert_eq!(o.code, 1);
+    assert!(o.stderr.contains("NC=USER"), "{}", o.stderr);
+    let o = c.run(&["import-nextcloud", "nowhere"], "");
+    assert_eq!(o.code, 1);
+}

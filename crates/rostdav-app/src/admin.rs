@@ -167,6 +167,27 @@ pub struct ImportOptions {
     pub overwrite: bool,
     /// Folder below the user's root, e.g. `Import/Photos`; created if missing.
     pub dest: Option<String>,
+    /// For files that exist already: replace them when size or modification time differ
+    /// (the old content becomes a version), and leave identical ones alone.
+    pub update: bool,
+    /// Count what would be imported; write nothing.
+    pub dry_run: bool,
+    /// Nextcloud data directory import (ADR 0011): the user's `files_versions` folder. Versions
+    /// (`<file>.v<unix time>`) of files that are new here are imported as versions; files whose
+    /// content Nextcloud encrypted are skipped.
+    pub nextcloud_versions: Option<PathBuf>,
+    pub nextcloud: bool,
+}
+
+/// The result of [`AppState::import_nextcloud`].
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct NextcloudReport {
+    /// `(Nextcloud user, Rostdav user, what was imported)`.
+    pub users: Vec<(String, String, ImportReport)>,
+    /// `(Nextcloud folder, why it was not imported)`.
+    pub skipped_users: Vec<(String, String)>,
+    /// Things that exist in the data directory and are not imported.
+    pub notes: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -175,6 +196,10 @@ pub struct ImportReport {
     pub dirs: u64,
     pub bytes: u64,
     pub skipped_existing: u64,
+    /// Files replaced because they changed (`update`).
+    pub updated: u64,
+    /// Versions imported from a Nextcloud `files_versions` folder.
+    pub versions: u64,
     /// `(path, reason)`, at most 50 entries; `skipped_total` has the real number.
     pub skipped: Vec<(String, String)>,
     pub skipped_total: u64,
@@ -691,6 +716,9 @@ impl AppState {
         if let Some(d) = &opts.dest {
             for seg in d.split('/').filter(|s| !s.is_empty()) {
                 base = base.join(&Name::parse(seg)?);
+                if opts.dry_run {
+                    continue;
+                }
                 match self.mkcol(&p, &base).await {
                     Ok(_) | Err(Error::AlreadyExists) => {}
                     Err(e) => return Err(e),
@@ -729,17 +757,21 @@ impl AppState {
                 };
                 let path = logical.join(&name);
                 if ty.is_dir() {
-                    match self.mkcol(&p, &path).await {
-                        Ok(_) => report.dirs += 1,
-                        Err(Error::AlreadyExists) => {}
-                        Err(err) => {
-                            report.skip(&host, &err.to_string());
-                            continue;
+                    if opts.dry_run {
+                        report.dirs += 1;
+                    } else {
+                        match self.mkcol(&p, &path).await {
+                            Ok(_) => report.dirs += 1,
+                            Err(Error::AlreadyExists) => {}
+                            Err(err) => {
+                                report.skip(&host, &err.to_string());
+                                continue;
+                            }
                         }
                     }
                     stack.push((host, path));
                 } else if ty.is_file() {
-                    self.import_file(&p, &host, &path, opts, &mut report)
+                    self.import_file(&p, host_path, &host, &path, opts, &mut report)
                         .await?;
                 } else {
                     report.skip(&host, "not a regular file");
@@ -757,9 +789,113 @@ impl AppState {
         Ok(report)
     }
 
+    /// Imports a Nextcloud data directory (ADR 0011): for each Nextcloud user with a `files`
+    /// folder, the files (with their modification times) and the versions Nextcloud kept, into
+    /// the Rostdav user of the same name (or the one given in `map`). The directory is only read.
+    /// What is not imported is listed in the report: trash (its original places are only in
+    /// Nextcloud's database), group folders, external storage, encrypted files.
+    pub async fn import_nextcloud(
+        &self,
+        actor: &Actor<'_>,
+        data_dir: &Path,
+        map: &[(String, String)],
+        only: &[String],
+        opts: &ImportOptions,
+    ) -> Result<NextcloudReport> {
+        actor.require_admin()?;
+        let meta = tokio::fs::metadata(data_dir)
+            .await
+            .map_err(|_| Error::BadRequest("the Nextcloud data directory cannot be read"))?;
+        if !meta.is_dir() {
+            return Err(Error::BadRequest(
+                "the Nextcloud data directory is not a directory",
+            ));
+        }
+        let mut names = Vec::new();
+        let mut rd = tokio::fs::read_dir(data_dir)
+            .await
+            .map_err(Error::internal)?;
+        while let Some(e) = rd.next_entry().await.map_err(Error::internal)? {
+            if let (Some(n), Ok(t)) = (
+                e.file_name().to_str().map(str::to_owned),
+                e.file_type().await,
+            ) {
+                if t.is_dir() {
+                    names.push(n);
+                }
+            }
+        }
+        names.sort();
+        let mut out = NextcloudReport::default();
+        for nc in names {
+            let dir = data_dir.join(&nc);
+            if nc == "__groupfolders" {
+                out.notes
+                    .push("group folders (`__groupfolders`) are not imported".to_owned());
+                continue;
+            }
+            if nc.starts_with('.')
+                || nc.starts_with("appdata_")
+                || nc.starts_with("updater-")
+                || nc == "files_external"
+                || nc == "lost+found"
+            {
+                continue;
+            }
+            // a user has a `files` folder; anything else is not a user (or has no files)
+            if !tokio::fs::metadata(dir.join("files"))
+                .await
+                .is_ok_and(|m| m.is_dir())
+            {
+                out.skipped_users
+                    .push((nc, "no `files` folder: not a user with files".to_owned()));
+                continue;
+            }
+            if !only.is_empty() && !only.contains(&nc) {
+                continue;
+            }
+            let target = map
+                .iter()
+                .find(|(from, _)| *from == nc)
+                .map_or_else(|| nc.clone(), |(_, to)| to.clone());
+            if self.target_user(&target).await.is_err() {
+                out.skipped_users.push((
+                    nc,
+                    format!("no Rostdav user `{target}` (create it first, or map it with --map)"),
+                ));
+                continue;
+            }
+            let versions = dir.join("files_versions");
+            let mut o = opts.clone();
+            o.nextcloud = true;
+            o.nextcloud_versions = tokio::fs::metadata(&versions)
+                .await
+                .is_ok_and(|m| m.is_dir())
+                .then_some(versions);
+            let trash = dir.join("files_trashbin").join("files");
+            if let Ok(mut t) = tokio::fs::read_dir(&trash).await {
+                let mut n = 0u64;
+                while let Ok(Some(_)) = t.next_entry().await {
+                    n += 1;
+                }
+                if n > 0 {
+                    out.notes.push(format!(
+                        "{nc}: {n} items in the trash bin are not imported (their original places are only in Nextcloud's database)"
+                    ));
+                }
+            }
+            let report = self
+                .import_tree(actor, &dir.join("files"), &target, &o)
+                .await?;
+            out.users.push((nc, target, report));
+        }
+        Ok(out)
+    }
+
     async fn import_file(
         &self,
         p: &Principal,
+        root: &Path,
         host: &Path,
         path: &LogicalPath,
         opts: &ImportOptions,
@@ -771,20 +907,75 @@ impl AppState {
             .ok()
             .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
             .and_then(|d| i64::try_from(d.as_secs()).ok());
-        let cond = if opts.overwrite {
-            None
-        } else {
-            Some(rostdav_meta::WriteCondition::MustNotExist)
+        if opts.nextcloud && is_nextcloud_encrypted(host).await {
+            report.skip(host, "encrypted by Nextcloud (server-side encryption)");
+            return Ok(());
+        }
+        // what is there already decides: skip, update, or import as new (with versions)
+        let existing = match self.stat(p, path).await {
+            Ok(n) => Some(n),
+            Err(Error::NotFound) => None,
+            Err(e) => return Err(e),
         };
+        match &existing {
+            None => {}
+            Some(_) if opts.overwrite => {}
+            Some(n) if opts.update => {
+                let same =
+                    n.size == i64::try_from(meta.len()).unwrap_or(-1) && Some(n.mtime) == mtime;
+                if same {
+                    report.skipped_existing += 1;
+                    return Ok(());
+                }
+            }
+            Some(_) => {
+                report.skipped_existing += 1;
+                return Ok(());
+            }
+        }
+        if opts.dry_run {
+            report.files += 1;
+            report.bytes += meta.len();
+            if existing.is_none() {
+                report.versions += self.nextcloud_versions_of(opts, root, host).await.len() as u64;
+            }
+            return Ok(());
+        }
+        // versions first, oldest to newest, so that each overwrite archives the one before it
+        if existing.is_none() {
+            for (ts, vfile) in self.nextcloud_versions_of(opts, root, host).await {
+                if is_nextcloud_encrypted(&vfile).await {
+                    report.skip(&vfile, "encrypted by Nextcloud (server-side encryption)");
+                    continue;
+                }
+                let file = tokio::fs::File::open(&vfile)
+                    .await
+                    .map_err(Error::internal)?;
+                let put = PutOptions {
+                    mtime: Some(ts),
+                    client_checksum: None,
+                    cond: None,
+                };
+                match self.put_ext(p, path, file, &put).await {
+                    Ok(_) => report.versions += 1,
+                    Err(e @ (Error::QuotaExceeded | Error::TooLarge)) => return Err(e),
+                    Err(e) => report.skip(&vfile, &e.to_string()),
+                }
+            }
+        }
         let file = tokio::fs::File::open(host).await.map_err(Error::internal)?;
         let put = PutOptions {
             mtime,
             client_checksum: None,
-            cond,
+            cond: None,
         };
         match self.put_ext(p, path, file, &put).await {
             Ok(w) => {
-                report.files += 1;
+                if existing.is_some() && opts.update && !opts.overwrite {
+                    report.updated += 1;
+                } else {
+                    report.files += 1;
+                }
                 report.bytes += u64::try_from(w.node.size).unwrap_or(0);
             }
             Err(Error::PreconditionFailed) => report.skipped_existing += 1,
@@ -794,6 +985,62 @@ impl AppState {
         }
         Ok(())
     }
+
+    /// The versions Nextcloud kept of `host` (below the files folder `root`): files named
+    /// `<name>.v<unix time>` in the same place of `files_versions`, oldest first.
+    async fn nextcloud_versions_of(
+        &self,
+        opts: &ImportOptions,
+        root: &Path,
+        host: &Path,
+    ) -> Vec<(i64, PathBuf)> {
+        let Some(versions) = &opts.nextcloud_versions else {
+            return Vec::new();
+        };
+        let (Ok(rel), Some(name)) = (
+            host.strip_prefix(root),
+            host.file_name().and_then(|n| n.to_str()),
+        ) else {
+            return Vec::new();
+        };
+        let dir = versions.join(rel.parent().unwrap_or_else(|| Path::new("")));
+        let Ok(mut rd) = tokio::fs::read_dir(&dir).await else {
+            return Vec::new();
+        };
+        let prefix = format!("{name}.v");
+        let mut found = Vec::new();
+        while let Ok(Some(e)) = rd.next_entry().await {
+            let fname = e.file_name();
+            let Some(fname) = fname.to_str() else {
+                continue;
+            };
+            let Some(ts) = fname.strip_prefix(&prefix) else {
+                continue;
+            };
+            if ts.is_empty() || !ts.bytes().all(|b| b.is_ascii_digit()) {
+                continue;
+            }
+            let (Ok(ts), Ok(ty)) = (ts.parse::<i64>(), e.file_type().await) else {
+                continue;
+            };
+            if ty.is_file() {
+                found.push((ts, e.path()));
+            }
+        }
+        found.sort();
+        found
+    }
+}
+
+/// Nextcloud's server-side encryption puts a text header in front of the content.
+async fn is_nextcloud_encrypted(file: &Path) -> bool {
+    use tokio::io::AsyncReadExt;
+    let Ok(mut f) = tokio::fs::File::open(file).await else {
+        return false;
+    };
+    let mut head = [0u8; 27];
+    let n = f.read(&mut head).await.unwrap_or(0);
+    head[..n].starts_with(b"HBEGIN:oc_encryption_module")
 }
 
 impl ImportReport {

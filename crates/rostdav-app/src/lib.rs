@@ -39,7 +39,7 @@ pub use access::{Access, MountView, Need, Origin, authorize_access};
 pub use admin::parse_quota;
 pub use admin::{
     Actor, BackupReport, DeleteMode, FsckOptions, FsckReport, ImportOptions, ImportReport, Lockout,
-    LockoutKind,
+    LockoutKind, NextcloudReport,
 };
 pub use audit::AuditOptions;
 pub use auth::{APP_PASSWORD_LEN, Action, Principal, Scope, UserInfo, Via, authorize};

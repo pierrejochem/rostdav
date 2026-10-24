@@ -20,6 +20,10 @@ pub enum AdminCommand {
     Fsck(FsckArgs),
     /// Copies a directory from this host into a user's files.
     Import(ImportArgs),
+    /// Imports a Nextcloud data directory: every user's files with their modification times
+    /// and the versions Nextcloud kept. The directory is only read, never changed, so
+    /// Nextcloud can keep running and the command can be repeated (see docs/admin.md).
+    ImportNextcloud(ImportNextcloudArgs),
     /// Writes a consistent copy of the database and the blobs into a new directory
     /// (the server may keep running). Restore: see docs/deployment.md.
     Backup(BackupArgs),
@@ -119,6 +123,27 @@ pub struct ImportArgs {
     pub overwrite: bool,
 }
 
+#[derive(Args)]
+pub struct ImportNextcloudArgs {
+    /// The Nextcloud data directory (the one with `.ncdata` and the user folders), as this
+    /// process sees it.
+    pub data_dir: PathBuf,
+    /// Import Nextcloud user NC as Rostdav user USER (default: the same name). Repeatable.
+    #[arg(long = "map", value_name = "NC=USER")]
+    pub map: Vec<String>,
+    /// Only these Nextcloud users. Repeatable.
+    #[arg(long = "only", value_name = "NC")]
+    pub only: Vec<String>,
+    /// Replace files whose size or modification time differ from the Nextcloud copy (the old
+    /// content becomes a version); identical ones are left alone. Without it, existing files
+    /// are skipped.
+    #[arg(long)]
+    pub update: bool,
+    /// Count what would be imported and write nothing.
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
 #[derive(Subcommand)]
 pub enum AuditCommand {
     /// Prints events as JSON Lines.
@@ -181,6 +206,7 @@ pub async fn execute(
         };
         match &mut cmd {
             AdminCommand::Import(a) => absolute(&mut a.path),
+            AdminCommand::ImportNextcloud(a) => absolute(&mut a.data_dir),
             AdminCommand::Backup(a) => absolute(&mut a.dest),
             _ => {}
         }
@@ -215,6 +241,7 @@ pub async fn run(
         AdminCommand::User(u) => user(state, &actor, u, stdin, out).await?,
         AdminCommand::Fsck(a) => return fsck(state, &actor, &a, out).await,
         AdminCommand::Import(a) => import(state, &actor, a, out).await?,
+        AdminCommand::ImportNextcloud(a) => import_nextcloud(state, &actor, a, out).await?,
         AdminCommand::Backup(a) => {
             let r = state
                 .backup(&actor, &a.dest, a.include_key)
@@ -477,6 +504,7 @@ async fn import(
             &ImportOptions {
                 overwrite: a.overwrite,
                 dest: a.dest,
+                ..ImportOptions::default()
             },
         )
         .await
@@ -533,6 +561,68 @@ pub fn event_line(e: &rostdav_meta::Event) -> String {
         "action": e.action, "target": e.target, "ip": e.ip, "details": details,
     })
     .to_string()
+}
+
+async fn import_nextcloud(
+    state: &AppState,
+    actor: &Actor<'_>,
+    a: ImportNextcloudArgs,
+    out: &mut (dyn Write + Send),
+) -> anyhow::Result<()> {
+    let mut map = Vec::new();
+    for m in &a.map {
+        let Some((nc, user)) = m.split_once('=') else {
+            bail!("--map takes NC=USER, got {m:?}");
+        };
+        map.push((nc.to_owned(), user.to_owned()));
+    }
+    let opts = ImportOptions {
+        update: a.update,
+        dry_run: a.dry_run,
+        ..ImportOptions::default()
+    };
+    let r = state
+        .import_nextcloud(actor, &a.data_dir, &map, &a.only, &opts)
+        .await
+        .map_err(|e| anyhow::anyhow!("import failed: {e}"))?;
+    let verb = if a.dry_run {
+        "would import"
+    } else {
+        "imported"
+    };
+    for (nc, user, u) in &r.users {
+        writeln!(
+            out,
+            "{nc} -> {user}: {verb} {} files ({}), {} versions, {} folders; {} updated, {} already there, {} skipped",
+            u.files,
+            format_size(i64::try_from(u.bytes).unwrap_or(i64::MAX)),
+            u.versions,
+            u.dirs,
+            u.updated,
+            u.skipped_existing,
+            u.skipped_total
+        )?;
+        for (path, why) in &u.skipped {
+            writeln!(out, "  skipped  {path}: {why}")?;
+        }
+        if u.skipped_total as usize > u.skipped.len() {
+            writeln!(
+                out,
+                "  ... and {} more skipped",
+                u.skipped_total as usize - u.skipped.len()
+            )?;
+        }
+    }
+    for (nc, why) in &r.skipped_users {
+        writeln!(out, "not imported  {nc}: {why}")?;
+    }
+    for note in &r.notes {
+        writeln!(out, "note: {note}")?;
+    }
+    if r.users.is_empty() {
+        writeln!(out, "no user was imported")?;
+    }
+    Ok(())
 }
 
 #[cfg(test)]

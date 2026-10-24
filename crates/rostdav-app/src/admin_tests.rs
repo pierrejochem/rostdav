@@ -628,6 +628,7 @@ async fn import_copies_a_tree_safely() {
             &ImportOptions {
                 overwrite: false,
                 dest: Some("Import/Old".into()),
+                ..ImportOptions::default()
             },
         )
         .await
@@ -669,6 +670,7 @@ async fn import_copies_a_tree_safely() {
             &ImportOptions {
                 overwrite: false,
                 dest: Some("Import/Old".into()),
+                ..ImportOptions::default()
             },
         )
         .await
@@ -683,6 +685,7 @@ async fn import_copies_a_tree_safely() {
             &ImportOptions {
                 overwrite: true,
                 dest: Some("Import/Old".into()),
+                ..ImportOptions::default()
             },
         )
         .await
@@ -734,6 +737,7 @@ async fn import_copies_a_tree_safely() {
             &ImportOptions {
                 overwrite: false,
                 dest: Some("Q".into()),
+                ..ImportOptions::default()
             },
         )
         .await;
@@ -828,5 +832,333 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
         } else {
             std::fs::copy(e.path(), target).expect("copy");
         }
+    }
+}
+
+// ---- import of a Nextcloud data directory (ADR 0011) ------------------------------------------
+
+mod nextcloud {
+    use super::*;
+    use std::path::Path;
+    use std::time::{Duration, UNIX_EPOCH};
+
+    fn write(path: &Path, content: &str, mtime: u64) {
+        std::fs::create_dir_all(path.parent().expect("parent")).expect("dirs");
+        std::fs::write(path, content).expect("write");
+        let f = std::fs::File::options()
+            .write(true)
+            .open(path)
+            .expect("open");
+        f.set_modified(UNIX_EPOCH + Duration::from_secs(mtime))
+            .expect("mtime");
+    }
+
+    /// A small data directory the way Nextcloud lays it out.
+    fn nc_dir(root: &Path) -> std::path::PathBuf {
+        let nc = root.join("ncdata");
+        write(&nc.join(".ncdata"), "# Nextcloud data directory", 1);
+        write(
+            &nc.join("anna/files/Docs/a.txt"),
+            "version three",
+            1_700_000_900,
+        );
+        write(
+            &nc.join("anna/files/Docs/a.txt.keep"),
+            "similar name",
+            1_700_000_100,
+        );
+        write(&nc.join("anna/files/b.bin"), "bee", 1_600_000_000);
+        write(
+            &nc.join("anna/files/Ünï cödé.txt"),
+            "unicode",
+            1_600_000_001,
+        );
+        write(
+            &nc.join("anna/files/upload.part"),
+            "unfinished",
+            1_600_000_002,
+        );
+        write(
+            &nc.join("anna/files/secret.dat"),
+            "HBEGIN:oc_encryption_module:OC_DEFAULT_MODULE:00HEND-ciphertext",
+            1_600_000_003,
+        );
+        // versions: named by the modification time of the old content
+        write(
+            &nc.join("anna/files_versions/Docs/a.txt.v1700000100"),
+            "version one",
+            1_700_000_100,
+        );
+        write(
+            &nc.join("anna/files_versions/Docs/a.txt.v1700000500"),
+            "version two",
+            1_700_000_500,
+        );
+        write(
+            &nc.join("anna/files_versions/Docs/a.txt.vfoo"),
+            "not a version",
+            1,
+        );
+        write(
+            &nc.join("anna/files_versions/Docs/other.txt.v1700000300"),
+            "version of another file",
+            1,
+        );
+        write(
+            &nc.join("anna/files_trashbin/files/old.txt.d1700001000"),
+            "deleted",
+            1,
+        );
+        write(&nc.join("bob/files/hello.txt"), "hello bob", 1_650_000_000);
+        write(&nc.join("ghost/files/x.txt"), "nobody home", 1);
+        write(
+            &nc.join("83d751c4-bb1a-1040-98d1-6360ec4c3ddf/readme"),
+            "no files folder",
+            1,
+        );
+        write(&nc.join("appdata_abc/preview/p.png"), "preview", 1);
+        write(&nc.join("__groupfolders/1/shared.txt"), "group", 1);
+        write(&nc.join("files_external/x"), "x", 1);
+        write(&nc.join("nextcloud.log"), "log", 1);
+        nc
+    }
+
+    /// Names, sizes and modification times of everything below `dir`.
+    fn snapshot(dir: &Path) -> Vec<(String, u64, u64)> {
+        let mut out = Vec::new();
+        let mut stack = vec![dir.to_path_buf()];
+        while let Some(d) = stack.pop() {
+            for e in std::fs::read_dir(&d).expect("ls") {
+                let e = e.expect("entry");
+                let m = e.metadata().expect("meta");
+                let mtime = m
+                    .modified()
+                    .expect("mtime")
+                    .duration_since(UNIX_EPOCH)
+                    .expect("t")
+                    .as_secs();
+                out.push((e.path().display().to_string(), m.len(), mtime));
+                if m.is_dir() {
+                    stack.push(e.path());
+                }
+            }
+        }
+        out.sort();
+        out
+    }
+
+    async fn text(st: &AppState, p: &Principal, path: &str) -> String {
+        let (_, mut f) = st.read(p, &lp(path)).await.expect("read");
+        let mut s = String::new();
+        f.read_to_string(&mut s).await.expect("read_to_string");
+        s
+    }
+
+    #[tokio::test]
+    async fn files_versions_and_times_come_over_and_the_source_is_not_touched() {
+        let (d, st) = state().await;
+        st.add_user("anna", PW, false).await.expect("anna");
+        st.add_user("bob", PW, false).await.expect("bob");
+        let nc = nc_dir(d.path());
+        let before = snapshot(&nc);
+        let r = st
+            .import_nextcloud(&Actor::Cli, &nc, &[], &[], &ImportOptions::default())
+            .await
+            .expect("import");
+        assert_eq!(
+            snapshot(&nc),
+            before,
+            "the Nextcloud folder must not change"
+        );
+
+        // who was imported, who was not, and why
+        let names: Vec<&str> = r.users.iter().map(|(n, _, _)| n.as_str()).collect();
+        assert_eq!(names, ["anna", "bob"]);
+        let skipped: Vec<&str> = r.skipped_users.iter().map(|(n, _)| n.as_str()).collect();
+        assert!(
+            skipped.contains(&"ghost"),
+            "no such Rostdav user: {skipped:?}"
+        );
+        assert!(skipped.contains(&"83d751c4-bb1a-1040-98d1-6360ec4c3ddf"));
+        assert!(
+            !skipped
+                .iter()
+                .any(|n| n.starts_with("appdata") || n.starts_with("__group"))
+        );
+        assert!(r.notes.iter().any(|n| n.contains("group folders")));
+        assert!(
+            r.notes
+                .iter()
+                .any(|n| n.contains("anna") && n.contains("trash"))
+        );
+
+        // content, names, modification times
+        let anna = login(&st, "anna").await;
+        assert_eq!(text(&st, &anna, "/Docs/a.txt").await, "version three");
+        assert_eq!(text(&st, &anna, "/Docs/a.txt.keep").await, "similar name");
+        assert_eq!(text(&st, &anna, "/b.bin").await, "bee");
+        assert_eq!(text(&st, &anna, "/Ünï cödé.txt").await, "unicode");
+        assert_eq!(
+            st.stat(&anna, &lp("/Docs/a.txt"))
+                .await
+                .expect("stat")
+                .mtime,
+            1_700_000_900
+        );
+        assert_eq!(
+            st.stat(&anna, &lp("/b.bin")).await.expect("stat").mtime,
+            1_600_000_000
+        );
+        let bob = login(&st, "bob").await;
+        assert_eq!(text(&st, &bob, "/hello.txt").await, "hello bob");
+
+        // not imported, and said so
+        assert!(matches!(
+            st.stat(&anna, &lp("/upload.part")).await,
+            Err(Error::NotFound)
+        ));
+        assert!(matches!(
+            st.stat(&anna, &lp("/secret.dat")).await,
+            Err(Error::NotFound)
+        ));
+        let (_, _, a) = &r.users[0];
+        assert!(
+            a.skipped
+                .iter()
+                .any(|(p, why)| p.ends_with("upload.part") && !why.is_empty())
+        );
+        assert!(
+            a.skipped
+                .iter()
+                .any(|(p, why)| p.ends_with("secret.dat") && why.contains("encrypted"))
+        );
+
+        // the two versions of a.txt, by the time of their content; the other file's is not mixed in
+        let node = st.stat(&anna, &lp("/Docs/a.txt")).await.expect("stat");
+        let listing = st.version_list(&anna, node.id).await.expect("versions");
+        let mut archived: Vec<i64> = listing
+            .entries
+            .iter()
+            .filter(|e| !e.live)
+            .map(|e| e.version_time)
+            .collect();
+        archived.sort_unstable();
+        assert_eq!(archived, [1_700_000_100, 1_700_000_500]);
+        assert_eq!(a.versions, 2);
+    }
+
+    #[tokio::test]
+    async fn a_second_run_changes_nothing_and_update_replaces_only_what_changed() {
+        let (d, st) = state().await;
+        st.add_user("anna", PW, false).await.expect("anna");
+        let nc = nc_dir(d.path());
+        let opts = ImportOptions::default();
+        st.import_nextcloud(&Actor::Cli, &nc, &[], &["anna".into()], &opts)
+            .await
+            .expect("first");
+        let anna = login(&st, "anna").await;
+        let etag = st.stat(&anna, &lp("/b.bin")).await.expect("stat").etag;
+
+        let again = st
+            .import_nextcloud(&Actor::Cli, &nc, &[], &["anna".into()], &opts)
+            .await
+            .expect("second");
+        let (_, _, a) = &again.users[0];
+        assert_eq!((a.files, a.versions, a.updated), (0, 0, 0));
+        assert!(a.skipped_existing >= 4);
+        assert_eq!(
+            st.stat(&anna, &lp("/b.bin")).await.expect("stat").etag,
+            etag
+        );
+
+        // Nextcloud changed a file meanwhile
+        write(&nc.join("anna/files/b.bin"), "bee, edited", 1_700_001_000);
+        let upd = ImportOptions {
+            update: true,
+            ..ImportOptions::default()
+        };
+        let third = st
+            .import_nextcloud(&Actor::Cli, &nc, &[], &["anna".into()], &upd)
+            .await
+            .expect("update");
+        let (_, _, a) = &third.users[0];
+        assert_eq!((a.files, a.updated), (0, 1));
+        assert_eq!(text(&st, &anna, "/b.bin").await, "bee, edited");
+        // the old content is a version now
+        let node = st.stat(&anna, &lp("/b.bin")).await.expect("stat");
+        let listing = st.version_list(&anna, node.id).await.expect("versions");
+        assert_eq!(listing.entries.iter().filter(|e| !e.live).count(), 1);
+        // unchanged files were left alone
+        assert_eq!(text(&st, &anna, "/Docs/a.txt").await, "version three");
+    }
+
+    #[tokio::test]
+    async fn dry_run_writes_nothing_and_map_renames_users() {
+        let (d, st) = state().await;
+        st.add_user("annette", PW, false).await.expect("annette");
+        let nc = nc_dir(d.path());
+        let dry = ImportOptions {
+            dry_run: true,
+            ..ImportOptions::default()
+        };
+        let r = st
+            .import_nextcloud(
+                &Actor::Cli,
+                &nc,
+                &[("anna".into(), "annette".into())],
+                &["anna".into()],
+                &dry,
+            )
+            .await
+            .expect("dry");
+        let (nc_name, target, a) = &r.users[0];
+        assert_eq!((nc_name.as_str(), target.as_str()), ("anna", "annette"));
+        assert!(a.files >= 4 && a.versions == 2, "{a:?}");
+        let annette = login(&st, "annette").await;
+        assert!(matches!(
+            st.stat(&annette, &lp("/b.bin")).await,
+            Err(Error::NotFound)
+        ));
+        // the real run, with the mapping
+        st.import_nextcloud(
+            &Actor::Cli,
+            &nc,
+            &[("anna".into(), "annette".into())],
+            &["anna".into()],
+            &ImportOptions::default(),
+        )
+        .await
+        .expect("real");
+        assert_eq!(text(&st, &annette, "/b.bin").await, "bee");
+    }
+
+    #[tokio::test]
+    async fn only_an_administrator_may_import() {
+        let (d, st) = state().await;
+        st.add_user("anna", PW, false).await.expect("anna");
+        let nc = nc_dir(d.path());
+        let anna = login(&st, "anna").await;
+        assert!(matches!(
+            st.import_nextcloud(
+                &Actor::User(&anna),
+                &nc,
+                &[],
+                &[],
+                &ImportOptions::default()
+            )
+            .await,
+            Err(Error::Forbidden)
+        ));
+        // and a path that is no data directory is refused
+        let r = st
+            .import_nextcloud(
+                &Actor::Cli,
+                &d.path().join("nope"),
+                &[],
+                &[],
+                &ImportOptions::default(),
+            )
+            .await;
+        assert!(r.is_err());
     }
 }
