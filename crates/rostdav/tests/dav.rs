@@ -803,3 +803,32 @@ async fn unicode_and_case_names() {
     let r = put(&e, &format!("{A}/CAF%C3%89.txt"), "upper").await;
     assert_eq!(r.status, StatusCode::CREATED);
 }
+
+/// Names with DEL and the C1 controls U+0080 to U+009F exist in real Nextcloud data directories
+/// (an emoji decoded as Latin-1) and Nextcloud allows them (it forbids only 0 to 31), so a
+/// client must be able to upload, list and download them.
+#[tokio::test]
+async fn names_with_c1_control_characters_work_like_in_nextcloud() {
+    let e = env().await;
+    // "Mix ð" followed by U+009F U+008E U+00B6, percent-encoded as UTF-8
+    let name = "Mix%20%C3%B0%C2%9F%C2%8E%C2%B6%20%C2%85.mp3";
+    put(&e, &format!("{A}/{name}"), "music").await;
+    let r = call("GET", &format!("{A}/{name}"), "anna").send(&e).await;
+    assert_eq!((r.status, r.text()), (StatusCode::OK, "music".to_owned()));
+    let l = call("PROPFIND", A, "anna").h("depth", "1").send(&e).await;
+    assert_eq!(l.status, StatusCode::MULTI_STATUS);
+    let t = l.text();
+    // the name is in the listing, as well-formed XML, and addressed by its percent-encoded form
+    assert!(t.contains(name), "{t}");
+    let mut xml = quick_xml::Reader::from_str(&t);
+    while !matches!(
+        xml.read_event().expect("well-formed XML"),
+        quick_xml::events::Event::Eof
+    ) {}
+    // while the characters below 32 stay refused
+    let bad = call("PUT", &format!("{A}/a%01b"), "anna")
+        .body("x")
+        .send(&e)
+        .await;
+    assert_eq!(bad.status, StatusCode::BAD_REQUEST);
+}

@@ -88,7 +88,7 @@ A central error type in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, `Pr
 ## Path resolution
 
 1. Percent-decode the URL path (exactly once), enforce UTF-8.
-2. Split into segments; reject empty segments, `.`, `..`, control characters and `/` in names.
+2. Split into segments; reject empty segments, `.`, `..`, control characters (0 to 31, as Nextcloud) and `/` in names.
 3. NFC-normalize each segment, check length limit.
 4. Resolve via `nodes` starting from the principal's root node or the share's mount point.
 5. `Destination` header: same host and same base URL only, then as above.

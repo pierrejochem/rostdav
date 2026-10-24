@@ -35,7 +35,10 @@ impl Name {
         if raw == "." || raw == ".." {
             return Err(Error::BadRequest("invalid name"));
         }
-        if raw.chars().any(|c| c == '/' || c == '\\' || c.is_control()) {
+        if raw
+            .chars()
+            .any(|c| c == '/' || c == '\\' || (c as u32) < 32)
+        {
             return Err(Error::BadRequest("name contains forbidden characters"));
         }
         let key: String = raw.nfc().collect();
@@ -229,8 +232,24 @@ mod tests {
     #[test]
     fn control_chars_rejected() {
         assert!(Name::parse("a\tb").is_err());
-        assert!(Name::parse("a\u{7f}b").is_err());
+        assert!(Name::parse("a\nb").is_err());
+        assert!(Name::parse("a\u{0}b").is_err());
+        assert!(Name::parse("a\u{1f}b").is_err());
         assert!(Name::parse("").is_err());
+    }
+
+    /// Nextcloud (lib/private/Files/FilenameValidator.php) strips only the characters 0 to 31
+    /// ("Characters in the range [0-31] are always forbidden"); DEL and the C1 controls
+    /// U+0080 to U+009F are allowed there, and files with such names exist in real data
+    /// directories (an emoji decoded as Latin-1, for example). Refusing them would make those
+    /// files impossible to import or to sync.
+    #[test]
+    fn only_the_characters_below_32_are_control_characters_as_in_nextcloud() {
+        for c in ['\u{7f}', '\u{80}', '\u{85}', '\u{9f}', '\u{a0}'] {
+            let n = format!("Mix {c} 1.mp3");
+            assert!(Name::parse(&n).is_ok(), "{c:?}");
+        }
+        assert!(Name::parse("Mix ð\u{9f}\u{8e}\u{b6}.mp3").is_ok());
     }
 
     #[test]

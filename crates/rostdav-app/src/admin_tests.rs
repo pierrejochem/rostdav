@@ -873,6 +873,13 @@ mod nextcloud {
             "unicode",
             1_600_000_001,
         );
+        // an emoji decoded as Latin-1 leaves C1 control characters in the name; Nextcloud allows
+        // them (it forbids only the characters 0 to 31)
+        write(
+            &nc.join("anna/files/Mix ð\u{9f}\u{8e}\u{b6}.mp3"),
+            "music",
+            1_600_000_004,
+        );
         write(
             &nc.join("anna/files/upload.part"),
             "unfinished",
@@ -998,6 +1005,10 @@ mod nextcloud {
         assert_eq!(text(&st, &anna, "/Docs/a.txt.keep").await, "similar name");
         assert_eq!(text(&st, &anna, "/b.bin").await, "bee");
         assert_eq!(text(&st, &anna, "/Ünï cödé.txt").await, "unicode");
+        assert_eq!(
+            text(&st, &anna, "/Mix ð\u{9f}\u{8e}\u{b6}.mp3").await,
+            "music"
+        );
         assert_eq!(
             st.stat(&anna, &lp("/Docs/a.txt"))
                 .await
