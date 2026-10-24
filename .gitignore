@@ -7,3 +7,5 @@ rostdav.toml
 .idea/
 CLAUDE.md
 graphify-out/
+scripts/verify/node_modules/
+scripts/verify/out/

@@ -51,3 +51,7 @@ site:
 site-serve:
     python3 scripts/site-sync.py
     cd site && zola serve
+
+# Full pre-commit proof: just check, smoke, then build the container image and run the Playwright UI checks in it
+verify: check smoke
+    scripts/verify.sh

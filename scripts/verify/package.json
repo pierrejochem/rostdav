@@ -1,0 +1,7 @@
+{
+  "name": "rostdav-verify",
+  "private": true,
+  "type": "module",
+  "description": "UI checks run by `just verify` against the container image",
+  "devDependencies": { "playwright": "1.56.1" }
+}
