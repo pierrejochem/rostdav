@@ -1,0 +1,16 @@
+@font-face{font-family:"Space Grotesk";src:url(fonts/SpaceGrotesk-latin.woff2) format("woff2");font-weight:300 700}
+@font-face{font-family:"JetBrains Mono";src:url(fonts/JetBrainsMono-500-latin.woff2) format("woff2");font-weight:500}
+:root{--iron:#15171C;--oxide:#7A2A12;--rust:#C2491D;--copper:#E8783A;--ember:#F2A65A;--ivory:#F4EFE8;--paper:#F7F4EF;--text-2:#5F5A54;--teal:#1F5F5A}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:"Space Grotesk",system-ui,sans-serif;color:var(--iron);-webkit-font-smoothing:antialiased}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-weight:500}
+.dark{background:var(--iron);color:var(--ivory)}
+.light{background:var(--ivory);color:var(--iron)}
+.rust{background:var(--rust);color:var(--ivory)}
+.accent{color:var(--rust)} .dark .accent{color:var(--copper)}
+.wordmark{font-weight:700;letter-spacing:-.045em;line-height:1}
+.wordmark b{color:var(--rust)} .dark .wordmark b{color:var(--copper)}
+.pill{display:inline-block;border:2px solid currentColor;border-radius:999px;padding:.35em .9em;font-size:.9em}
+.glow{position:absolute;border-radius:50%;filter:blur(120px);opacity:.35;background:var(--rust);pointer-events:none}
+.grid-bg{position:absolute;inset:0;opacity:.07;background-image:linear-gradient(currentColor 1px,transparent 1px),linear-gradient(90deg,currentColor 1px,transparent 1px);background-size:48px 48px}
+.rust .wordmark b{color:var(--iron)}
