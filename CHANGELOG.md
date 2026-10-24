@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.5.2] - 2026-10-24
+
 ### Fixed
 
 - Menus of the web interface (account, New folder, Upload, Add user) now close like menus should: when you click elsewhere, press Esc (the focus goes back to the menu's button), move on with Tab, or open another menu. Before, they stayed open until their own button was clicked again, and several could be open at once.
