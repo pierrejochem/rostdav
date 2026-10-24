@@ -70,6 +70,10 @@ jobs:
           test "$(docker exec rd id -u)" = 10001
           test "$(docker exec rd stat -c %a /data)" = 700
           docker exec rd rostdav healthcheck
+          # the admin commands must work beside the running server (ADR 0010)
+          printf 'korrekt-pferd-batterie\n' | docker exec -i rd rostdav admin user add ci --admin
+          docker exec rd rostdav admin user list | grep -qw ci
+          docker exec rd rostdav admin user list
 
   load:
     # load tests are slow and meant for a look at numbers and for deadlocks: weekly, not on every push

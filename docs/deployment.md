@@ -13,7 +13,7 @@ Rostdav is one process with one data directory. It does not terminate TLS: run i
 ```sh
 export ROSTDAV_DOMAIN=files.example.org
 docker compose -f deploy/compose.yaml up -d --build
-docker compose -f deploy/compose.yaml exec rostdav rostdav admin user add alice --admin   # password on stdin
+docker compose -f deploy/compose.yaml exec -T rostdav rostdav admin user add alice --admin   # password on stdin (-T: no terminal)
 ```
 
 [`deploy/compose.yaml`](../deploy/compose.yaml) runs Rostdav and Caddy (automatic HTTPS). Rostdav publishes no port; only the proxy talks to it, from a fixed address that is configured as the trusted proxy. Without `ROSTDAV_DOMAIN` the site is `https://localhost` with Caddy's internal CA (for trying it out).
@@ -21,6 +21,8 @@ docker compose -f deploy/compose.yaml exec rostdav rostdav admin user add alice 
 The stack was tried end to end on 2026-10-23 (Docker Desktop): health through the proxy, a 200 MB upload and an identical download over HTTPS (no proxy body limit), `Secure` session cookie, the event log shows the client address and not the proxy's.
 
 Image only: `docker build -t rostdav .`, then `docker run -d -p 127.0.0.1:8080:8080 -v rostdav-data:/data rostdav`. The container runs as user 10001, data in the volume `/data` (mode 0700), health check `rostdav healthcheck`, logs as JSON on stdout.
+
+**The `rostdav admin …` commands and the running server.** The server holds the database file; the commands reach it through the admin socket `admin.sock` in the data directory (only root and the user the server runs as can use it, [ADR 0010](adr/0010-admin-socket.md)). So `docker exec`, `docker compose exec` and a shell on the host all work while the server runs, as long as they run as the service user (the container's default) or root. Versions 0.3.0 to 0.4.0 lack the socket: there, stop the server and run the command in a one-off container (`docker run --rm -i -v rostdav-data:/data ghcr.io/pierrejochem/rostdav:0.4.0 admin user add alice --admin`).
 
 ## Released builds
 

@@ -76,6 +76,9 @@ jobs:
           test "$(docker exec rd id -u)" = 10001
           test "$(docker exec rd stat -c %a /data)" = 700
           docker exec rd rostdav healthcheck
+          # the admin commands must work beside the running server (ADR 0010)
+          printf 'korrekt-pferd-batterie\n' | docker exec -i rd rostdav admin user add ci --admin
+          docker exec rd rostdav admin user list | grep -qw ci
           docker rm -f rd
       - name: Take the binary out of the image, smoke-test and package it
         run: |

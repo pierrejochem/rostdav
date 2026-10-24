@@ -2,7 +2,7 @@
 #
 #   1. Put your domain in the environment:   export ROSTDAV_DOMAIN=files.example.org
 #   2. docker compose -f deploy/compose.yaml up -d --build
-#   3. docker compose -f deploy/compose.yaml exec rostdav rostdav admin user add alice --admin
+#   3. docker compose -f deploy/compose.yaml exec -T rostdav rostdav admin user add alice --admin
 #
 # With ROSTDAV_DOMAIN unset the site is https://localhost (Caddy's internal CA, for trying it out).
 # Ports 80 and 443 must be reachable from the Internet for Let's Encrypt.

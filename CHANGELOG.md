@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- **`rostdav admin …` did not work while the server ran** (since 0.3.0, the Turso database locks its file for one process): adding the first user to a container, `admin backup` ("while the server runs"), `fsck` and the other commands failed with "File is locked by another process". The running server now listens on a Unix socket in the data directory (`admin.sock`, mode 0600, only root and the server's own user may connect) and the command line sends its command there ([ADR 0010](docs/adr/0010-admin-socket.md)). Without a running server the commands open the database directly, as before.
+
 ## [0.4.0] - 2026-10-23
 
 ### Added

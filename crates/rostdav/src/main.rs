@@ -52,13 +52,77 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 
+/// The words after `rostdav admin` on this process's command line (global options come first).
+fn admin_words() -> Vec<String> {
+    let mut args = std::env::args().skip(1);
+    while let Some(a) = args.next() {
+        match a.as_str() {
+            "admin" => break,
+            "--config" | "-c" => {
+                args.next();
+            }
+            _ => {}
+        }
+    }
+    args.collect()
+}
+
+/// One line when typed at a terminal (a password), everything when piped.
+fn read_stdin() -> anyhow::Result<String> {
+    use std::io::{BufRead, IsTerminal, Read};
+    let mut text = String::new();
+    let mut stdin = std::io::stdin().lock();
+    if stdin.is_terminal() {
+        stdin.read_line(&mut text)?;
+    } else {
+        stdin.take(1 << 20).read_to_string(&mut text)?;
+    }
+    Ok(text)
+}
+
 async fn admin(cfg: Config, cmd: rostdav::cli::AdminCommand) -> anyhow::Result<()> {
-    let state = rostdav::build_state(&cfg).await?;
+    use std::io::Write;
+    // A running server owns the database file; its admin socket does the work (ADR 0010).
+    let socket = rostdav::admin_socket::path_for(&cfg.storage.data_dir);
+    if socket.exists() {
+        let cwd = std::env::current_dir().ok();
+        let sent =
+            rostdav::admin_socket::call(&socket, &admin_words(), &read_stdin()?, cwd.as_deref())
+                .await;
+        match sent {
+            Ok(reply) => {
+                std::io::stdout().write_all(reply.stdout.as_bytes())?;
+                std::io::stderr().write_all(reply.stderr.as_bytes())?;
+                if reply.code != 0 {
+                    std::process::exit(reply.code);
+                }
+                return Ok(());
+            }
+            // nobody listens: a leftover from a crash, the database is free
+            Err(e)
+                if matches!(
+                    e.kind(),
+                    std::io::ErrorKind::ConnectionRefused | std::io::ErrorKind::NotFound
+                ) => {}
+            Err(e) => return Err(e).context("the running server did not take the command"),
+        }
+    }
+    let state = match rostdav::build_state(&cfg).await {
+        Ok(s) => s,
+        Err(e) if format!("{e:?}").contains("locked by another process") => {
+            anyhow::bail!(
+                "the database is in use by a running server, and its admin socket ({}) is not there. \
+                 Start the server of this version, or stop it and run the command again",
+                socket.display()
+            );
+        }
+        Err(e) => return Err(e),
+    };
     let code = rostdav::cli::run(
         &state,
         cmd,
-        &mut std::io::stdin().lock(),
-        &mut std::io::stdout().lock(),
+        &mut std::io::BufReader::new(std::io::stdin()),
+        &mut std::io::stdout(),
     )
     .await;
     state.shutdown().await;
@@ -88,6 +152,9 @@ async fn serve(cfg: Config) -> anyhow::Result<()> {
     );
 
     spawn_garbage_collection(state.clone());
+    if let Err(err) = rostdav::admin_socket::serve(state.clone(), &cfg.storage.data_dir).await {
+        tracing::warn!(error = %err, "no admin socket: `rostdav admin` needs the server stopped");
+    }
     spawn_version_check(state.clone());
 
     let listener = tokio::net::TcpListener::bind(cfg.server.listen)

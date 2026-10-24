@@ -462,3 +462,196 @@ fn the_dockerfile_environment_is_valid_configuration() {
     let o = cmd.output().expect("run");
     assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
 }
+
+// ---- `rostdav admin` beside a running server: the admin socket (ADR 0010) ----------------------
+
+/// A real `rostdav serve` on the data directory of `cli`; stopped when dropped.
+struct Server {
+    child: std::process::Child,
+}
+
+impl Server {
+    fn start(cli: &Cli) -> Self {
+        let child = Command::new(env!("CARGO_BIN_EXE_rostdav"))
+            .arg("serve")
+            .env("ROSTDAV_STORAGE__DATA_DIR", cli.dir.path().join("data"))
+            .env("ROSTDAV_SERVER__LISTEN", "127.0.0.1:0")
+            .current_dir(cli.dir.path())
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn server");
+        Self { child }
+    }
+
+    /// Waits until the server has opened the database (the socket appears, or, for a server
+    /// that gets none, the database file exists and a moment has passed).
+    fn wait_ready(cli: &Cli, socket: bool) {
+        let sock = cli.dir.path().join("data/admin.sock");
+        let db = cli.dir.path().join("data/db/rostdav.sqlite");
+        for _ in 0..100 {
+            if (socket && sock.exists()) || (!socket && db.exists()) {
+                std::thread::sleep(std::time::Duration::from_millis(700));
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+        panic!("the server did not come up");
+    }
+
+    fn stop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+impl Drop for Server {
+    fn drop(&mut self) {
+        self.stop();
+    }
+}
+
+#[test]
+fn admin_commands_work_while_the_server_runs() {
+    let c = Cli::new();
+    let _server = Server::start(&c);
+    Server::wait_ready(&c, true);
+
+    let o = c.run(&["user", "add", "anna", "--admin"], &format!("{PW}\n"));
+    assert_eq!(o.code, 0, "{}", o.stderr);
+    assert!(o.stdout.contains("anna"), "{}", o.stdout);
+    let o = c.run(&["user", "list", "--json"], "");
+    assert_eq!(o.code, 0, "{}", o.stderr);
+    assert!(o.stdout.contains("\"anna\""), "{}", o.stdout);
+
+    // a relative path is relative to where the command was typed, not to the server
+    let o = c.run(&["backup", "mybackup"], "");
+    assert_eq!(o.code, 0, "{}", o.stderr);
+    assert!(c.dir.path().join("mybackup/db/rostdav.sqlite").exists());
+
+    // failures come back as the process would have printed them, with the same exit codes
+    let o = c.run(&["user", "add", "bob"], "kurz\n");
+    assert_eq!(o.code, 1, "{}", o.stdout);
+    assert!(o.stderr.starts_with("Error:"), "{}", o.stderr);
+    let o = c.run(&["user", "frobnicate"], "");
+    assert_eq!(o.code, 2);
+    assert!(o.stderr.contains("Usage"), "{}", o.stderr);
+    let o = c.run(&["audit", "export"], "");
+    assert_eq!(o.code, 0);
+    assert!(o.stdout.contains("anna"), "{}", o.stdout);
+    // the server is still there
+    assert_eq!(c.run(&["user", "list"], "").code, 0);
+}
+
+#[test]
+fn a_stale_socket_is_ignored_once_the_server_is_gone() {
+    let c = Cli::new();
+    let mut server = Server::start(&c);
+    Server::wait_ready(&c, true);
+    assert_eq!(c.run(&["user", "add", "anna"], &format!("{PW}\n")).code, 0);
+    server.stop(); // killed: the socket file stays
+    assert!(c.dir.path().join("data/admin.sock").exists());
+    let o = c.run(&["user", "list"], "");
+    assert_eq!(o.code, 0, "{}", o.stderr);
+    assert!(o.stdout.contains("anna"), "{}", o.stdout);
+}
+
+#[test]
+fn the_socket_is_private_to_the_owner() {
+    use std::os::unix::fs::PermissionsExt;
+    let c = Cli::new();
+    let _server = Server::start(&c);
+    Server::wait_ready(&c, true);
+    let mode = std::fs::metadata(c.dir.path().join("data/admin.sock"))
+        .expect("socket")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o777, 0o600);
+    let mode = std::fs::metadata(c.dir.path().join("data"))
+        .expect("data")
+        .permissions()
+        .mode();
+    assert_eq!(mode & 0o077, 0, "the data directory is closed to others");
+}
+
+#[test]
+fn a_server_without_a_socket_makes_the_command_say_what_to_do() {
+    let c = Cli::new();
+    let _server = Server::start(&c);
+    Server::wait_ready(&c, true);
+    // as if the server had been started without the socket
+    std::fs::remove_file(c.dir.path().join("data/admin.sock")).expect("remove");
+    let o = c.run(&["user", "list"], "");
+    assert_eq!(o.code, 1);
+    assert!(
+        o.stderr.contains("in use by a running server"),
+        "{}",
+        o.stderr
+    );
+}
+
+#[tokio::test]
+async fn a_data_directory_open_to_others_gets_no_socket() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = tempfile::tempdir().expect("dir");
+    let mut cfg = rostdav::config::Config::default();
+    cfg.storage.data_dir = dir.path().join("data");
+    let state = rostdav::build_state(&cfg).await.expect("state");
+    let data = &cfg.storage.data_dir;
+    std::fs::set_permissions(data, std::fs::Permissions::from_mode(0o750)).expect("chmod");
+    let err = rostdav::admin_socket::serve(state.clone(), data)
+        .await
+        .expect_err("refused");
+    assert!(
+        err.to_string().contains("accessible by other users"),
+        "{err}"
+    );
+    assert!(!data.join("admin.sock").exists());
+    // closed again: it opens
+    std::fs::set_permissions(data, std::fs::Permissions::from_mode(0o700)).expect("chmod");
+    rostdav::admin_socket::serve(state, data)
+        .await
+        .expect("serve");
+    assert!(data.join("admin.sock").exists());
+}
+
+#[tokio::test]
+async fn the_socket_refuses_garbage_and_oversized_requests() {
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    let dir = tempfile::tempdir().expect("dir");
+    let mut cfg = rostdav::config::Config::default();
+    cfg.storage.data_dir = dir.path().join("data");
+    let state = rostdav::build_state(&cfg).await.expect("state");
+    rostdav::admin_socket::serve(state, &cfg.storage.data_dir)
+        .await
+        .expect("serve");
+    let sock = rostdav::admin_socket::path_for(&cfg.storage.data_dir);
+    let ask = |body: Vec<u8>| {
+        let sock = sock.clone();
+        async move {
+            let mut c = tokio::net::UnixStream::connect(sock)
+                .await
+                .expect("connect");
+            let _ = c.write_all(&body).await;
+            let _ = c.shutdown().await;
+            let mut out = String::new();
+            // a server that stops reading may reset the connection instead of answering
+            let _ = c.read_to_string(&mut out).await;
+            out
+        }
+    };
+    assert!(ask(b"not json".to_vec()).await.contains("not valid"));
+    assert!(
+        ask(br#"{"v":99,"args":[],"stdin":""}"#.to_vec())
+            .await
+            .contains("another version")
+    );
+    let big = ask(vec![b' '; 2 << 20]).await;
+    assert!(big.is_empty() || big.contains("too large"), "{big}");
+    // and an honest request still works afterwards
+    let r = rostdav::admin_socket::call(&sock, &["user".into(), "list".into()], "", None)
+        .await
+        .expect("call");
+    assert_eq!(r.code, 0, "{}", r.stderr);
+}

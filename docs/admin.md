@@ -15,6 +15,8 @@ Rules: An administrator cannot disable themselves; the last admin role cannot be
 
 ## CLI
 
+The commands work while the server runs: they are handed to it through the admin socket in the data directory ([ADR 0010](adr/0010-admin-socket.md)); only root and the user the server runs as can use it. Without a running server they open the database themselves.
+
 The CLI works on the data directory directly, next to a running server. It is trusted (whoever can run it can read the data) and shows up as actor `cli` in the event log. Secrets are read from stdin, never from arguments.
 
 | Command | Purpose |

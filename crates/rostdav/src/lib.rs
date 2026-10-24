@@ -1,5 +1,6 @@
 //! Wiring of Rostdav: configuration, telemetry, HTTP router.
 
+pub mod admin_socket;
 pub mod cli;
 pub mod config;
 pub mod http;

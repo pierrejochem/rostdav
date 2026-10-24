@@ -129,12 +129,86 @@ pub enum AuditCommand {
     },
 }
 
+/// The words after `rostdav admin`, as the server parses them when they come over the socket.
+#[derive(clap::Parser)]
+#[command(name = "rostdav admin", no_binary_name = true)]
+struct AdminLine {
+    #[command(subcommand)]
+    cmd: AdminCommand,
+}
+
+/// What a command printed, and its exit code.
+pub struct Output {
+    pub code: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+/// Parses and runs a command given as words (not as a process). Relative paths in the arguments
+/// are taken relative to `cwd`, the directory of whoever sent the command.
+pub async fn execute(
+    state: &AppState,
+    args: &[String],
+    stdin: &mut (dyn BufRead + Send),
+    cwd: Option<&std::path::Path>,
+) -> Output {
+    use clap::Parser;
+    let mut cmd = match AdminLine::try_parse_from(args) {
+        Ok(l) => l.cmd,
+        Err(e) => {
+            let text = e.to_string();
+            let code = e.exit_code();
+            return if e.use_stderr() {
+                Output {
+                    code,
+                    stdout: String::new(),
+                    stderr: text,
+                }
+            } else {
+                Output {
+                    code,
+                    stdout: text,
+                    stderr: String::new(),
+                }
+            };
+        }
+    };
+    if let Some(cwd) = cwd {
+        let absolute = |p: &mut PathBuf| {
+            if p.is_relative() {
+                *p = cwd.join(&*p);
+            }
+        };
+        match &mut cmd {
+            AdminCommand::Import(a) => absolute(&mut a.path),
+            AdminCommand::Backup(a) => absolute(&mut a.dest),
+            _ => {}
+        }
+    }
+    let mut out = Vec::new();
+    let result = run(state, cmd, stdin, &mut out).await;
+    let stdout = String::from_utf8_lossy(&out).into_owned();
+    match result {
+        Ok(code) => Output {
+            code,
+            stdout,
+            stderr: String::new(),
+        },
+        // the same text a failing process prints
+        Err(e) => Output {
+            code: 1,
+            stdout,
+            stderr: format!("Error: {e:?}\n"),
+        },
+    }
+}
+
 /// Runs a command; returns the process exit code.
 pub async fn run(
     state: &AppState,
     cmd: AdminCommand,
-    stdin: &mut dyn BufRead,
-    out: &mut dyn Write,
+    stdin: &mut (dyn BufRead + Send),
+    out: &mut (dyn Write + Send),
 ) -> anyhow::Result<i32> {
     let actor = Actor::Cli;
     match cmd {
@@ -171,7 +245,7 @@ pub async fn run(
     Ok(0)
 }
 
-fn read_password(stdin: &mut dyn BufRead) -> anyhow::Result<String> {
+fn read_password(stdin: &mut (dyn BufRead + Send)) -> anyhow::Result<String> {
     let mut line = String::new();
     stdin
         .read_line(&mut line)
@@ -183,8 +257,8 @@ async fn user(
     state: &AppState,
     actor: &Actor<'_>,
     cmd: UserCommand,
-    stdin: &mut dyn BufRead,
-    out: &mut dyn Write,
+    stdin: &mut (dyn BufRead + Send),
+    out: &mut (dyn Write + Send),
 ) -> anyhow::Result<()> {
     match cmd {
         UserCommand::Add { name, admin } => {
@@ -323,7 +397,7 @@ async fn fsck(
     state: &AppState,
     actor: &Actor<'_>,
     a: &FsckArgs,
-    out: &mut dyn Write,
+    out: &mut (dyn Write + Send),
 ) -> anyhow::Result<i32> {
     let r = state
         .fsck(
@@ -393,7 +467,7 @@ async fn import(
     state: &AppState,
     actor: &Actor<'_>,
     a: ImportArgs,
-    out: &mut dyn Write,
+    out: &mut (dyn Write + Send),
 ) -> anyhow::Result<()> {
     let r = state
         .import_tree(
