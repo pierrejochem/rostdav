@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-24
+
 ### Added
 
 - **Search** (`/search`, "Search" in the navigation): finds files and folders by name in everything you can reach, your own and what others shared with you, in all folders at once. You can limit it to a folder and to files or folders; results are paged and the best match comes first. When a folder filter finds nothing, it links to this search. 
