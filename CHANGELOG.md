@@ -6,6 +6,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Fixed
 
+- Menus of the web interface (account, New folder, Upload, Add user) now close like menus should: when you click elsewhere, press Esc (the focus goes back to the menu's button), move on with Tab, or open another menu. Before, they stayed open until their own button was clicked again, and several could be open at once.
 - Web interface on a phone: the navigation was a panel as tall as the screen that pushed the content out of sight. It is now one row at the top that scrolls sideways and shows the current page; the account icon sits in its corner, and there is no empty gap under it. (The storage meter is only on the Settings page on a phone.)
 
 ## [0.5.1] - 2026-10-24

@@ -5226,3 +5226,27 @@ async fn pages_load_the_script_that_shows_the_current_entry_of_the_phone_navigat
         .text();
     assert!(css.contains("@media (max-width:760px)") && css.contains("overflow-x:auto"));
 }
+
+#[tokio::test]
+async fn menus_close_when_you_click_elsewhere_press_esc_or_open_another() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    // the menus are <details class="pop">; the page script closes them
+    let page = get(&e, "/files", &ca).await.text();
+    assert!(page.contains("<details class=\"pop"), "the page has menus");
+    assert!(page.contains("src=\"/static/dropdown.js\""));
+    let js = send(&e, "GET", "/static/dropdown.js", &[], Body::empty()).await;
+    assert_eq!(js.status, StatusCode::OK);
+    assert!(js.h("content-type").starts_with("text/javascript"));
+    let text = js.text();
+    // click elsewhere, Esc, another menu opening, focus moving away
+    for needle in [
+        "\"click\"",
+        "Escape",
+        "\"toggle\"",
+        "\"focusin\"",
+        "details.pop",
+    ] {
+        assert!(text.contains(needle), "{needle}");
+    }
+}

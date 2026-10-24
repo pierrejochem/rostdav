@@ -11,6 +11,7 @@ const COPY_JS: &str = include_str!("../static/copy.js");
 const PASSWORD_JS: &str = include_str!("../static/password.js");
 const AVATAR_JS: &str = include_str!("../static/avatar.js");
 const NAV_JS: &str = include_str!("../static/nav.js");
+const DROPDOWN_JS: &str = include_str!("../static/dropdown.js");
 
 const SPACE_GROTESK: &[u8] = include_bytes!("../static/fonts/SpaceGrotesk-latin.woff2");
 const JETBRAINS_MONO: &[u8] = include_bytes!("../static/fonts/JetBrainsMono-500-latin.woff2");
@@ -37,7 +38,8 @@ fn brand_logo() -> &'static str {
 }
 
 const PASSWORD_SCRIPT: &str = "<script src=\"/static/password.js\"></script>";
-const NAV_SCRIPT: &str = "<script src=\"/static/nav.js\"></script>";
+const NAV_SCRIPT: &str =
+    "<script src=\"/static/nav.js\"></script><script src=\"/static/dropdown.js\"></script>";
 
 const LOGO: &str = "<svg viewBox=\"0 0 140 128\" aria-hidden=\"true\"><defs>\
 <linearGradient id=\"lgBack\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#A63B16\"/><stop offset=\"1\" stop-color=\"#5A1D0B\"/></linearGradient>\
@@ -394,6 +396,7 @@ pub async fn static_file(
         "password.js" => (PASSWORD_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "avatar.js" => (AVATAR_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "nav.js" => (NAV_JS.as_bytes(), "text/javascript; charset=utf-8"),
+        "dropdown.js" => (DROPDOWN_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "SpaceGrotesk-latin.woff2" => (SPACE_GROTESK, "font/woff2"),
         "JetBrainsMono-500-latin.woff2" => (JETBRAINS_MONO, "font/woff2"),
         _ => return StatusCode::NOT_FOUND.into_response(),
