@@ -170,15 +170,15 @@ pub fn parse_changelog(text: &str) -> Vec<Release> {
             if let Some(s) = releases.last_mut().and_then(|r| r.sections.last_mut()) {
                 s.items.push(item.trim().to_owned());
             }
-        } else if line.starts_with("  ") && !line.trim().is_empty() {
-            if let Some(last) = releases
+        } else if line.starts_with("  ")
+            && !line.trim().is_empty()
+            && let Some(last) = releases
                 .last_mut()
                 .and_then(|r| r.sections.last_mut())
                 .and_then(|s| s.items.last_mut())
-            {
-                last.push(' ');
-                last.push_str(line.trim());
-            }
+        {
+            last.push(' ');
+            last.push_str(line.trim());
         }
     }
     releases

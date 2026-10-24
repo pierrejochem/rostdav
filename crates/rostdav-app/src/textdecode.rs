@@ -9,7 +9,7 @@ use encoding_rs::{UTF_16BE, UTF_16LE, WINDOWS_1252};
 
 /// Bumped whenever this module reads more or different files than before, so that the index
 /// reads every file again with the new rules.
-pub const EXTRACTOR_VERSION: i64 = 1;
+pub const EXTRACTOR_VERSION: i64 = 2;
 
 const TEXT_EXTENSIONS: &[&str] = &[
     // prose and notes

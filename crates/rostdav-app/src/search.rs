@@ -226,16 +226,14 @@ impl AppState {
     pub async fn search(&self, p: &Principal, q: &SearchQuery) -> Result<SearchPage> {
         let (mut hits, truncated) = self.name_hits(p, q).await?;
         let mut more_content = false;
-        if q.kind != KindFilter::Folders {
-            if let Some(fts) = fts_query_from_text(&q.text) {
-                if self.cfg().search.content {
-                    if let Some(index) = self.search_index().await {
-                        let (found, cut) = self.text_hits(p, q, &index, &fts, &hits).await?;
-                        more_content = cut;
-                        hits.extend(found);
-                    }
-                }
-            }
+        if q.kind != KindFilter::Folders
+            && let Some(fts) = fts_query_from_text(&q.text)
+            && self.cfg().search.content
+            && let Some(index) = self.search_index().await
+        {
+            let (found, cut) = self.text_hits(p, q, &index, &fts, &hits).await?;
+            more_content = cut;
+            hits.extend(found);
         }
         let total = hits.len();
         let mut page = SearchPage {

@@ -433,6 +433,8 @@ The search stopped before it had looked everywhere. Narrow it to a folder.	Die S
 Search all folders	In allen Ordnern suchen
 Search the text of files	Den Text von Dateien durchsuchen
 1 reads the text of files into the search index, 0 searches names only and deletes the stored text.	1 liest den Text von Dateien in den Suchindex, 0 durchsucht nur Namen und löscht den gespeicherten Text.
+Search PDF and Office files	PDF- und Office-Dateien durchsuchen
+1 reads the text of PDF, Word, Excel, PowerPoint and OpenDocument files (in a separate process), 0 skips them and deletes their stored text.	1 liest den Text von PDF-, Word-, Excel-, PowerPoint- und OpenDocument-Dateien (in einem eigenen Prozess), 0 überspringt sie und löscht ihren gespeicherten Text.
 Largest file whose text is read	Größte Datei, deren Text gelesen wird
 MiB, 1 to 4096.	MiB, 1 bis 4096.
 Most text kept per file	Höchstens gespeicherter Text pro Datei

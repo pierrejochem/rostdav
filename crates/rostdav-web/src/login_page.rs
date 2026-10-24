@@ -257,10 +257,10 @@ pub async fn submit(
                         status,
                     },
                 );
-                if let Error::RateLimited { retry_after_secs } = e {
-                    if let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string()) {
-                        r.headers_mut().insert(header::RETRY_AFTER, v);
-                    }
+                if let Error::RateLimited { retry_after_secs } = e
+                    && let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string())
+                {
+                    r.headers_mut().insert(header::RETRY_AFTER, v);
                 }
                 r
             }
@@ -330,10 +330,10 @@ pub async fn submit(
                         "Connect device",
                         &form(lang, &state, &token, &client, &f.user, Some(&text)),
                     );
-                    if let Error::RateLimited { retry_after_secs } = e {
-                        if let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string()) {
-                            r.headers_mut().insert(header::RETRY_AFTER, v);
-                        }
+                    if let Error::RateLimited { retry_after_secs } = e
+                        && let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string())
+                    {
+                        r.headers_mut().insert(header::RETRY_AFTER, v);
                     }
                     r
                 }

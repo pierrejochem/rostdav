@@ -141,12 +141,12 @@ impl AppState {
             .iter()
             .map(|c| c.size)
             .sum();
-        if let Some(t) = total_length {
-            if t != sum {
-                return Err(Error::Invalid(format!(
-                    "Chunks on server do not sum up to {t} but to {sum} bytes"
-                )));
-            }
+        if let Some(t) = total_length
+            && t != sum
+        {
+            return Err(Error::Invalid(format!(
+                "Chunks on server do not sum up to {t} but to {sum} bytes"
+            )));
         }
 
         let (parent, name) = match self.parent_access(p, dest, None).await {
@@ -179,10 +179,10 @@ impl AppState {
                 .map_or(0, |a| a.node.size.max(0))
                 .unsigned_abs()
         };
-        if let Some(h) = self.inner.db.quota_headroom(parent.node.owner_id).await? {
-            if sum > h.unsigned_abs().saturating_add(freed) {
-                return Err(Error::QuotaExceeded);
-            }
+        if let Some(h) = self.inner.db.quota_headroom(parent.node.owner_id).await?
+            && sum > h.unsigned_abs().saturating_add(freed)
+        {
+            return Err(Error::QuotaExceeded);
         }
 
         let stored = self

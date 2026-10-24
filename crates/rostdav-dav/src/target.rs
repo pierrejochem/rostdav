@@ -31,25 +31,25 @@ impl Target {
     /// Parses either URL space. `principal` supplies the user for the legacy
     /// root, where the URL carries none.
     pub fn parse_any(raw_path: &str, principal: &Name) -> Result<Self> {
-        if let Some(rest) = raw_path.strip_prefix(PUBLIC_PREFIX) {
-            if rest.is_empty() || rest.starts_with('/') {
-                return Ok(Self {
-                    user: principal.clone(),
-                    path: LogicalPath::from_url_path(rest)?,
-                    legacy: false,
-                    public: true,
-                });
-            }
+        if let Some(rest) = raw_path.strip_prefix(PUBLIC_PREFIX)
+            && (rest.is_empty() || rest.starts_with('/'))
+        {
+            return Ok(Self {
+                user: principal.clone(),
+                path: LogicalPath::from_url_path(rest)?,
+                legacy: false,
+                public: true,
+            });
         }
-        if let Some(rest) = raw_path.strip_prefix(LEGACY_PREFIX) {
-            if rest.is_empty() || rest.starts_with('/') {
-                return Ok(Self {
-                    user: principal.clone(),
-                    path: LogicalPath::from_url_path(rest)?,
-                    legacy: true,
-                    public: false,
-                });
-            }
+        if let Some(rest) = raw_path.strip_prefix(LEGACY_PREFIX)
+            && (rest.is_empty() || rest.starts_with('/'))
+        {
+            return Ok(Self {
+                user: principal.clone(),
+                path: LogicalPath::from_url_path(rest)?,
+                legacy: true,
+                public: false,
+            });
         }
         Self::parse(raw_path)
     }

@@ -48,6 +48,7 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
             content: cfg.search.content_indexing,
             max_file_bytes: u64::from(cfg.search.max_file_mib.max(1)) << 20,
             max_text_bytes: (cfg.search.max_text_kib.max(16) as usize) << 10,
+            documents: cfg.search.documents,
         })
         .with_security(rostdav_app::SecurityOptions {
             totp_key: totp_key_source(cfg)?,

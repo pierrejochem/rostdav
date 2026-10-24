@@ -28,10 +28,10 @@ fn params(parts: &Parts, body: &Bytes) -> Params {
         .query()
         .map(|q| serde_urlencoded::from_str(q).unwrap_or_default())
         .unwrap_or_default();
-    if !body.is_empty() {
-        if let Ok(b) = serde_urlencoded::from_bytes::<Params>(body) {
-            p.extend(b);
-        }
+    if !body.is_empty()
+        && let Ok(b) = serde_urlencoded::from_bytes::<Params>(body)
+    {
+        p.extend(b);
     }
     p
 }

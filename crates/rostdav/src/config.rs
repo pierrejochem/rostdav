@@ -113,6 +113,8 @@ pub struct Search {
     pub max_file_mib: u32,
     /// At most this many KiB of text are kept of one file.
     pub max_text_kib: u32,
+    /// Read PDF and Office files too.
+    pub documents: bool,
 }
 
 impl Default for Search {
@@ -121,6 +123,7 @@ impl Default for Search {
             content_indexing: true,
             max_file_mib: 64,
             max_text_kib: 1024,
+            documents: true,
         }
     }
 }

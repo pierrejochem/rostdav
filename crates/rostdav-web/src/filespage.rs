@@ -376,36 +376,34 @@ async fn details_panel(
 
     // versions (files only)
     let mut versions = String::new();
-    if is_file {
-        if let Ok(l) = state.version_list(p, node.id).await {
-            let mut items = String::new();
-            for e in l.entries.iter().rev().take(5) {
-                let action = if e.live {
-                    String::new()
-                } else {
-                    format!(
-                        "<form method=\"post\" action=\"/versions/restore\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
+    if is_file && let Ok(l) = state.version_list(p, node.id).await {
+        let mut items = String::new();
+        for e in l.entries.iter().rev().take(5) {
+            let action = if e.live {
+                String::new()
+            } else {
+                format!(
+                    "<form method=\"post\" action=\"/versions/restore\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\">\
                          <input type=\"hidden\" name=\"path\" value=\"{}\"><input type=\"hidden\" name=\"time\" value=\"{}\">\
                          <button type=\"submit\">{}</button></form>",
-                        esc(&plain(path)),
-                        e.version_time,
-                        esc(&t(lang, "Restore"))
-                    )
-                };
-                items.push_str(&format!(
+                    esc(&plain(path)),
+                    e.version_time,
+                    esc(&t(lang, "Restore"))
+                )
+            };
+            items.push_str(&format!(
                     "<li><span class=\"dot{}\" aria-hidden=\"true\"></span><span class=\"vtext\"><b>{}</b><span class=\"muted\">{} · {}</span></span>{action}</li>",
                     if e.live { " live" } else { "" },
                     if e.live { esc(&t(lang, "Current version")) } else { esc(&friendly(lang, e.mtime)) },
                     if e.live { esc(&friendly(lang, e.mtime)) } else { String::new() },
                     human(e.size),
                 ));
-            }
-            versions = format!(
-                "<h2 class=\"eyebrow\">{}</h2><ul class=\"versions\">{items}</ul><p><a href=\"/versions?path={q}\">{}</a></p>",
-                esc(&t(lang, "Versions")),
-                esc(&t(lang, "All versions"))
-            );
         }
+        versions = format!(
+            "<h2 class=\"eyebrow\">{}</h2><ul class=\"versions\">{items}</ul><p><a href=\"/versions?path={q}\">{}</a></p>",
+            esc(&t(lang, "Versions")),
+            esc(&t(lang, "All versions"))
+        );
     }
 
     // shares

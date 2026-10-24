@@ -13,6 +13,7 @@ mod audit;
 mod auth;
 mod avatar;
 mod export;
+pub mod extract;
 mod favorites;
 mod files;
 mod indexer;
@@ -119,6 +120,8 @@ pub fn now_secs() -> i64 {
 /// Runtime settings that are not part of the stored state.
 #[derive(Clone, Debug, Default)]
 struct AppConfig {
+    /// The program that reads documents (`internal-extract`); the running program if unset.
+    extractor: Option<std::path::PathBuf>,
     limits: Limits,
     audit: AuditOptions,
     versioning: VersioningOptions,
@@ -137,6 +140,8 @@ pub struct SearchOptions {
     pub max_file_bytes: u64,
     /// At most this much text is kept of one file.
     pub max_text_bytes: usize,
+    /// Read PDF and Office files too (in a separate process, ADR 0013).
+    pub documents: bool,
 }
 
 impl Default for SearchOptions {
@@ -145,6 +150,7 @@ impl Default for SearchOptions {
             content: true,
             max_file_bytes: 64 << 20,
             max_text_bytes: 1 << 20,
+            documents: true,
         }
     }
 }
@@ -317,6 +323,16 @@ impl AppState {
     #[must_use]
     pub fn with_web(self, web: WebOptions) -> Self {
         let config = AppConfig { web, ..self.cfg() };
+        self.reconfigured(config)
+    }
+
+    /// Which program reads PDF and Office files; tests point this at a stand-in.
+    #[must_use]
+    pub fn with_extractor(self, exe: std::path::PathBuf) -> Self {
+        let config = AppConfig {
+            extractor: Some(exe),
+            ..self.cfg()
+        };
         self.reconfigured(config)
     }
 

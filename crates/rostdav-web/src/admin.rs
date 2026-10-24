@@ -805,6 +805,11 @@ fn tunable_spec(t: Tunable) -> (&'static str, &'static str, Option<(u32, u32)>) 
             "1 reads the text of files into the search index, 0 searches names only and deletes the stored text.",
             Some((0, 1)),
         ),
+        Tunable::SearchDocuments => (
+            "Search PDF and Office files",
+            "1 reads the text of PDF, Word, Excel, PowerPoint and OpenDocument files (in a separate process), 0 skips them and deletes their stored text.",
+            Some((0, 1)),
+        ),
         Tunable::SearchMaxFileMiB => (
             "Largest file whose text is read",
             "MiB, 1 to 4096.",

@@ -259,10 +259,10 @@ pub async fn login_second_submit(
             let (status, text) = code_error_text(lang, &e);
             let recovery = f.code.trim().len() > 7;
             let mut r = second_step_page(&state, headers, recovery, Some(&text), status);
-            if let Error::RateLimited { retry_after_secs } = e {
-                if let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string()) {
-                    r.headers_mut().insert(header::RETRY_AFTER, v);
-                }
+            if let Error::RateLimited { retry_after_secs } = e
+                && let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string())
+            {
+                r.headers_mut().insert(header::RETRY_AFTER, v);
             }
             r
         }

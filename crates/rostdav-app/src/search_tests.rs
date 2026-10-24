@@ -659,3 +659,94 @@ async fn only_administrators_manage_the_index_and_links_cannot_search_text() {
         Err(Error::Forbidden)
     ));
 }
+
+// ---- PDF and Office files (ADR 0013), with a stand-in for the reader process ---------------------
+
+fn fake_reader(dir: &std::path::Path, body: &str) -> std::path::PathBuf {
+    use std::os::unix::fs::PermissionsExt;
+    let path = dir.join("reader");
+    std::fs::write(&path, format!("#!/bin/sh\n{body}\n")).expect("script");
+    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+    path
+}
+
+#[tokio::test]
+async fn documents_are_read_by_the_reader_process_and_found() {
+    let w = world().await;
+    let exe = fake_reader(
+        w._dir.path(),
+        "cat >/dev/null; echo 'Invoice for the aardvark order'",
+    );
+    let st = w.st.clone().with_extractor(exe);
+    let anna = &w.anna;
+    put_text(&st, anna, "/invoice.pdf", "%PDF-1.4 not really").await;
+    put_text(&st, anna, "/letter.docx", "PK not really").await;
+    put_text(&st, anna, "/plain.txt", "aardvark in a text file").await;
+    index(&st).await;
+    let mut got = paths(&st, anna, "aardvark").await;
+    got.sort();
+    assert_eq!(got, ["invoice.pdf", "letter.docx", "plain.txt"]);
+}
+
+#[tokio::test]
+async fn an_unreadable_document_is_given_up_on_at_once_a_crashing_one_after_three_tries() {
+    let w = world().await;
+    let anna = &w.anna;
+    let exe = fake_reader(w._dir.path(), "cat >/dev/null; exit 2");
+    let st = w.st.clone().with_extractor(exe);
+    put_text(&st, anna, "/broken.pdf", "%PDF").await;
+    index(&st).await;
+    let s = st.search_status(&Actor::Cli).await.expect("status").index;
+    assert_eq!((s.unsupported, s.failed, s.pending), (1, 0, 0), "{s:?}");
+
+    let w = world().await;
+    let anna = &w.anna;
+    let exe = fake_reader(w._dir.path(), "cat >/dev/null; kill -SEGV $$");
+    let st = w.st.clone().with_extractor(exe);
+    put_text(&st, anna, "/crash.pdf", "%PDF").await;
+    for _ in 0..3 {
+        st.indexer_pass().await.expect("pass");
+    }
+    let s = st.search_status(&Actor::Cli).await.expect("status").index;
+    assert_eq!((s.failed, s.pending), (1, 0), "{s:?}");
+    // the name is found all the same
+    assert_eq!(paths(&st, anna, "crash").await, ["crash.pdf"]);
+}
+
+#[tokio::test]
+async fn switching_documents_off_removes_their_texts_and_on_reads_them_again() {
+    let w = world().await;
+    let anna = &w.anna;
+    let exe = fake_reader(w._dir.path(), "cat >/dev/null; echo 'a manatee swims'");
+    let st = w.st.clone().with_extractor(exe);
+    put_text(&st, anna, "/sea.pdf", "%PDF").await;
+    put_text(&st, anna, "/note.txt", "the manatee in a note").await;
+    index(&st).await;
+    assert_eq!(paths(&st, anna, "manatee").await.len(), 2);
+    st.set_tunable(&Actor::Cli, "search.documents", "0")
+        .await
+        .expect("off");
+    index(&st).await;
+    // the text file stays searchable, the PDF is found by name only
+    assert_eq!(paths(&st, anna, "manatee").await, ["note.txt"]);
+    assert_eq!(paths(&st, anna, "sea").await, ["sea.pdf"]);
+    st.set_tunable(&Actor::Cli, "search.documents", "1")
+        .await
+        .expect("on");
+    index(&st).await;
+    assert_eq!(paths(&st, anna, "manatee").await.len(), 2);
+}
+
+#[tokio::test]
+async fn a_document_text_is_not_shown_to_somebody_who_may_not_read_the_file() {
+    let w = world().await;
+    let exe = fake_reader(
+        w._dir.path(),
+        "cat >/dev/null; echo 'secret quokka figures'",
+    );
+    let st = w.st.clone().with_extractor(exe);
+    put_text(&st, &w.anna, "/private.pdf", "%PDF").await;
+    index(&st).await;
+    assert_eq!(paths(&st, &w.anna, "quokka").await, ["private.pdf"]);
+    assert!(paths(&st, &w.bob, "quokka").await.is_empty());
+}

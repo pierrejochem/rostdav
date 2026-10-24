@@ -15,6 +15,7 @@ use rostdav_meta::{Content, DocFacts, IndexStatus, NodeFacts, SearchIndex, searc
 use rostdav_storage::BlobId;
 
 use crate::admin::Actor;
+use crate::extract::{self, Kind, MAX_DOCUMENT_BYTES, Outcome};
 use crate::textdecode::{EXTRACTOR_VERSION, decode, may_be_text};
 use crate::{AppState, now_secs};
 
@@ -24,6 +25,8 @@ const NODE_BATCH: i64 = 1000;
 const CONTENT_BUDGET: Duration = Duration::from_secs(20);
 /// Files fetched from the index per step of the content part.
 const CONTENT_STEP: i64 = 20;
+/// Time the reader process of one document may take.
+const DOCUMENT_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// What a pass did.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -97,6 +100,19 @@ impl AppState {
         index
             .set_meta("content_enabled", if cfg.content { "1" } else { "0" })
             .await?;
+        // PDF and Office files follow the same rule: off drops their texts, on reads them again
+        let docs_were_on = index.meta("documents_enabled").await?.as_deref() != Some("0");
+        if docs_were_on != cfg.documents {
+            let n = index.requeue_all().await?;
+            tracing::info!(
+                files = n,
+                on = cfg.documents,
+                "document reading changed: files will be read again"
+            );
+        }
+        index
+            .set_meta("documents_enabled", if cfg.documents { "1" } else { "0" })
+            .await?;
         if cfg.content {
             let n = index.requeue_older_than(EXTRACTOR_VERSION).await?;
             if n > 0 {
@@ -154,6 +170,31 @@ impl AppState {
                     > i64::try_from(cfg.max_file_bytes).unwrap_or(i64::MAX)
                 {
                     (String::new(), search_state::TOO_BIG)
+                } else if let Some(kind) = Kind::of_name(&item.name_key) {
+                    if !cfg.documents {
+                        (String::new(), search_state::UNSUPPORTED)
+                    } else if item.size > i64::try_from(MAX_DOCUMENT_BYTES).unwrap_or(i64::MAX) {
+                        (String::new(), search_state::TOO_BIG)
+                    } else {
+                        match self
+                            .read_document(&item.blob_id, kind, cfg.max_text_bytes)
+                            .await
+                        {
+                            Ok(Outcome::Text(text)) => (text, search_state::INDEXED),
+                            Ok(Outcome::Unreadable) => (String::new(), search_state::UNSUPPORTED),
+                            Ok(Outcome::Failed) | Err(_) => {
+                                // never log the name or the text
+                                tracing::warn!(
+                                    node = item.node_id,
+                                    "could not read a document for the search index"
+                                );
+                                index
+                                    .note_failure(item.node_id, &item.blob_id, now_secs())
+                                    .await?;
+                                continue;
+                            }
+                        }
+                    }
                 } else if !may_be_text(&item.name_key) {
                     (String::new(), search_state::UNSUPPORTED)
                 } else {
@@ -190,6 +231,25 @@ impl AppState {
             }
         }
         Ok(())
+    }
+
+    /// The text of a PDF or Office file, read by a separate process (ADR 0013).
+    async fn read_document(&self, blob_id: &str, kind: Kind, max_text: usize) -> Result<Outcome> {
+        use tokio::io::AsyncReadExt;
+        let file = self.inner.store.open_blob(&BlobId::parse(blob_id)?).await?;
+        let mut bytes = Vec::new();
+        file.take(MAX_DOCUMENT_BYTES + 1)
+            .read_to_end(&mut bytes)
+            .await
+            .map_err(Error::internal)?;
+        if bytes.len() as u64 > MAX_DOCUMENT_BYTES {
+            return Ok(Outcome::Unreadable);
+        }
+        let exe = match self.cfg().extractor {
+            Some(p) => p,
+            None => std::env::current_exe().map_err(Error::internal)?,
+        };
+        Ok(extract::run_child(&exe, kind, bytes, max_text, DOCUMENT_TIMEOUT).await)
     }
 
     /// The text of a blob, or `None` if it is not text.

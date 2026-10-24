@@ -25,10 +25,11 @@ pub enum Tunable {
     SearchContent,
     SearchMaxFileMiB,
     SearchMaxTextKiB,
+    SearchDocuments,
 }
 
 impl Tunable {
-    pub const ALL: [Tunable; 10] = [
+    pub const ALL: [Tunable; 11] = [
         Tunable::DefaultQuota,
         Tunable::UploadRetentionHours,
         Tunable::MaxVersions,
@@ -39,6 +40,7 @@ impl Tunable {
         Tunable::SearchContent,
         Tunable::SearchMaxFileMiB,
         Tunable::SearchMaxTextKiB,
+        Tunable::SearchDocuments,
     ];
 
     /// The name in the configuration file (`section.name`) and, after `cfg.`, in the database.
@@ -54,6 +56,7 @@ impl Tunable {
             Tunable::SearchContent => "search.content_indexing",
             Tunable::SearchMaxFileMiB => "search.max_file_mib",
             Tunable::SearchMaxTextKiB => "search.max_text_kib",
+            Tunable::SearchDocuments => "search.documents",
         }
     }
 
@@ -74,6 +77,7 @@ impl Tunable {
             Tunable::SearchContent => u8::from(c.search.content).to_string(),
             Tunable::SearchMaxFileMiB => (c.search.max_file_bytes >> 20).to_string(),
             Tunable::SearchMaxTextKiB => (c.search.max_text_bytes >> 10).to_string(),
+            Tunable::SearchDocuments => u8::from(c.search.documents).to_string(),
         }
     }
 
@@ -114,6 +118,9 @@ impl Tunable {
             }
             Tunable::SearchContent => {
                 c.search.content = number(1, "must be 1 (on) or 0 (off)")? == 1;
+            }
+            Tunable::SearchDocuments => {
+                c.search.documents = number(1, "must be 1 (on) or 0 (off)")? == 1;
             }
             Tunable::SearchMaxFileMiB => {
                 let n = number(4096, "MiB must be a number from 1 to 4096")?;

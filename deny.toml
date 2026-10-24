@@ -3,6 +3,13 @@
 [advisories]
 version = 2
 yanked = "deny"
+ignore = [
+    # ttf-parser (unmaintained, no vulnerability) is required by pdf_oxide, which reads text out of
+    # PDF files (ADR 0013). It is safe Rust and only ever sees the fonts of uploaded PDFs inside the
+    # extractor child process, which has a time and memory limit. Look again when pdf_oxide
+    # moves to skrifa.
+    { id = "RUSTSEC-2026-0192", reason = "unmaintained only; used by pdf_oxide in the sandboxed extractor process" },
+]
 
 [licenses]
 version = 2

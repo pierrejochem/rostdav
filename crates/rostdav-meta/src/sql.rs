@@ -436,12 +436,12 @@ impl DerefMut for Tx {
 impl Drop for Tx {
     fn drop(&mut self) {
         // not committed: undo it, and keep the write lock until that is done
-        if let Some(conn) = self.0.take() {
-            if let Ok(rt) = tokio::runtime::Handle::try_current() {
-                rt.spawn(async move {
-                    let _ = conn.execute("ROLLBACK", ()).await;
-                });
-            }
+        if let Some(conn) = self.0.take()
+            && let Ok(rt) = tokio::runtime::Handle::try_current()
+        {
+            rt.spawn(async move {
+                let _ = conn.execute("ROLLBACK", ()).await;
+            });
         }
     }
 }

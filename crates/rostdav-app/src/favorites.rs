@@ -67,10 +67,10 @@ impl AppState {
                 continue;
             };
             // Re-resolved so the usual rules apply; a node that vanished meanwhile is skipped.
-            if let Ok(a) = self.resolve_access(p, &path).await {
-                if authorize_access(p, &a, Need::Read).is_ok() {
-                    out.push((path, a));
-                }
+            if let Ok(a) = self.resolve_access(p, &path).await
+                && authorize_access(p, &a, Need::Read).is_ok()
+            {
+                out.push((path, a));
             }
         }
         Ok(out)

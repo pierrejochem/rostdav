@@ -23,6 +23,10 @@ sha1.workspace = true
 qrcode.workspace = true
 ureq.workspace = true
 encoding_rs.workspace = true
+pdf_oxide.workspace = true
+office_oxide.workspace = true
+zip.workspace = true
+quick-xml.workspace = true
 minisign-verify.workspace = true
 
 [dev-dependencies]

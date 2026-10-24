@@ -30,11 +30,25 @@ enum Command {
     CheckConfig,
     /// Asks a running server whether it is ready (for container health checks). Exit code 0 = ready.
     Healthcheck,
+    /// Reads the text of a PDF or Office file from standard input (started by the server for the
+    /// search index; not for people).
+    #[command(hide = true)]
+    InternalExtract { kind: String, max_bytes: String },
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
+    // the document reader needs neither configuration nor the async runtime, and must start fast
+    if let Command::InternalExtract { kind, max_bytes } = &cli.command {
+        std::process::exit(rostdav_app::extract::child_main(kind, max_bytes));
+    }
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?
+        .block_on(run(cli))
+}
+
+async fn run(cli: Cli) -> anyhow::Result<()> {
     let cfg = Config::load(cli.config.as_deref())?;
 
     match cli.command {
@@ -49,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
         Command::Healthcheck => healthcheck(&cfg).await,
         Command::Serve => serve(cfg).await,
         Command::Admin(cmd) => admin(cfg, cmd).await,
+        Command::InternalExtract { .. } => unreachable!("handled before the runtime starts"),
     }
 }
 

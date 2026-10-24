@@ -99,10 +99,10 @@ impl Db {
         } else {
             path
         };
-        if path != ":memory:" {
-            if let Some(dir) = Path::new(path).parent() {
-                std::fs::create_dir_all(dir).map_err(Error::internal)?;
-            }
+        if path != ":memory:"
+            && let Some(dir) = Path::new(path).parent()
+        {
+            std::fs::create_dir_all(dir).map_err(Error::internal)?;
         }
         let pool = sql::Pool::open(path).await.map_err(Error::internal)?;
         tracing::info!("metadata database opened");

@@ -819,10 +819,9 @@ impl AppState {
             if let (Some(n), Ok(t)) = (
                 e.file_name().to_str().map(str::to_owned),
                 e.file_type().await,
-            ) {
-                if t.is_dir() {
-                    names.push(n);
-                }
+            ) && t.is_dir()
+            {
+                names.push(n);
             }
         }
         names.sort();

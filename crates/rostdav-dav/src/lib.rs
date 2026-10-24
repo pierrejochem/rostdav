@@ -324,12 +324,12 @@ async fn get(
     }
     let etag = quoted(&node.etag);
 
-    if let Some(inm) = header_str(headers, header::IF_NONE_MATCH) {
-        if inm.trim() == "*" || inm.split(',').any(|c| unquote(c) == node.etag) {
-            let mut r = empty(StatusCode::NOT_MODIFIED);
-            set(&mut r, header::ETAG, &etag);
-            return Ok(r);
-        }
+    if let Some(inm) = header_str(headers, header::IF_NONE_MATCH)
+        && (inm.trim() == "*" || inm.split(',').any(|c| unquote(c) == node.etag))
+    {
+        let mut r = empty(StatusCode::NOT_MODIFIED);
+        set(&mut r, header::ETAG, &etag);
+        return Ok(r);
     }
 
     let size = u64::try_from(node.size).unwrap_or(0);
@@ -385,10 +385,10 @@ async fn put(
     body: Body,
 ) -> Result<Response, DavError> {
     let mut cond = WriteCondition::None;
-    if let Some(inm) = header_str(headers, header::IF_NONE_MATCH) {
-        if inm.trim() == "*" {
-            cond = WriteCondition::MustNotExist;
-        }
+    if let Some(inm) = header_str(headers, header::IF_NONE_MATCH)
+        && inm.trim() == "*"
+    {
+        cond = WriteCondition::MustNotExist;
     }
     if let Some(im) = header_str(headers, header::IF_MATCH) {
         let im = im.trim();
