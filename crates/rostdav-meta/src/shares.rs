@@ -468,24 +468,24 @@ impl Db {
         Ok(out)
     }
 
-    /// Users whose name contains `needle` (case-insensitive), for the sharee search.
+    /// Users whose name contains `needle` (ignoring case and accents), for the sharee search.
+    /// The comparison is done here and not in SQL: SQLite's `lower()` only knows ASCII.
     pub async fn search_users(&self, needle: &str, except: i64, limit: i64) -> Result<Vec<String>> {
-        let like = format!(
-            "%{}%",
-            needle
-                .replace('\\', "\\\\")
-                .replace('%', "\\%")
-                .replace('_', "\\_")
-        );
-        sql::query_scalar(
-            "SELECT name FROM users WHERE disabled = 0 AND id != ? AND lower(name_key) LIKE ? ESCAPE '\\' ORDER BY name_key LIMIT ?",
+        let names: Vec<String> = sql::query_scalar(
+            "SELECT name FROM users WHERE disabled = 0 AND id != ? ORDER BY name_key",
         )
         .bind(except)
-        .bind(like.to_lowercase())
-        .bind(limit)
         .fetch_all(self.pool())
         .await
-        .map_err(db_err)
+        .map_err(db_err)?;
+        let limit = usize::try_from(limit).unwrap_or(0);
+        // an empty search lists everybody (the apps ask like this; minSearchStringLength is 0)
+        let all = needle.trim().is_empty();
+        Ok(names
+            .into_iter()
+            .filter(|n| all || rostdav_core::fold::contains_loose(n, needle))
+            .take(limit)
+            .collect())
     }
 }
 
@@ -814,5 +814,12 @@ mod tests {
             db.search_users("an", a, 10).await.expect("s").is_empty(),
             "never the caller"
         );
+        // an empty search lists everybody but the caller; `%` and `_` are ordinary characters
+        assert_eq!(
+            db.search_users("", a, 10).await.expect("s"),
+            vec!["bob".to_owned()]
+        );
+        assert!(db.search_users("%", a, 10).await.expect("s").is_empty());
+        assert!(db.search_users("_", a, 10).await.expect("s").is_empty());
     }
 }

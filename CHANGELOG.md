@@ -4,6 +4,14 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- **Search** (`/search`, "Search" in the navigation): finds files and folders by name in everything you can reach, your own and what others shared with you, in all folders at once. You can limit it to a folder and to files or folders; results are paged and the best match comes first. When a folder filter finds nothing, it links to this search. Content search and the search of the Nextcloud apps follow.
+
+### Changed
+
+- Names are compared the same way everywhere (the folder filter, the user list in the administration, the sharee search): case and accents do not matter, and an accented letter written as one character or as letter plus accent is the same. Before, `Café` typed with a combining accent did not find `Café`, and non-ASCII capitals were not folded in the sharee search. Sharee search with an empty text still lists everybody.
+
 ## [0.5.2] - 2026-10-24
 
 ### Fixed

@@ -76,6 +76,7 @@ pub fn router() -> Router<AppState> {
         .route("/share/link", post(sharing::share_link))
         .route("/share/delete", post(sharing::share_delete))
         .route("/about", get(about::about))
+        .route("/search", get(filespage::search))
         .route("/recent", get(filespage::recent))
         .route("/shares", get(sharing::shares_page))
         .route("/shares/delete", post(sharing::shares_delete))

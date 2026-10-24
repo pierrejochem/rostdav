@@ -124,12 +124,12 @@ pub async fn users(
         Err(e) => return error_page(&a, &e, "/files"),
     };
     let lang = a.lang;
-    let needle = q.q.trim().to_lowercase();
+    let needle = q.q.trim().to_owned();
     let csrf = esc(&a.csrf);
     let mut rows = String::new();
     for u in list
         .iter()
-        .filter(|u| needle.is_empty() || u.name.to_lowercase().contains(&needle))
+        .filter(|u| needle.is_empty() || rostdav_core::fold::contains_loose(&u.name, &needle))
     {
         let storage = match u.quota_bytes {
             Some(q) if q > 0 => format!(

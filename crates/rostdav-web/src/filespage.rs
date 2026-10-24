@@ -133,9 +133,9 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
         name: m.name.clone(),
         own: false,
     }));
-    let needle = q.q.trim().to_lowercase();
-    if !needle.is_empty() {
-        rows.retain(|r| r.name.to_lowercase().contains(&needle));
+    // case, accents and the two spellings of an accented letter do not matter
+    if !q.q.trim().is_empty() {
+        rows.retain(|r| rostdav_core::fold::contains_loose(&r.name, &q.q));
     }
     // Folders stay first; the chosen column orders within them. Ties fall back to the name.
     let sort = match q.sort.as_str() {
@@ -200,12 +200,21 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
     }
     let count = rows.len();
     let listing = if rows.is_empty() {
-        let msg = if needle.is_empty() {
+        let msg = if q.q.trim().is_empty() {
             "This folder is empty."
         } else {
             "Nothing matches the filter."
         };
-        format!("<div class=\"empty\">{}</div>", esc(&t(lang, msg)))
+        let more = if q.q.trim().is_empty() {
+            String::new()
+        } else {
+            format!(
+                " <a href=\"/search?q={}\">{}</a>",
+                enc(q.q.trim()),
+                esc(&t(lang, "Search all folders"))
+            )
+        };
+        format!("<div class=\"empty\">{}{more}</div>", esc(&t(lang, msg)))
     } else {
         // A header link sorts by its column; the active one flips the direction.
         let head = |key: &str, label: &str| {
@@ -500,6 +509,194 @@ pub async fn recent(State(state): State<AppState>, a: Authed) -> Response {
         StatusCode::OK,
         "Recent",
         "recent",
+        &format!("{head}{card}"),
+    )
+}
+
+// ---- search ------------------------------------------------------------------------------
+
+const SEARCH_PAGE: usize = 50;
+
+#[derive(Deserialize, Default)]
+pub struct SearchParams {
+    #[serde(default)]
+    q: String,
+    /// A folder to search in; empty searches everything the user can reach.
+    #[serde(default)]
+    scope: String,
+    /// `files`, `folders`, or empty for both.
+    #[serde(default)]
+    kind: String,
+    #[serde(default)]
+    page: usize,
+}
+
+/// `/search`: names in every folder the user can reach (own files and received shares).
+pub async fn search(
+    State(state): State<AppState>,
+    a: Authed,
+    Query(p): Query<SearchParams>,
+) -> Response {
+    let lang = a.lang;
+    let scope = match crate::pages::parse_plain(&p.scope) {
+        Ok(s) => s,
+        Err(e) => return error_response_to(&a, &e, "/search", "search"),
+    };
+    let kind = match p.kind.as_str() {
+        "files" => rostdav_app::KindFilter::Files,
+        "folders" => rostdav_app::KindFilter::Folders,
+        _ => rostdav_app::KindFilter::Any,
+    };
+    let has_query = !p.q.trim().is_empty();
+    let page_no = p.page;
+    let mut query = rostdav_app::SearchQuery::new(p.q.trim());
+    query.scope = scope.clone();
+    query.kind = kind;
+    query.limit = SEARCH_PAGE;
+    query.offset = page_no.saturating_mul(SEARCH_PAGE);
+    let result = if has_query {
+        match state.search_names(&a.session.principal, &query).await {
+            Ok(r) => r,
+            Err(e) => return error_response_to(&a, &e, "/search", "search"),
+        }
+    } else {
+        rostdav_app::SearchPage::default()
+    };
+
+    let scope_plain = plain(&scope);
+    let sel = |value: &str, label: &str, now: &str| {
+        format!(
+            "<option value=\"{value}\"{}>{}</option>",
+            if now == value { " selected" } else { "" },
+            esc(label)
+        )
+    };
+    let where_options = if scope_plain.is_empty() {
+        sel("", &t(lang, "Everywhere"), "")
+    } else {
+        format!(
+            "<option value=\"\">{}</option><option value=\"{}\" selected>{}</option>",
+            esc(&t(lang, "Everywhere")),
+            esc(&scope_plain),
+            esc(&tf(lang, "In {0}", &[&scope_plain]))
+        )
+    };
+    let form = format!(
+        "<form class=\"searchbar\" method=\"get\" action=\"/search\" role=\"search\">\
+         <label>{}<input type=\"search\" name=\"q\" value=\"{}\" autofocus></label>\
+         <label>{}<select name=\"scope\">{where_options}</select></label>\
+         <label>{}<select name=\"kind\">{}{}{}</select></label>\
+         <button class=\"primary\" type=\"submit\">{}</button></form>",
+        esc(&t(lang, "Search for")),
+        esc(&p.q),
+        esc(&t(lang, "Where")),
+        esc(&t(lang, "Type")),
+        sel("", &t(lang, "Files and folders"), p.kind.as_str()),
+        sel("files", &t(lang, "Files only"), p.kind.as_str()),
+        sel("folders", &t(lang, "Folders only"), p.kind.as_str()),
+        esc(&t(lang, "Search")),
+    );
+
+    let body = if !has_query {
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&t(lang, "Type part of a name to search."))
+        )
+    } else if result.hits.is_empty() {
+        format!(
+            "<div class=\"empty\">{}</div>",
+            esc(&tf(lang, "Nothing found for “{0}”.", &[p.q.trim()]))
+        )
+    } else {
+        let rows: String = result
+            .hits
+            .iter()
+            .map(|h| {
+                let parent = h
+                    .path
+                    .split_last()
+                    .map_or_else(LogicalPath::root, |(par, _)| par);
+                let link = match h.node.kind {
+                    NodeKind::Dir => url_of("/files", &h.path),
+                    NodeKind::File => {
+                        format!("{}?sel={}", url_of("/files", &parent), enc(&h.node.name))
+                    }
+                };
+                let folder = if parent.is_root() {
+                    t(lang, "Files")
+                } else {
+                    plain(&parent)
+                };
+                let size = if h.node.kind == NodeKind::Dir {
+                    "–".to_owned()
+                } else {
+                    human(h.node.size)
+                };
+                format!(
+                    "<tr><td><a class=\"name\" href=\"{}\">{}<span>{}</span></a></td><td>{}</td><td class=\"hide\">{}</td><td class=\"hide\">{}</td></tr>",
+                    esc(&link),
+                    tile(&h.node),
+                    esc(&h.node.name),
+                    esc(&folder),
+                    size,
+                    esc(&friendly(lang, h.node.mtime)),
+                )
+            })
+            .collect();
+        let mut pager = String::new();
+        let href = |n: usize| {
+            format!(
+                "/search?q={}&scope={}&kind={}&page={n}",
+                enc(&p.q),
+                enc(&scope_plain),
+                enc(&p.kind)
+            )
+        };
+        if page_no > 0 {
+            pager.push_str(&format!(
+                "<a class=\"button\" href=\"{}\">{}</a> ",
+                esc(&href(page_no - 1)),
+                esc(&t(lang, "Previous"))
+            ));
+        }
+        if result.more {
+            pager.push_str(&format!(
+                "<a class=\"button\" href=\"{}\">{}</a>",
+                esc(&href(page_no + 1)),
+                esc(&t(lang, "Next"))
+            ));
+        }
+        let notice = if result.truncated {
+            format!(
+                "<p class=\"muted\">{}</p>",
+                esc(&t(
+                    lang,
+                    "The search stopped before it had looked everywhere. Narrow it to a folder."
+                ))
+            )
+        } else {
+            String::new()
+        };
+        format!(
+            "<table><thead><tr><th>{}</th><th>{}</th><th class=\"hide\">{}</th><th class=\"hide\">{}</th></tr></thead><tbody>{rows}</tbody></table>{notice}<div class=\"pager\">{pager}</div>",
+            esc(&t(lang, "Name")),
+            esc(&t(lang, "Folder")),
+            esc(&t(lang, "Size")),
+            esc(&t(lang, "Modified")),
+        )
+    };
+    let head = ui::page_head(
+        lang,
+        "Search",
+        "Find files and folders by name in everything you can reach.",
+        "",
+    );
+    let card = ui::card(lang, "Results", "", &format!("{form}{body}"));
+    ui::page(
+        &a,
+        StatusCode::OK,
+        "Search",
+        "search",
         &format!("{head}{card}"),
     )
 }

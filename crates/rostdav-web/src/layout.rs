@@ -83,6 +83,7 @@ fn icon(name: &str) -> &'static str {
         }
         "trash" => "<path d=\"M4 7h16\"/><path d=\"M9 7V4h6v3\"/><path d=\"M6 7l1 13h10l1-13\"/>",
         "recent" => "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 7v5l3 2\"/>",
+        "search" => "<path d=\"M11 18a7 7 0 1 0 0-14a7 7 0 0 0 0 14Z\"/><path d=\"M20 20l-4-4\"/>",
         "shares" => {
             "<circle cx=\"18\" cy=\"5\" r=\"3\"/><circle cx=\"6\" cy=\"12\" r=\"3\"/><circle cx=\"18\" cy=\"19\" r=\"3\"/><path d=\"M8.6 13.5l6.8 4M15.4 6.5l-6.8 4\"/>"
         }
@@ -298,8 +299,9 @@ pub fn app_opts(
     let lang = chrome.lang;
     let storage = storage_widget(chrome.storage, lang);
     let main_nav = format!(
-        "{}{}{}{}",
+        "{}{}{}{}{}",
         nav_entry("files", &t(lang, "All files"), "/files", current),
+        nav_entry("search", &t(lang, "Search"), "/search", current),
         nav_entry("recent", &t(lang, "Recent"), "/recent", current),
         nav_entry("shares", &t(lang, "Shares"), "/shares", current),
         nav_entry("trash", &t(lang, "Trash bin"), "/trash", current)

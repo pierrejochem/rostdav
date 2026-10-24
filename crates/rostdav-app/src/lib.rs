@@ -18,6 +18,9 @@ mod files;
 mod login_flow;
 mod password;
 mod ratelimit;
+mod search;
+#[cfg(test)]
+mod search_tests;
 mod secrets;
 #[cfg(test)]
 mod share_tests;
@@ -48,6 +51,7 @@ pub use files::{FORBIDDEN_EXTENSIONS, Listing, PutOptions, check_new_name, norma
 pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
+pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery};
 pub use shares::{
     LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,
 };

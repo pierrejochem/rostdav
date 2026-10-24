@@ -5250,3 +5250,161 @@ async fn menus_close_when_you_click_elsewhere_press_esc_or_open_another() {
         assert!(text.contains(needle), "{needle}");
     }
 }
+
+#[tokio::test]
+async fn the_search_page_finds_names_in_all_folders_and_shares_and_nothing_else() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let cb = login(&e, "bob").await;
+    let csrf = page_csrf(&e, &ca).await;
+    let csrf_b = page_csrf(&e, &cb).await;
+
+    // it is in the navigation and needs a sign-in
+    assert!(
+        get(&e, "/files", &ca)
+            .await
+            .text()
+            .contains("href=\"/search\"")
+    );
+    assert_eq!(
+        send(&e, "GET", "/search?q=x", &[], Body::empty())
+            .await
+            .status,
+        StatusCode::SEE_OTHER
+    );
+    assert!(
+        get(&e, "/search", &ca)
+            .await
+            .text()
+            .contains("Type part of a name")
+    );
+
+    post_form(
+        &e,
+        "/action/mkdir",
+        &ca,
+        &[("csrf", &csrf), ("dir", ""), ("name", "Docs")],
+    )
+    .await;
+    for (dir, name) in [
+        ("Docs", "Caf\u{e9} Plan.txt"),
+        ("", "plan-b.txt"),
+        ("", "<b>x.txt"),
+    ] {
+        upload(
+            &e,
+            &ca,
+            &[
+                ("csrf", None, &csrf),
+                ("dir", None, dir),
+                ("file", Some(name), "x"),
+            ],
+        )
+        .await;
+    }
+    // case, accents and the decomposed spelling of the accent make no difference
+    for q in ["plan", "PLAN", "cafe", "cafe%CC%81"] {
+        let page = get(&e, &format!("/search?q={q}"), &ca).await.text();
+        assert!(page.contains("Plan.txt"), "{q}");
+    }
+    let page = get(&e, "/search?q=plan", &ca).await.text();
+    assert!(page.contains("plan-b.txt") && page.contains("/files/Docs?sel=Caf%C3%A9%20Plan.txt"));
+    // scope and type
+    let page = get(&e, "/search?q=plan&scope=Docs", &ca).await.text();
+    assert!(page.contains("Plan.txt") && !page.contains("plan-b.txt"));
+    let page = get(&e, "/search?q=docs&kind=folders", &ca).await.text();
+    assert!(page.contains("href=\"/files/Docs\""));
+    assert!(
+        !get(&e, "/search?q=docs&kind=files", &ca)
+            .await
+            .text()
+            .contains("href=\"/files/Docs\"")
+    );
+    // nothing found, and what was typed is shown escaped, never as markup
+    let page = get(&e, "/search?q=%3Cscript%3Ealert(1)%3C/script%3E", &ca)
+        .await
+        .text();
+    assert!(page.contains("Nothing found") && !page.contains("<script>alert"));
+    let page = get(&e, "/search?q=%3Cb%3E", &ca).await.text();
+    assert!(page.contains("&lt;b&gt;x.txt") && !page.contains("<b>x.txt"));
+
+    // another user finds none of it; a bad scope is an error, not a leak
+    assert!(
+        !get(&e, "/search?q=plan", &cb)
+            .await
+            .text()
+            .contains("Plan.txt")
+    );
+    let r = get(&e, "/search?q=plan&scope=Docs", &cb).await;
+    assert_eq!(r.status, StatusCode::NOT_FOUND);
+
+    // a received share shows up under its mount, and goes away when it is stopped
+    post_form(
+        &e,
+        "/share/user",
+        &ca,
+        &[
+            ("csrf", &csrf),
+            ("path", "Docs"),
+            ("user", "bob"),
+            ("perms", "1"),
+        ],
+    )
+    .await;
+    let page = get(&e, "/search?q=plan", &cb).await.text();
+    assert!(
+        page.contains("Plan.txt") && page.contains("/files/Docs?sel="),
+        "{page}"
+    );
+    assert!(!page.contains("plan-b.txt"));
+    // stopped: gone from bob's search at once
+    let overview = get(&e, "/shares", &ca).await.text();
+    let id = overview
+        .split("name=\"id\" value=\"")
+        .nth(1)
+        .and_then(|r| r.split('"').next())
+        .expect("share id")
+        .to_owned();
+    post_form(&e, "/shares/delete", &ca, &[("csrf", &csrf), ("id", &id)]).await;
+    assert!(
+        !get(&e, "/search?q=plan", &cb)
+            .await
+            .text()
+            .contains("Plan.txt")
+    );
+    let _ = csrf_b;
+}
+
+#[tokio::test]
+async fn search_results_are_paged_and_the_files_filter_offers_the_global_search() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &ca).await;
+    for i in 0..53 {
+        upload(
+            &e,
+            &ca,
+            &[
+                ("csrf", None, &csrf),
+                ("dir", None, ""),
+                ("file", Some(&format!("item-{i:02}.txt")), "x"),
+            ],
+        )
+        .await;
+    }
+    let p0 = get(&e, "/search?q=item", &ca).await.text();
+    assert!(
+        p0.contains("item-00.txt") && p0.contains("item-49.txt") && !p0.contains("item-50.txt")
+    );
+    assert!(p0.contains("page=1") && !p0.contains("Previous"));
+    let p1 = get(&e, "/search?q=item&page=1", &ca).await.text();
+    assert!(
+        p1.contains("item-50.txt") && p1.contains("item-52.txt") && !p1.contains("item-49.txt")
+    );
+    assert!(p1.contains("Previous") && !p1.contains("page=2"));
+    // the instant filter of the Files page: no match leads to the search of everything
+    let page = get(&e, "/files?q=nomatchatall", &ca).await.text();
+    assert!(
+        page.contains("Nothing matches the filter.") && page.contains("/search?q=nomatchatall")
+    );
+}

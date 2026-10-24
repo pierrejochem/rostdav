@@ -4,6 +4,7 @@
 //! service layers map their errors to [`Error`].
 
 pub mod error;
+pub mod fold;
 pub mod path;
 pub mod release;
 pub mod time;

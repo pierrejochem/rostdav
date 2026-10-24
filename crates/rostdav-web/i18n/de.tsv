@@ -414,3 +414,20 @@ There is no release file for this machine. Build the new version from source.	F�
 The server may not write to the folder of its program file, so it cannot install updates itself. Replace the program file by hand.	Der Server darf nicht in den Ordner seiner Programmdatei schreiben und kann sich daher nicht selbst aktualisieren. Ersetze die Programmdatei von Hand.
 Version {0} is installed. The server restarts now.	Version {0} ist installiert. Der Server startet jetzt neu.
 Reload this page after a few seconds. If the server does not come back, start it again.	Lade diese Seite nach einigen Sekunden neu. Kommt der Server nicht zurück, starte ihn wieder.
+Search	Suche
+Find files and folders by name in everything you can reach.	Finde Dateien und Ordner nach Namen in allem, was du erreichen kannst.
+Results	Ergebnisse
+Search for	Suchen nach
+Where	Wo
+Everywhere	Überall
+In {0}	In {0}
+Type	Typ
+Files and folders	Dateien und Ordner
+Files only	Nur Dateien
+Folders only	Nur Ordner
+Type part of a name to search.	Gib einen Teil eines Namens ein.
+Nothing found for “{0}”.	Nichts gefunden für „{0}“.
+Previous	Zurück
+Next	Weiter
+The search stopped before it had looked everywhere. Narrow it to a folder.	Die Suche wurde beendet, bevor sie überall gesucht hat. Schränke sie auf einen Ordner ein.
+Search all folders	In allen Ordnern suchen
