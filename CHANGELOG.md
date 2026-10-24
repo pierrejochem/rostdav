@@ -4,9 +4,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-10-24
+
 ### Added
 
-- **Search for the Nextcloud apps**: WebDAV `SEARCH` on `/remote.php/dav/` (`d:basicsearch`: name, type, size, date, favorite, folder, sorting, limit) and the unified search provider `files` (`/ocs/v2.php/search/providers/files/search`). Both only return what the user may read. Checked against 90 recordings of Nextcloud 35.0.2; not yet tried with the real apps. Differences are listed in `docs/compatibility.md`.
+- **Search for the Nextcloud apps**: WebDAV `SEARCH` on `/remote.php/dav/` (`d:basicsearch`: name, type, size, date, favorite, folder, sorting, limit) and the unified search provider `files` (`/ocs/v2.php/search/providers/files/search`). Both only return what the user may read. Checked against 90 recordings of Nextcloud 35.0.2; the Android app's search (unified search) was seen working on the emulator, the iOS app was not tried. Differences are listed in `docs/compatibility.md`.
 
 ## [0.8.0] - 2026-10-24
 
