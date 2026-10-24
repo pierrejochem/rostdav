@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Fixed
+
+- Web interface on a phone: the navigation was a panel as tall as the screen that pushed the content out of sight. It is now one row at the top that scrolls sideways and shows the current page; the account icon sits in its corner, and there is no empty gap under it. (The storage meter is only on the Settings page on a phone.)
+
 ## [0.5.1] - 2026-10-24
 
 ### Fixed

@@ -304,3 +304,22 @@ details.release>summary{cursor:pointer;display:flex;flex-wrap:wrap;align-items:c
 details.release h3{margin:14px 0 6px;font-size:14px}
 details.release ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 details.release code{font-size:.92em}
+/* Phone: the navigation is one row that scrolls sideways (before, it was a panel as tall as the
+   screen and pushed the content out of sight); the account icon sits in its right corner. Storage
+   is on the Settings page. */
+@media (max-width:760px){
+.app{padding:10px;gap:10px;align-content:flex-start}
+nav.side{flex:1 1 100%;flex-direction:row;align-items:center;gap:6px;padding:8px 64px 8px 10px;border-radius:20px;overflow-x:auto;overflow-y:hidden;position:sticky;top:8px;z-index:40;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+nav.side::-webkit-scrollbar{display:none}
+nav.side .logo{flex:none;padding:0 6px 0 2px}
+nav.side .logo .wordmark{display:none}
+nav.side .logo svg{width:32px;height:30px}
+nav.side .navgroup{flex:none;flex-direction:row;align-items:center;gap:4px}
+nav.side .navgroup .eyebrow{display:none}
+nav.side .navgroup a{flex:none;min-height:40px;padding:0 12px;white-space:nowrap}
+nav.side .storage{display:none}
+header.top{position:relative;padding-right:66px;min-height:62px}
+header.top details.account{position:absolute;top:9px;right:12px}
+header.top.flat{position:fixed;top:14px;right:18px;z-index:60;padding:0;min-height:0;width:auto}
+header.top.flat details.account{position:static}
+}
