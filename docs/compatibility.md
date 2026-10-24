@@ -20,7 +20,7 @@
 | List folder | contract test green (property sets) | `nextcloud_dav.rs` | – | `04-webdav/01`, `16` |
 | Upload file (small) | contract test green | `crates/rostdav/tests/nextcloud_dav.rs` | – | `04-webdav/10`, `08-m5-probes/` |
 | Upload file (> 100 MB, chunked upload v2) | contract test green (105 MiB) | `nextcloud_dav.rs` | – | `05-chunked-upload/`, `08-m5-probes/` |
-| Search by name (WebDAV `SEARCH`, unified search `files`) | contract test green (server side) | `search_dav.rs`, `search_ocs.rs` | not tried with an app | `12-search/` |
+| Search by name (WebDAV `SEARCH`, unified search `files`) | contract test green | `search_dav.rs`, `search_ocs.rs` | Android 35.0.1 on the emulator, 2026-10-24: unified search works (see Search) | `12-search/` |
 | Download | contract test green | `dav.rs`, `nextcloud_dav.rs` | – | `04-webdav/17`–`19` |
 | Rename, move | contract test green | `nextcloud_dav.rs` | – | `04-webdav/23`–`26` |
 | Delete | contract test green | `dav.rs` | – | `04-webdav/27`–`29` |
@@ -293,7 +293,7 @@ The web interface, the sign-in pages (including Login Flow), `/healthz` and `/re
 
 ## Search (stage 4 of the search plan, 2026-10-24)
 
-Recorded against Nextcloud 35.0.2 with synthetic requests (`scripts/record_nextcloud_extra.py search`, 90 fixtures in `12-search/`); **what the apps really send has not been looked at** (UNVERIFIED: the Android `NcSearchMethod` and the iOS WebDAV body builder were not fetched). The contract tests replay the recorded requests against the same tree.
+Recorded against Nextcloud 35.0.2 with synthetic requests (`scripts/record_nextcloud_extra.py search`, 90 fixtures in `12-search/`); **Android app (Nextcloud 35.0.1, emulator, 2026-10-24), seen with the app:** typing a word in the search field and pressing Enter makes it call `GET /ocs/v2.php/search/providers` (twice) and `…/providers/files/search` (three times, paging), all answered 200; it does **not** send WebDAV `SEARCH` in this flow. The result list shows the section "In this folder" (the app's own filter) and "Files" with the server's hits (`Reports`, `Reports/Archive/old-report.md` with the subline "in Reports/Archive", `Quarterly-report.txt`); a tap on a hit fetches it by `attributes.path` (PROPFIND, GET) and opens it. The app showed a generic icon for `icon-file` entries without a thumbnail and its own icon by file name for `.txt`. The iOS app and the desktop client were not tried (UNVERIFIED), and WebDAV `SEARCH` has been checked against the recordings only. The contract tests replay the recorded requests against the same tree.
 
 **WebDAV `SEARCH /remote.php/dav/`** (`d:basicsearch`; only the DAV root takes it, `OPTIONS` there lists `SEARCH`, `/files/<user>/` answers 405 where the reference says 501):
 
@@ -306,7 +306,7 @@ Recorded against Nextcloud 35.0.2 with synthetic requests (`scripts/record_nextc
 **Unified search `GET /ocs/v2.php/search/providers`** and **`…/providers/files/search`**:
 
 - Only the provider `files` is listed (the reference lists appstore, systemtags, circles, comments, settings too; they do not exist here), with the filters `term`, `since`, `until` (the reference also announces `person`, `min-size`, `max-size`, `mime`, `type`, `path`, `is-favorite`, `title-only`; they are ignored).
-- Searches names (not the text of files). Entries: `thumbnailUrl` (empty: no previews), `title`, `subline` (`in <folder>`), `resourceUrl` (`<base>/f/<fileId>`), `icon`, `rounded`, `attributes{fileId,path}`. UNVERIFIED which `icon` values the apps know: `icon-folder` is the reference's, files get `icon-file` (the reference points at theming SVGs that Rostdav does not serve).
+- Searches names (not the text of files). Entries: `thumbnailUrl` (empty: no previews), `title`, `subline` (`in <folder>`), `resourceUrl` (`<base>/f/<fileId>`), `icon`, `rounded`, `attributes{fileId,path}`. The Android app accepts `icon-folder` (the reference's) and `icon-file` (shown as a generic file icon) (the reference points at theming SVGs that Rostdav does not serve).
 - Paging: `limit` 1 to 200 (default 5; the reference refuses 0 and 1000; 200 works there), `cursor` is an offset, the answer's `cursor` is `cursor + limit`, also past the end.
 - Errors: no `term` and no date: 400 with `"No valid filters provided"` in `data`; not signed in: 401, code 997; unknown provider: 404 (the reference answers 500); a cursor that is no number: 400 (500). The `OCS-APIRequest` header is required (the reference does not require it for the provider list).
 - The capabilities do not announce `search_supports_creation_time`, `…_upload_time` or `…_last_activity`: those searches are not implemented.
