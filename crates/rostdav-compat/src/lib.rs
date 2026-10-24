@@ -7,6 +7,7 @@
 mod avatar;
 mod login;
 mod ocs;
+mod search;
 mod sharing;
 
 use axum::Router;
@@ -90,6 +91,11 @@ pub fn router(cfg: CompatConfig) -> Router<AppState> {
         .route(
             "/ocs/{version}/apps/files_sharing/api/v1/sharees",
             get(sharing::sharees),
+        )
+        .route("/ocs/{version}/search/providers", get(search::providers))
+        .route(
+            "/ocs/{version}/search/providers/{id}/search",
+            get(search::run),
         )
         // Previews are not provided; answer cleanly instead of failing.
         .route("/index.php/core/preview", get(not_found))

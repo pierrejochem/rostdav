@@ -113,48 +113,32 @@ impl AppState {
         Ok(page)
     }
 
-    /// Every hit by name, best first, and whether the scan was cut short.
-    async fn name_hits(&self, p: &Principal, q: &SearchQuery) -> Result<(Vec<SearchHit>, bool)> {
+    /// Every node below `scope` that the caller may read, with the path they reach it by and
+    /// their rights on it (the scope itself is not included). In the caller's root the mount points
+    /// of received shares are part of it. Nothing is returned for a node the caller cannot read, and
+    /// the walk stops after `max_visited` nodes (the second value then is `true`).
+    pub async fn walk_below(
+        &self,
+        p: &Principal,
+        scope_path: &LogicalPath,
+        max_visited: usize,
+    ) -> Result<(Vec<(LogicalPath, Access)>, bool)> {
         // links and narrower principals cannot search: checked first, before anything is read
         Self::require_full(p)?;
-        let mut truncated = false;
-        if q.text.trim().is_empty() || q.limit == 0 {
-            return Ok((Vec::new(), false));
-        }
         let db = &self.inner.db;
-        let scope = self.resolve_access(p, &q.scope).await?;
+        let scope = self.resolve_access(p, scope_path).await?;
         authorize_access(p, &scope, Need::Read)?;
         if scope.node.kind != NodeKind::Dir {
             return Err(Error::BadRequest("the search scope must be a folder"));
         }
-
+        let mut truncated = false;
+        let mut out: Vec<(LogicalPath, Access)> = Vec::new();
         // (directory access, its path)
         let mut queue: Vec<(Access, LogicalPath)> = Vec::new();
-        let mut found: Vec<SearchHit> = Vec::new();
         let mut visited = 0usize;
-        let consider = |access: &Access, path: &LogicalPath, found: &mut Vec<SearchHit>| {
-            let kind_ok = match q.kind {
-                KindFilter::Any => true,
-                KindFilter::Files => access.node.kind == NodeKind::File,
-                KindFilter::Folders => access.node.kind == NodeKind::Dir,
-            };
-            if !kind_ok {
-                return;
-            }
-            let name = path.segments().last().map_or("", Name::as_str);
-            if let Some(rank) = rank_of(name, &q.text) {
-                found.push(SearchHit {
-                    path: path.clone(),
-                    node: access.node.clone(),
-                    origin: access.origin,
-                    rank,
-                    snippet: Vec::new(),
-                });
-            }
-        };
 
         // the mount points are part of the caller's root
-        if q.scope.is_root() && scope.origin == Origin::Own {
+        if scope_path.is_root() && scope.origin == Origin::Own {
             for m in self.mounts_of(p).await? {
                 let Ok(name) = Name::parse(&m.name) else {
                     continue;
@@ -169,15 +153,15 @@ impl AppState {
                 if authorize_access(p, &access, Need::Read).is_err() {
                     continue;
                 }
-                let path = q.scope.join(&name);
+                let path = scope_path.join(&name);
                 visited += 1;
-                consider(&access, &path, &mut found);
                 if access.is_dir() {
-                    queue.push((access, path));
+                    queue.push((access.clone(), path.clone()));
                 }
+                out.push((path, access));
             }
         }
-        queue.push((scope, q.scope.clone()));
+        queue.push((scope, scope_path.clone()));
 
         'scan: while let Some((dir, dir_path)) = queue.pop() {
             for child in db.children(dir.node.id).await? {
@@ -200,15 +184,49 @@ impl AppState {
                     continue;
                 }
                 visited += 1;
-                if visited > q.max_visited {
+                if visited > max_visited {
                     truncated = true;
                     break 'scan;
                 }
                 let path = dir_path.join(&name);
-                consider(&access, &path, &mut found);
                 if access.is_dir() {
-                    queue.push((access, path));
+                    queue.push((access.clone(), path.clone()));
                 }
+                out.push((path, access));
+            }
+        }
+        Ok((out, truncated))
+    }
+
+    /// Every hit by name, best first, and whether the scan was cut short.
+    async fn name_hits(&self, p: &Principal, q: &SearchQuery) -> Result<(Vec<SearchHit>, bool)> {
+        // links and narrower principals cannot search: checked first, before anything is read
+        Self::require_full(p)?;
+        let mut truncated = false;
+        if q.text.trim().is_empty() || q.limit == 0 {
+            return Ok((Vec::new(), false));
+        }
+        let (nodes, cut) = self.walk_below(p, &q.scope, q.max_visited).await?;
+        truncated |= cut;
+        let mut found: Vec<SearchHit> = Vec::new();
+        for (path, access) in &nodes {
+            let kind_ok = match q.kind {
+                KindFilter::Any => true,
+                KindFilter::Files => access.node.kind == NodeKind::File,
+                KindFilter::Folders => access.node.kind == NodeKind::Dir,
+            };
+            if !kind_ok {
+                continue;
+            }
+            let name = path.segments().last().map_or("", Name::as_str);
+            if let Some(rank) = rank_of(name, &q.text) {
+                found.push(SearchHit {
+                    path: path.clone(),
+                    node: access.node.clone(),
+                    origin: access.origin,
+                    rank,
+                    snippet: Vec::new(),
+                });
             }
         }
 

@@ -20,6 +20,7 @@
 | List folder | contract test green (property sets) | `nextcloud_dav.rs` | – | `04-webdav/01`, `16` |
 | Upload file (small) | contract test green | `crates/rostdav/tests/nextcloud_dav.rs` | – | `04-webdav/10`, `08-m5-probes/` |
 | Upload file (> 100 MB, chunked upload v2) | contract test green (105 MiB) | `nextcloud_dav.rs` | – | `05-chunked-upload/`, `08-m5-probes/` |
+| Search by name (WebDAV `SEARCH`, unified search `files`) | contract test green (server side) | `search_dav.rs`, `search_ocs.rs` | not tried with an app | `12-search/` |
 | Download | contract test green | `dav.rs`, `nextcloud_dav.rs` | – | `04-webdav/17`–`19` |
 | Rename, move | contract test green | `nextcloud_dav.rs` | – | `04-webdav/23`–`26` |
 | Delete | contract test green | `dav.rs` | – | `04-webdav/27`–`29` |
@@ -289,6 +290,26 @@ An administrator switches it on in the web interface (`/admin/security`; stored 
 | `/ocs/v1.php/…?format=json`, `/ocs/v2.php/…` as XML | not recorded | assumption: v1 JSON carries the empty paging fields, v2 XML equals v1 XML |
 
 The web interface, the sign-in pages (including Login Flow), `/healthz` and `/readyz` stay available, so an administrator can switch it off. The reference sends no `Retry-After`; neither do we. Not tested with the real apps: the apps pause when `status.php` reports maintenance, per the Nextcloud client behaviour.
+
+## Search (stage 4 of the search plan, 2026-10-24)
+
+Recorded against Nextcloud 35.0.2 with synthetic requests (`scripts/record_nextcloud_extra.py search`, 90 fixtures in `12-search/`); **what the apps really send has not been looked at** (UNVERIFIED: the Android `NcSearchMethod` and the iOS WebDAV body builder were not fetched). The contract tests replay the recorded requests against the same tree.
+
+**WebDAV `SEARCH /remote.php/dav/`** (`d:basicsearch`; only the DAV root takes it, `OPTIONS` there lists `SEARCH`, `/files/<user>/` answers 405 where the reference says 501):
+
+- Scope: `d:from/d:scope/d:href` = `/files/<user>/<path>`; `d:depth` is ignored by the reference (always the whole subtree) and here. A missing path or a file: 404.
+- Conditions: `and`, `or`, `not`, `is-collection`, `eq`, `gt`, `gte`, `lt`, `lte`, `like`, at most 100 operators. Searchable properties as probed one by one: `displayname` and `getcontenttype` (`like`, `eq`), `getlastmodified` and `oc:size` (`eq`, `gt`, `gte`, `lt`, `lte`), `oc:fileid` (`eq`), `oc:favorite` (`eq`), `oc:owner-id` (`eq`, only with the home folder as scope). Everything else: 400 "requested search property is not searchable". Dates: seconds, HTTP date or ISO 8601. `like` is SQL `LIKE` (`%`, `_`), case-insensitive, accent-sensitive (`ubung` does not find `Übung`), an empty pattern finds nothing. `orderby` on `displayname` (byte order), `getcontenttype`, `getlastmodified`, `oc:size`, `oc:favorite`; `limit/nresults`.
+- Only what the caller may read is ever returned (same walk as the web search; mounted shares appear under their mount name; trashed files never).
+- **Differences, on purpose:** a missing `d:where`, a limit that is no number, more than 100 operators, and `oc:owner-id` below the home folder are 400 (the reference answers 500); another user's scope is 404 (500); a `DOCTYPE` is refused (the reference accepts it); the content type of the request is not checked (the reference answers 501 for anything but XML types); results are capped at 1,000 (the reference's cap was not found); `oc:creationdate` and `nc:upload_time` are not searchable; the order of equal keys is by path.
+- Not understood from the reference: a `gte`/`lte` range on `getlastmodified` that holds the files found nothing there (`12-search/19`); Rostdav returns the files.
+
+**Unified search `GET /ocs/v2.php/search/providers`** and **`…/providers/files/search`**:
+
+- Only the provider `files` is listed (the reference lists appstore, systemtags, circles, comments, settings too; they do not exist here), with the filters `term`, `since`, `until` (the reference also announces `person`, `min-size`, `max-size`, `mime`, `type`, `path`, `is-favorite`, `title-only`; they are ignored).
+- Searches names (not the text of files). Entries: `thumbnailUrl` (empty: no previews), `title`, `subline` (`in <folder>`), `resourceUrl` (`<base>/f/<fileId>`), `icon`, `rounded`, `attributes{fileId,path}`. UNVERIFIED which `icon` values the apps know: `icon-folder` is the reference's, files get `icon-file` (the reference points at theming SVGs that Rostdav does not serve).
+- Paging: `limit` 1 to 200 (default 5; the reference refuses 0 and 1000; 200 works there), `cursor` is an offset, the answer's `cursor` is `cursor + limit`, also past the end.
+- Errors: no `term` and no date: 400 with `"No valid filters provided"` in `data`; not signed in: 401, code 997; unknown provider: 404 (the reference answers 500); a cursor that is no number: 400 (500). The `OCS-APIRequest` header is required (the reference does not require it for the provider list).
+- The capabilities do not announce `search_supports_creation_time`, `…_upload_time` or `…_last_activity`: those searches are not implemented.
 
 ## Not supported
 

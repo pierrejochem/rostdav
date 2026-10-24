@@ -10,6 +10,7 @@
 mod error;
 mod props;
 mod range;
+mod search;
 mod target;
 mod trashbin;
 mod uploads;
@@ -75,6 +76,8 @@ use xml::{
 
 pub(crate) const ALLOWED_METHODS: &str =
     "OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, COPY, MOVE, PROPFIND, PROPPATCH, REPORT";
+const ALLOWED_METHODS_ROOT: &str =
+    "OPTIONS, GET, HEAD, PUT, DELETE, MKCOL, COPY, MOVE, PROPFIND, PROPPATCH, REPORT, SEARCH";
 
 /// Maximum size of an XML request body.
 pub(crate) const MAX_XML_BODY: usize = 64 * 1024;
@@ -104,7 +107,15 @@ async fn entry(State(state): State<AppState>, req: Request) -> Response {
 
 async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
     if req.method() == Method::OPTIONS {
-        return Ok(options());
+        // only the DAV root takes SEARCH (reference, `12-search/03` and `04`)
+        let mut r = options();
+        if matches!(req.uri().path(), "/remote.php/dav" | "/remote.php/dav/") {
+            r.headers_mut().insert(
+                header::ALLOW,
+                HeaderValue::from_static(ALLOWED_METHODS_ROOT),
+            );
+        }
+        return Ok(r);
     }
     let ip = req
         .extensions()
@@ -116,10 +127,13 @@ async fn handle(state: AppState, req: Request) -> Result<Response, DavError> {
     } else {
         authenticate(&state, req.headers(), ip).await?
     };
+    let principal_name = Name::parse(&principal.name)?;
     if !public && matches!(req.uri().path(), "/remote.php/dav" | "/remote.php/dav/") {
+        if req.method().as_str() == "SEARCH" {
+            return search::search(&state, &principal, &principal_name, req.into_body()).await;
+        }
         return Ok(dav_root(req.method().as_str()));
     }
-    let principal_name = Name::parse(&principal.name)?;
     let (parts, body) = req.into_parts();
     let headers = &parts.headers;
     let method = parts.method.as_str();

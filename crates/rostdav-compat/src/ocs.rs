@@ -65,6 +65,18 @@ impl Ocs {
         self.respond(http, meta, &json!([]))
     }
 
+    /// A failure that carries a message in `data` (the search provider does this).
+    pub(crate) fn fail_data(
+        &self,
+        http: StatusCode,
+        code: u16,
+        message: &str,
+        data: &str,
+    ) -> Response {
+        let meta = json!({"status": "failure", "statuscode": code, "message": message});
+        self.respond(http, meta, &json!(data))
+    }
+
     fn respond(&self, http: StatusCode, meta: Value, data: &Value) -> Response {
         let mut r = match self.format {
             Format::Json => json_response(json!({"ocs": {"meta": meta, "data": data}})),

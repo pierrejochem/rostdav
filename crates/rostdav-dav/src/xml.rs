@@ -247,15 +247,20 @@ pub fn multistatus(responses: &[ResponseBuilder]) -> String {
 }
 
 /// One element of a request body: nesting depth (root = 1), name and its direct text.
-struct Elem {
-    depth: usize,
-    name: PropName,
-    text: String,
+pub(crate) struct Elem {
+    pub(crate) depth: usize,
+    pub(crate) name: PropName,
+    pub(crate) text: String,
 }
 
 /// Reads the whole body into a flat list of elements, with the same safety checks as
 /// [`parse_propfind`] (no DOCTYPE, bounded depth and element count).
 fn read_elements(body: &[u8]) -> Result<Vec<Elem>> {
+    read_elements_max(body, MAX_PROPS * 2)
+}
+
+/// [`read_elements`] with another limit for the number of elements.
+pub(crate) fn read_elements_max(body: &[u8], max_elems: usize) -> Result<Vec<Elem>> {
     let mut reader = NsReader::from_reader(body);
     let mut out: Vec<Elem> = Vec::new();
     let mut open: Vec<usize> = Vec::new();
@@ -267,7 +272,7 @@ fn read_elements(body: &[u8]) -> Result<Vec<Elem>> {
             Event::DocType(_) => return Err(Error::BadRequest("DOCTYPE not allowed")),
             Event::Start(ref e) | Event::Empty(ref e) => {
                 check_element(&ns, e)?;
-                if open.len() + 1 > MAX_DEPTH || out.len() >= MAX_PROPS * 2 {
+                if open.len() + 1 > MAX_DEPTH || out.len() >= max_elems {
                     return Err(Error::BadRequest("XML too deep or too large"));
                 }
                 out.push(Elem {
