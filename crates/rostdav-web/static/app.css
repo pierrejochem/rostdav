@@ -341,7 +341,7 @@ header.top.flat{position:fixed;top:12px;right:12px;z-index:60;padding:0;min-heig
 .files.sel .sheet-close{display:flex;align-items:center;justify-content:center;gap:10px;min-height:44px;color:var(--text-3);text-decoration:none;font-size:13px;position:sticky;top:0}
 .files.sel .sheet-close::before{content:"";width:40px;height:4px;border-radius:2px;background:var(--text-3);opacity:.5}
 .files.sel .files-side .details{box-shadow:none;border:0;background:none;-webkit-backdrop-filter:none;backdrop-filter:none}
-.upload:not([hidden]){position:fixed;left:10px;right:10px;bottom:calc(var(--tab) + 88px + env(safe-area-inset-bottom));z-index:36}
+.upload:not([hidden]){position:fixed;left:10px;right:10px;top:calc(10px + env(safe-area-inset-top));z-index:70}
 }
 /* Search page */
 .searchbar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:18px}

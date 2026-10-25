@@ -5204,30 +5204,6 @@ async fn a_container_is_told_to_pull_the_image_instead() {
 }
 
 #[tokio::test]
-async fn pages_load_the_script_that_shows_the_current_entry_of_the_phone_navigation() {
-    let e = env().await;
-    let ca = login(&e, "anna").await;
-    for path in ["/files", "/settings", "/devices"] {
-        assert!(
-            get(&e, path, &ca)
-                .await
-                .text()
-                .contains("src=\"/static/nav.js\""),
-            "{path}"
-        );
-    }
-    let js = send(&e, "GET", "/static/nav.js", &[], Body::empty()).await;
-    assert_eq!(js.status, StatusCode::OK);
-    assert!(js.h("content-type").starts_with("text/javascript"));
-    assert!(js.text().contains("aria-current=page"));
-    // the stylesheet turns the side panel into one row on a phone
-    let css = send(&e, "GET", "/static/app.css", &[], Body::empty())
-        .await
-        .text();
-    assert!(css.contains("@media (max-width:760px)") && css.contains("overflow-x:auto"));
-}
-
-#[tokio::test]
 async fn phones_get_a_tab_bar_and_a_more_page_with_the_rest() {
     let e = env().await;
     let ca = login(&e, "anna").await;

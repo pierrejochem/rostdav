@@ -14,6 +14,10 @@ Click a file once to select it. A **details panel** shows its size, type, who sh
 
 {{ shot(name="files", alt="The Files page with a folder open and a file selected") }}
 
+## On a phone
+
+On a narrow screen the sidebar becomes a floating bar at the bottom with **Files**, **Recent**, **Shares** and **More**. **More** holds Search, Trash bin, Devices & security, Settings, About, Administration (administrators) and Sign out. Tapping a file opens its details as a sheet from the bottom; tap the dimmed area or the handle to close it. **Upload** and **New folder** are the round buttons above the bar.
+
 ## Upload
 
 - **Drag and drop** files, or whole **folders**, anywhere onto the page. Empty folders are created as well.
