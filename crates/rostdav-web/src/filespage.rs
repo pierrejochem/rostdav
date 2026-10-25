@@ -190,7 +190,7 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
             String::new()
         };
         body_rows.push_str(&format!(
-            "<tr{cur}><td><a class=\"name\" href=\"{}\">{}<span>{}</span></a></td><td>{}</td><td>{}</td><td>{chip}</td></tr>",
+            "<tr{cur}><td><a class=\"name\" href=\"{}\">{}<span>{}</span></a></td><td class=\"hide\">{}</td><td>{}</td><td>{chip}</td></tr>",
             esc(&row_link(&path, r, &q.q)),
             tile(&r.node),
             esc(&r.name),
@@ -233,8 +233,10 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
                 (true, false) => (" aria-sort=\"ascending\"", " \u{2191}"),
                 (false, _) => ("", ""),
             };
+            // The size is also in the details panel: phones drop the column.
+            let class = if key == "size" { " class=\"hide\"" } else { "" };
             format!(
-                "<th{aria}><a class=\"sortlink\" href=\"{}\">{}{arrow}</a></th>",
+                "<th{class}{aria}><a class=\"sortlink\" href=\"{}\">{}{arrow}</a></th>",
                 esc(&href),
                 esc(&t(lang, label))
             )
@@ -477,7 +479,7 @@ pub async fn recent(State(state): State<AppState>, a: Authed) -> Response {
                     plain(&parent)
                 };
                 Some(format!(
-                    "<tr><td><a class=\"name\" href=\"{}\">{}<span>{}</span></a></td><td>{}</td><td>{}</td><td>{}</td></tr>",
+                    "<tr><td><a class=\"name\" href=\"{}\">{}<span>{}</span></a></td><td class=\"hide\">{}</td><td class=\"hide\">{}</td><td>{}</td></tr>",
                     esc(&link),
                     tile(n),
                     esc(&n.name),
@@ -488,7 +490,7 @@ pub async fn recent(State(state): State<AppState>, a: Authed) -> Response {
             })
             .collect();
         format!(
-            "<table><thead><tr><th>{}</th><th>{}</th><th>{}</th><th>{}</th></tr></thead><tbody>{rows}</tbody></table>",
+            "<table><thead><tr><th>{}</th><th class=\"hide\">{}</th><th class=\"hide\">{}</th><th>{}</th></tr></thead><tbody>{rows}</tbody></table>",
             esc(&t(lang, "Name")),
             esc(&t(lang, "Folder")),
             esc(&t(lang, "Size")),

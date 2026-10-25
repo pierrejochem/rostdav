@@ -333,3 +333,7 @@ header.top.flat details.account{position:static}
 .snippet .chip{margin-right:6px}
 .snippet mark{background:rgba(242,166,90,.28);color:var(--text);border-radius:4px;padding:0 2px}
 a.name>span{min-width:0}
+/* Phone: the file list keeps three columns that fit; long names are cut with an ellipsis */
+@media (max-width:760px){.listing th:nth-child(3),.listing td:nth-child(3){width:96px;white-space:normal}.listing th:nth-child(4),.listing td:nth-child(4){width:72px}.listing td:first-child{max-width:0;width:100%}}
+/* Phone: long values (source URL, database name) wrap instead of being clipped */
+@media (max-width:760px){td.num{white-space:normal;overflow-wrap:anywhere;word-break:break-word}.tbl table{table-layout:auto}}
