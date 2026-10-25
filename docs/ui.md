@@ -99,7 +99,7 @@ Development with live reload: `docker compose up --build` (see the file header).
 
 The web interface is designed for the phone first (breakpoint `max-width:760px`); the sidebar is the wide-screen variant of the same pages. Nothing here needs a script.
 
-- **Tab bar** (`nav.tabbar`, fixed at the bottom, respects `env(safe-area-inset-bottom)`): Files, Recent, Shares, More. More is marked for every other page.
+- **Tab bar** (`nav.tabbar`, a floating pill of liquid glass above the bottom edge, blurred content shows through; respects `env(safe-area-inset-bottom)`): Files, Recent, Shares, More. More is marked for every other page.
 - **More** (`/more`): Search, Trash bin, Account (Devices & security, Settings, About), Server (Administration, administrators only), storage meter, Sign out.
 - **Top bar**: the page's own tools (on Files, the folder filter), a search icon (`/search`) and the account menu. No navigation strip.
 - **Upload and New folder** are round buttons above the tab bar (same `details.pop` forms as on wide screens, so the upload script works unchanged).
