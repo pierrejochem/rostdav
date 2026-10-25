@@ -7,6 +7,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 ### Changed
 
 - **Web interface, mobile first**: on phones the navigation is a tab bar at the bottom (Files, Recent, Shares, More) instead of a strip that scrolls sideways at the top; the new page "More" holds Search, Trash bin, Devices & security, Settings, About, Administration and Sign out. Upload and New folder are round buttons above the tab bar, and a selected file opens as a sheet from the bottom. File lists drop the size column on phones, and long values on the About page wrap instead of being cut off. Wide screens are unchanged.
+- **Font**: the web interface now uses Inter (self-hosted, SIL OFL 1.1) instead of Space Grotesk. The documentation site and the brand files keep Space Grotesk.
 
 ## [0.9.0] - 2026-10-24
 

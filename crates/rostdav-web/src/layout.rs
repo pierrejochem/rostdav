@@ -13,12 +13,12 @@ const AVATAR_JS: &str = include_str!("../static/avatar.js");
 const NAV_JS: &str = include_str!("../static/nav.js");
 const DROPDOWN_JS: &str = include_str!("../static/dropdown.js");
 
-const SPACE_GROTESK: &[u8] = include_bytes!("../static/fonts/SpaceGrotesk-latin.woff2");
+const INTER: &[u8] = include_bytes!("../static/fonts/Inter-latin.woff2");
 const JETBRAINS_MONO: &[u8] = include_bytes!("../static/fonts/JetBrainsMono-500-latin.woff2");
 
 /// The full logo (mark and wordmark) from `assets/brand`, for use on a dark background. It is
 /// put into the page itself, not loaded as an image, so that the wordmark is set in the page's
-/// Space Grotesk (an SVG loaded as an image cannot use the page's fonts).
+/// Inter (an SVG loaded as an image cannot use the page's fonts).
 const BRAND_LOGO_ON_DARK: &str = include_str!("../../../assets/brand/rostdav-logo-dark.svg");
 
 fn brand_logo() -> &'static str {
@@ -420,7 +420,7 @@ pub async fn static_file(
         "avatar.js" => (AVATAR_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "nav.js" => (NAV_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "dropdown.js" => (DROPDOWN_JS.as_bytes(), "text/javascript; charset=utf-8"),
-        "SpaceGrotesk-latin.woff2" => (SPACE_GROTESK, "font/woff2"),
+        "Inter-latin.woff2" => (INTER, "font/woff2"),
         "JetBrainsMono-500-latin.woff2" => (JETBRAINS_MONO, "font/woff2"),
         _ => return StatusCode::NOT_FOUND.into_response(),
     };

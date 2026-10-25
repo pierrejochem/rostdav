@@ -9,7 +9,7 @@ const VIEWPORTS = { phone: [360, 740], tablet: [768, 1024], desktop: [1280, 800]
 const SCHEMES = ["light", "dark"];
 const PUBLIC = ["/login"];
 const PAGES = ["/files", "/recent", "/search?q=a", "/shares", "/trash", "/more", "/about", "/admin/users"];
-const FONTS = ["Space Grotesk", "JetBrains Mono"];
+const FONTS = ["Inter", "JetBrains Mono"];
 
 const failures = [];
 const fail = (ctx, msg) => failures.push(`${ctx}: ${msg}`);

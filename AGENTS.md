@@ -29,7 +29,7 @@ Rostdav: lean file server, compatible with the unmodified Nextcloud apps. As lit
 ## Web interface
 
 - Mobile first: design and write CSS for a phone (360 px wide) first, widen with `min-width` queries. No horizontal page scroll, touch targets at least 44 px, no hover-only functions.
-- One look everywhere: same font on all elements, including `button`, `input`, `select`, `textarea` (they do not inherit by default: use `font: inherit`). Only the two bundled fonts (Space Grotesk, JetBrains Mono); no external font or CDN requests.
+- One look everywhere: same font on all elements, including `button`, `input`, `select`, `textarea` (they do not inherit by default: use `font: inherit`). Only the two bundled fonts (Inter, JetBrains Mono); no external font or CDN requests.
 - Consistent controls: same height, radius, spacing, focus ring and states (hover, active, disabled, error) for the same kind of control on every page. Reuse existing classes and tokens in `app.css` before adding new ones. Check new and changed pages against the others.
 - Keyboard and accessibility: everything reachable by keyboard, visible focus, labels on every input, sufficient contrast in light and dark, `prefers-reduced-motion` respected.
 - All user-visible text goes through i18n (`en` and `de`); all output is escaped.

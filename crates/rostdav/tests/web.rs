@@ -2873,7 +2873,7 @@ async fn static_assets_are_revalidated_not_cached_blindly() {
 #[tokio::test]
 async fn fonts_are_served_from_the_same_origin() {
     let e = env().await;
-    for name in ["SpaceGrotesk-latin.woff2", "JetBrainsMono-500-latin.woff2"] {
+    for name in ["Inter-latin.woff2", "JetBrainsMono-500-latin.woff2"] {
         let r = send(&e, "GET", &format!("/static/{name}"), &[], Body::empty()).await;
         assert_eq!(r.status, StatusCode::OK, "{name}");
         assert_eq!(r.h("content-type"), "font/woff2");
@@ -2883,7 +2883,7 @@ async fn fonts_are_served_from_the_same_origin() {
         .await
         .text();
     assert!(
-        css.contains("/static/SpaceGrotesk-latin.woff2")
+        css.contains("/static/Inter-latin.woff2")
             && !css.contains("fonts.googleapis")
             && !css.contains("gstatic")
     );
@@ -4831,7 +4831,7 @@ async fn sign_in_pages_show_the_full_logo_beside_the_form() {
     let css = send(&e, "GET", "/static/app.css", &[], Body::empty())
         .await
         .text();
-    assert!(css.contains("Space Grotesk") && css.contains(".auth-brand{"));
+    assert!(css.contains("\"Inter\"") && css.contains(".auth-brand{"));
 }
 
 #[tokio::test]

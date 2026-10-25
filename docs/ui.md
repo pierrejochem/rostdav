@@ -53,7 +53,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/admin/server`, `POST /admin/server/{set,reset}` | Administration: adjustable limits (quota for new users, unfinished-upload expiry, version, trash and event log retention; "Back to default"), and the other effective settings (read-only) |
 | `/admin/security`, `POST /admin/security/{maintenance,unlock}` | Administration: maintenance mode on/off; active sign-in lockouts (address, user, two-factor) with "Unlock" |
 | `/login/2fa`, `/settings/2fa[/disable\|/codes]` | Second sign-in step; set up, turn off and recovery codes of two-factor authentication (ADR 0007); admin reset at `/admin/users/two-factor-reset` |
-| (all sign-in pages) | Layout of `layout::bare`: a dark brand panel with the full logo (`assets/brand/rostdav-logo-dark.svg`, put into the page so the wordmark uses Space Grotesk; the file's own dark tile is cut out) beside the form; below 860 px the panel is a band above it. This replaces the single folder tile of `design/mockups/web-ui/Login.html`; the mockup was not updated. |
+| (all sign-in pages) | Layout of `layout::bare`: a dark brand panel with the full logo (`assets/brand/rostdav-logo-dark.svg`, put into the page so the wordmark uses Inter; the file's own dark tile is cut out) beside the form; below 860 px the panel is a band above it. This replaces the single folder tile of `design/mockups/web-ui/Login.html`; the mockup was not updated. |
 | `/login/v2/flow/<token>` | Connect device (Login Flow v2; second step on the same page) |
 | `/static/{app,login}.css` | Embedded stylesheets |
 
@@ -68,7 +68,7 @@ Security properties (each has a test in `crates/rostdav/tests/web.rs`):
 - Two-factor: after a correct password the browser holds only a 5-minute ticket cookie (`rostdav_2fa`, path `/login`, HttpOnly); the session exists only after a valid code. Codes are single-use and rate limited.
 - Public link password proof: a one-hour ticket cookie tied to the link and scoped to `/s/<token>`.
 
-Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Fonts: Space Grotesk (variable, latin) and JetBrains Mono 500 (latin), SIL OFL 1.1, taken from `design/Rostdav Web-UI.html`, stored in `crates/rostdav-web/static/fonts/` with their licences and served from `/static/` (CSP `font-src 'self'`). Latin only: umlauts work, other scripts fall back to the system font. Pages follow the design: Files, Devices & security (with the two-factor card), Settings (appearance, WebDAV address, storage; no file options yet), Administration (users, event log, status, server; no security/compatibility tabs). Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
+Administration pages call the same `Actor`-checked service methods as the CLI; a non-administrator gets 403 on every `/admin/*` route. Fonts: Inter (variable, latin, from the Fontsource package) and JetBrains Mono 500 (latin), SIL OFL 1.1, stored in `crates/rostdav-web/static/fonts/` with their licences and served from `/static/` (CSP `font-src 'self'`). Latin only: umlauts work, other scripts fall back to the system font. Pages follow the design: Files, Devices & security (with the two-factor card), Settings (appearance, WebDAV address, storage; no file options yet), Administration (users, event log, status, server; no security/compatibility tabs). Not yet: Recent and Shares sidebar entries (no backing feature), folder item counts in the list, security and compatibility pages (rate-limit and capability views), language/profile settings, recursive search,  administration pages, second factor (slices 11b–11d, M12).
 
 Checks done on every page (14 pages × 360/768/1440 px × light/dark, Playwright + axe-core 4.10, tags wcag2a/aa, wcag21a/aa, wcag22aa, best-practice): no horizontal page overflow, no axe violations. Tables scroll inside a focusable region on small screens; password fields get a show/hide button (`/static/password.js`, `aria-pressed`, field name kept stable); sign-in pages have a `main` landmark. Not covered by automated checks: screen-reader announcements and keyboard order were not tried by hand.
 
@@ -93,7 +93,7 @@ Development with live reload: `docker compose up --build` (see the file header).
 - All colors come from `tokens.css`; templates use only `var(--…)`.
 - Light/dark: the default follows `prefers-color-scheme`. The user's choice (Settings → Appearance) sets `data-theme="light"` or `data-theme="dark"` on `<html>`; "Same as system" sets nothing.
 - Rust (`--accent`/`--dav`) is the only accent color. The look is "liquid glass": the glass tokens are in `app.css`.
-- Fonts: Space Grotesk (text, headings), JetBrains Mono (labels, code, technical values). Both are available under the SIL Open Font License and are **self-hosted** (no Google Fonts requests from the interface, because of CSP and privacy).
+- Fonts: Inter (text, headings), JetBrains Mono (labels, code, technical values). Both are available under the SIL Open Font License and are **self-hosted** (no Google Fonts requests from the interface, because of CSP and privacy).
 
 ## Mobile first
 
