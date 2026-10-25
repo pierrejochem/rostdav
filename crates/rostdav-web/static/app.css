@@ -304,24 +304,44 @@ details.release>summary{cursor:pointer;display:flex;flex-wrap:wrap;align-items:c
 details.release h3{margin:14px 0 6px;font-size:14px}
 details.release ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px}
 details.release code{font-size:.92em}
-/* Phone: the navigation is one row that scrolls sideways (before, it was a panel as tall as the
-   screen and pushed the content out of sight); the account icon sits in its right corner. Storage
-   is on the Settings page. */
+/* Phone (mobile first): a tab bar at the thumb (Files, Recent, Shares, More), the account icon in the
+   top bar, Upload and New folder as round buttons above the tab bar, and a selected file as a sheet
+   that slides up. Everything else is on the More page. No script is needed for any of it. */
+.tabbar,.topsearch,.sheet-close,.scrim{display:none}
+.actions{display:contents}
+.actions .lbl{display:inline}
+.morelist{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.morelist a{display:flex;align-items:center;gap:14px;min-height:52px;padding:0 12px;border-radius:14px;color:var(--text);text-decoration:none;font-size:16px}
+.morelist a:hover{background:var(--row-hover)}
+.morelist a svg.i{width:20px;height:20px;color:var(--text-2)}
+.morelist form{margin:8px 0 0}
+.morelist form button{width:100%;min-height:48px}
 @media (max-width:760px){
-.app{padding:10px;gap:10px;align-content:flex-start}
-nav.side{flex:1 1 100%;flex-direction:row;align-items:center;gap:6px;padding:8px 64px 8px 10px;border-radius:20px;overflow-x:auto;overflow-y:hidden;position:sticky;top:8px;z-index:40;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
-nav.side::-webkit-scrollbar{display:none}
-nav.side .logo{flex:none;padding:0 6px 0 2px}
-nav.side .logo .wordmark{display:none}
-nav.side .logo svg{width:32px;height:30px}
-nav.side .navgroup{flex:none;flex-direction:row;align-items:center;gap:4px}
-nav.side .navgroup .eyebrow{display:none}
-nav.side .navgroup a{flex:none;min-height:40px;padding:0 12px;white-space:nowrap}
-nav.side .storage{display:none}
-header.top{position:relative;padding-right:66px;min-height:62px}
-header.top details.account{position:absolute;top:9px;right:12px}
-header.top.flat{position:fixed;top:14px;right:18px;z-index:60;padding:0;min-height:0;width:auto}
-header.top.flat details.account{position:static}
+.app{--tab:60px;padding:10px 10px calc(var(--tab) + 24px + env(safe-area-inset-bottom));gap:10px;align-content:flex-start}
+nav.side{display:none}
+.tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:50;box-sizing:border-box;height:calc(var(--tab) + env(safe-area-inset-bottom));padding:6px 8px env(safe-area-inset-bottom);gap:4px;background:var(--bg);background-image:var(--glass-2);border-top:1px solid var(--glass-border);box-shadow:0 -12px 30px -18px rgba(90,40,20,.45)}
+.tabbar a{flex:1 1 0;min-width:0;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-radius:14px;border:1px solid transparent;color:var(--text-2);text-decoration:none;font-size:11px;font-weight:500}
+.tabbar a svg.i{width:22px;height:22px}
+.tabbar a[aria-current=page]{color:var(--text);font-weight:600;background:var(--sel);border-color:var(--sel-border)}
+.tabbar a:focus-visible{outline:2px solid #F2A65A;outline-offset:-2px}
+header.top{position:relative;padding:8px 10px;min-height:0;gap:8px;justify-content:flex-end;-webkit-backdrop-filter:none;backdrop-filter:none;background:var(--bg);background-image:var(--glass)}
+header.top .who{display:none}
+header.top details.account{position:static}
+.topsearch{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:22px;color:var(--text-2)}
+.topsearch:focus-visible{outline:2px solid #F2A65A;outline-offset:-2px}
+.topsearch svg.i{width:22px;height:22px}
+header.top.flat{position:fixed;top:12px;right:12px;z-index:60;padding:0;min-height:0;width:auto;background:none;box-shadow:none;border:0}
+.actions{display:flex;flex-direction:column-reverse;align-items:flex-end;gap:12px;position:fixed;right:16px;bottom:calc(var(--tab) + 16px + env(safe-area-inset-bottom));z-index:35}
+.actions details.pop>summary{display:flex;align-items:center;justify-content:center;width:48px;height:48px;padding:0;border-radius:24px;box-shadow:0 12px 24px -10px rgba(90,40,20,.55)}
+.actions details.pop>summary.primary{width:56px;height:56px;border-radius:28px}
+.actions .lbl{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.actions details.pop .popover{top:auto;bottom:calc(100% + 10px);right:0}
+.files.sel .scrim{display:block;position:fixed;top:0;right:0;bottom:0;left:0;z-index:55;background:rgba(21,23,28,.45)}
+.files.sel .files-side{position:fixed;left:0;right:0;bottom:0;z-index:60;flex:none;box-sizing:border-box;max-height:82vh;max-height:82dvh;overflow-y:auto;padding:0 10px calc(10px + env(safe-area-inset-bottom));border-radius:24px 24px 0 0;background:var(--bg);background-image:var(--glass-2);border:1px solid var(--glass-border);box-shadow:0 -20px 50px -20px rgba(0,0,0,.5)}
+.files.sel .sheet-close{display:flex;align-items:center;justify-content:center;gap:10px;min-height:44px;color:var(--text-3);text-decoration:none;font-size:13px;position:sticky;top:0}
+.files.sel .sheet-close::before{content:"";width:40px;height:4px;border-radius:2px;background:var(--text-3);opacity:.5}
+.files.sel .files-side .details{box-shadow:none;border:0;background:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.upload:not([hidden]){position:fixed;left:10px;right:10px;bottom:calc(var(--tab) + 88px + env(safe-area-inset-bottom));z-index:36}
 }
 /* Search page */
 .searchbar{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:18px}
@@ -334,6 +354,6 @@ header.top.flat details.account{position:static}
 .snippet mark{background:rgba(242,166,90,.28);color:var(--text);border-radius:4px;padding:0 2px}
 a.name>span{min-width:0}
 /* Phone: the file list keeps three columns that fit; long names are cut with an ellipsis */
-@media (max-width:760px){.listing th:nth-child(3),.listing td:nth-child(3){width:96px;white-space:normal}.listing th:nth-child(4),.listing td:nth-child(4){width:72px}.listing td:first-child{max-width:0;width:100%}}
+@media (max-width:760px){.listing th:nth-child(3),.listing td:nth-child(3){width:96px;white-space:normal}.listing th:nth-child(4),.listing td:nth-child(4){width:92px}.listing td:first-child{max-width:0;width:100%}}
 /* Phone: long values (source URL, database name) wrap instead of being clipped */
 @media (max-width:760px){td.num{white-space:normal;overflow-wrap:anywhere;word-break:break-word}.tbl table{table-layout:auto}}

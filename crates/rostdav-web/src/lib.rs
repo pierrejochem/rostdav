@@ -9,6 +9,7 @@ mod i18n;
 mod layout;
 mod links;
 mod login_page;
+mod more;
 mod pages;
 mod pages_more;
 mod session;
@@ -76,6 +77,7 @@ pub fn router() -> Router<AppState> {
         .route("/share/link", post(sharing::share_link))
         .route("/share/delete", post(sharing::share_delete))
         .route("/about", get(about::about))
+        .route("/more", get(more::more))
         .route("/search", get(filespage::search))
         .route("/recent", get(filespage::recent))
         .route("/shares", get(sharing::shares_page))

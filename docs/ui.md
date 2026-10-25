@@ -92,8 +92,20 @@ Development with live reload: `docker compose up --build` (see the file header).
 
 - All colors come from `tokens.css`; templates use only `var(--…)`.
 - Light/dark: the default follows `prefers-color-scheme`. The user's choice (Settings → Appearance) sets `data-theme="light"` or `data-theme="dark"` on `<html>`; "Same as system" sets nothing.
-- The navigation is dark in both modes (`--nav-bg`); rust (`--accent`) is the only accent color.
+- Rust (`--accent`/`--dav`) is the only accent color. The look is "liquid glass": the glass tokens are in `app.css`.
 - Fonts: Space Grotesk (text, headings), JetBrains Mono (labels, code, technical values). Both are available under the SIL Open Font License and are **self-hosted** (no Google Fonts requests from the interface, because of CSP and privacy).
+
+## Mobile first
+
+The web interface is designed for the phone first (breakpoint `max-width:760px`); the sidebar is the wide-screen variant of the same pages. Nothing here needs a script.
+
+- **Tab bar** (`nav.tabbar`, fixed at the bottom, respects `env(safe-area-inset-bottom)`): Files, Recent, Shares, More. More is marked for every other page.
+- **More** (`/more`): Search, Trash bin, Account (Devices & security, Settings, About), Server (Administration, administrators only), storage meter, Sign out.
+- **Top bar**: the page's own tools (on Files, the folder filter), a search icon (`/search`) and the account menu. No navigation strip.
+- **Upload and New folder** are round buttons above the tab bar (same `details.pop` forms as on wide screens, so the upload script works unchanged).
+- **Selected file**: a bottom sheet (`.files.sel .files-side`). The selection is the `?sel=` address, so closing is a link (the dimmed area and the handle) back to the folder.
+- Targets are at least 44 px; text is never cut off silently (long names end with an ellipsis, long values wrap, tables scroll inside their own box).
+- `scripts/verify/check.mjs` checks this at 360, 768 and 1280 px in light and dark.
 
 ## Logo
 

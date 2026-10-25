@@ -286,15 +286,15 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
     let toolbar = format!(
         "<form class=\"search\" method=\"get\" action=\"{}\" role=\"search\"><svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M11 18a7 7 0 1 0 0-14a7 7 0 0 0 0 14Z\"/><path d=\"M20 20l-4-4\"/></svg>\
          <input type=\"search\" name=\"q\" value=\"{}\" placeholder=\"{search}\" aria-label=\"{search}\"></form>\
-         <details class=\"pop\"><summary class=\"button\"><svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z\"/><path d=\"M12 10v6\"/><path d=\"M9 13h6\"/></svg>{new_folder}</summary>\
+         <div class=\"actions\"><details class=\"pop\"><summary class=\"button\"><svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z\"/><path d=\"M12 10v6\"/><path d=\"M9 13h6\"/></svg><span class=\"lbl\">{new_folder}</span></summary>\
          <form class=\"popover\" method=\"post\" action=\"/action/mkdir\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><input type=\"hidden\" name=\"dir\" value=\"{dir}\">\
          <label>{folder_name}<input type=\"text\" name=\"name\" required></label><button class=\"primary\" type=\"submit\">{create_folder}</button></form></details>\
-         <details class=\"pop\"><summary class=\"button primary\"><svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4\"/><path d=\"M7 9l5-5 5 5\"/><path d=\"M5 20h14\"/></svg>{upload}</summary>\
+         <details class=\"pop\"><summary class=\"button primary\"><svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4\"/><path d=\"M7 9l5-5 5 5\"/><path d=\"M5 20h14\"/></svg><span class=\"lbl\">{upload}</span></summary>\
          <form id=\"upload-form\" class=\"popover\" method=\"post\" action=\"/action/upload\" enctype=\"multipart/form-data\"><input type=\"hidden\" name=\"csrf\" value=\"{csrf}\"><input type=\"hidden\" name=\"dir\" value=\"{dir}\">\
          <label class=\"dropzone dropzone-compact\"><input type=\"file\" name=\"file\" multiple required>\
          <svg class=\"i dz-icon\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 16V4\"/><path d=\"M7 9l5-5 5 5\"/><path d=\"M5 20h14\"/></svg>\
          <span class=\"dz-title\">{choose_files}</span><span class=\"dz-hint\">{drop_hint}</span></label>\
-         <button class=\"primary\" type=\"submit\">{upload}</button></form></details>",
+         <button class=\"primary\" type=\"submit\">{upload}</button></form></details></div>",
         esc(&url_of("/files", &path)),
         esc(&q.q),
         search = esc(&t(lang, "Search in this folder")),
@@ -306,10 +306,25 @@ async fn browse(State(state): State<AppState>, a: Authed, raw: String, q: FilesQ
         drop_hint = esc(&t(lang, "or drop files and folders anywhere on this page")),
     );
 
+    // phone: a selected file opens as a bottom sheet; the scrim and the handle close it
+    let (sel_class, scrim, sheet_close) = if selected_row.is_some() {
+        let mut href = url_of("/files", &path);
+        if !q.q.is_empty() {
+            href.push_str(&format!("?q={}", enc(&q.q)));
+        }
+        let (href, label) = (esc(&href), esc(&t(lang, "Close")));
+        (
+            " sel",
+            format!("<a class=\"scrim\" href=\"{href}\" aria-label=\"{label}\"></a>"),
+            format!("<a class=\"sheet-close\" href=\"{href}\">{label}</a>"),
+        )
+    } else {
+        ("", String::new(), String::new())
+    };
     let body = format!(
-        "<div class=\"files\"><section class=\"glass-panel listing\" aria-label=\"{filelist}\">\
+        "<div class=\"files{sel_class}\"><section class=\"glass-panel listing\" aria-label=\"{filelist}\">\
          <div class=\"listing-head\"><div><div class=\"crumbs\">{crumbs}</div><h1>{}</h1></div><span class=\"chip\">{}</span></div>{listing}</section>\
-         <div class=\"files-side\"><div id=\"upload-card\" class=\"glass2 upload\" role=\"status\" hidden>\
+         {scrim}<div class=\"files-side\">{sheet_close}<div id=\"upload-card\" class=\"glass2 upload\" role=\"status\" hidden>\
          <div class=\"upload-text\"><span id=\"upload-status\"></span><progress id=\"upload-progress\" value=\"0\" max=\"1\" aria-label=\"{}\"></progress></div>\
          <button type=\"button\" id=\"upload-cancel\">{}</button></div>{details}</div></div>",
         esc(&title),

@@ -454,3 +454,5 @@ Last pass	Letzter Durchlauf
 not yet	noch nicht
 The search index is not open yet. The server opens it a few seconds after it starts.	Der Suchindex ist noch nicht geöffnet. Der Server öffnet ihn einige Sekunden nach dem Start.
 The index is built in the background. It holds the text of files in a file of its own in the data directory and can be removed at any time with the command rostdav admin search rebuild.	Der Index wird im Hintergrund aufgebaut. Er enthält den Text von Dateien in einer eigenen Datei im Datenverzeichnis und kann jederzeit mit dem Befehl rostdav admin search rebuild entfernt werden.
+More	Mehr
+Close	Schließen

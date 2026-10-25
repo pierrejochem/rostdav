@@ -90,6 +90,9 @@ fn icon(name: &str) -> &'static str {
         "devices" => {
             "<path d=\"M4 5h12v10H4Z\"/><path d=\"M2 19h16\"/><path d=\"M19 9h3v10h-3Z\"/>"
         }
+        "more" => {
+            "<circle cx=\"5\" cy=\"12\" r=\"1.3\"/><circle cx=\"12\" cy=\"12\" r=\"1.3\"/><circle cx=\"19\" cy=\"12\" r=\"1.3\"/>"
+        }
         "settings" => {
             "<path d=\"M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1\"/><path d=\"M15 4v4M9 10v4M17 16v4\"/>"
         }
@@ -223,7 +226,7 @@ fn human(n: i64) -> String {
 }
 
 /// Sidebar storage meter: a `<progress>` (no inline styles allowed by the CSP).
-fn storage_widget((used, quota): (i64, Option<i64>), lang: Lang) -> String {
+pub(crate) fn storage_widget((used, quota): (i64, Option<i64>), lang: Lang) -> String {
     match quota {
         Some(q) if q > 0 => format!(
             "<div class=\"storage\"><div class=\"storage-head\"><span>{}</span><span class=\"muted\">{}</span></div>\
@@ -241,7 +244,7 @@ fn storage_widget((used, quota): (i64, Option<i64>), lang: Lang) -> String {
     }
 }
 
-fn nav_entry(key: &str, label: &str, href: &str, current: &str) -> String {
+pub(crate) fn nav_entry(key: &str, label: &str, href: &str, current: &str) -> String {
     let cur = if key == current {
         " aria-current=\"page\""
     } else {
@@ -326,6 +329,24 @@ pub fn app_opts(
     } else {
         String::new()
     };
+    // phone: the four places used most; everything else is on the More page
+    let tab_current = match current {
+        "files" | "recent" | "shares" => current,
+        _ => "more",
+    };
+    let tabbar = format!(
+        "<nav class=\"tabbar\" aria-label=\"{}\">{}{}{}{}</nav>",
+        esc(&t(lang, "Main navigation")),
+        nav_entry("files", &t(lang, "Files"), "/files", tab_current),
+        nav_entry("recent", &t(lang, "Recent"), "/recent", tab_current),
+        nav_entry("shares", &t(lang, "Shares"), "/shares", tab_current),
+        nav_entry("more", &t(lang, "More"), "/more", tab_current)
+    );
+    let top_search = format!(
+        "<a class=\"topsearch\" href=\"/search\" aria-label=\"{}\"><svg class=\"i\" viewBox=\"0 0 24 24\" aria-hidden=\"true\">{}</svg></a>",
+        esc(&t(lang, "Search")),
+        icon("search")
+    );
     let theme_attr = match chrome.theme {
         "light" | "dark" => format!(" data-theme=\"{}\"", chrome.theme),
         _ => String::new(),
@@ -348,17 +369,17 @@ pub fn app_opts(
         status,
         format!(
             "<!doctype html><html lang=\"{}\"{theme_attr}><head><meta charset=\"utf-8\">\
-             <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">\
+             <meta name=\"viewport\" content=\"width=device-width,initial-scale=1,viewport-fit=cover\">\
              <title>Rostdav – {}</title><link rel=\"stylesheet\" href=\"/static/app.css\">{FAVICON}</head><body>\
              <div class=\"app\"><nav class=\"side\" aria-label=\"{}\">\
              <a class=\"logo\" href=\"/files\">{LOGO}<span class=\"wordmark\">rost<b>dav</b></span></a>\
              <div class=\"navgroup\">{main_nav}</div>\
              <div class=\"navgroup\"><div class=\"eyebrow\">{}</div>{account_nav}</div>{server_nav}{storage}</nav>\
-             <div class=\"wrap\"><header class=\"{head_class}\"><div class=\"toolbar\">{toolbar}</div><details class=\"pop account\"><summary class=\"avatar\" aria-label=\"{}\">{}</summary>\
+             <div class=\"wrap\"><header class=\"{head_class}\"><div class=\"toolbar\">{toolbar}</div>{top_search}<details class=\"pop account\"><summary class=\"avatar\" aria-label=\"{}\">{}</summary>\
              <div class=\"popover\"><span class=\"who\">{}</span>\
              <form method=\"post\" action=\"/logout\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
              <button type=\"submit\">{}</button></form></div></details></header>\
-             <main class=\"{main_class}\">{}</main></div></div>{PASSWORD_SCRIPT}{NAV_SCRIPT}{script}</body></html>",
+             <main class=\"{main_class}\">{}</main></div>{tabbar}</div>{PASSWORD_SCRIPT}{NAV_SCRIPT}{script}</body></html>",
             lang.code(),
             esc(&t(lang, title)),
             esc(&t(lang, "Main navigation")),

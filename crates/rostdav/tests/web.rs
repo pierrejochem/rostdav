@@ -5228,6 +5228,70 @@ async fn pages_load_the_script_that_shows_the_current_entry_of_the_phone_navigat
 }
 
 #[tokio::test]
+async fn phones_get_a_tab_bar_and_a_more_page_with_the_rest() {
+    let e = env().await;
+    let ca = login(&e, "anna").await;
+    let root = login(&e, "root").await;
+
+    // four tabs on every signed-in page; the current place is marked, More for the rest
+    let files = get(&e, "/files", &ca).await.text();
+    let bar = files
+        .split("<nav class=\"tabbar\"")
+        .nth(1)
+        .expect("tab bar");
+    let bar = bar.split("</nav>").next().expect("tab bar end");
+    for href in ["/files", "/recent", "/shares", "/more"] {
+        assert!(bar.contains(&format!("href=\"{href}\"")), "{href}");
+    }
+    assert_eq!(bar.matches("aria-current=\"page\"").count(), 1);
+    assert!(files.contains("viewport-fit=cover"));
+    let settings = get(&e, "/settings", &ca).await.text();
+    let bar = settings
+        .split("<nav class=\"tabbar\"")
+        .nth(1)
+        .expect("tab bar");
+    assert!(
+        bar.split("</nav>")
+            .next()
+            .expect("end")
+            .contains("href=\"/more\" aria-current=\"page\"")
+    );
+
+    // More lists the rest; Administration only for administrators
+    let more = get(&e, "/more", &ca).await;
+    assert_eq!(more.status, StatusCode::OK);
+    let text = more.text();
+    for href in ["/search", "/trash", "/devices", "/settings", "/about"] {
+        assert!(text.contains(&format!("href=\"{href}\"")), "{href}");
+    }
+    assert!(text.contains("action=\"/logout\""));
+    assert!(!text.contains("/admin/users"));
+    assert!(
+        get(&e, "/more", &root)
+            .await
+            .text()
+            .contains("href=\"/admin/users\"")
+    );
+
+    // signed out: no page, no list
+    let anon = send(&e, "GET", "/more", &[], Body::empty()).await;
+    assert!(
+        anon.status.is_redirection() || anon.status == StatusCode::UNAUTHORIZED,
+        "{}",
+        anon.status
+    );
+    assert!(!anon.text().contains("/devices"));
+
+    // a selected file gets a way to close the sheet; no selection, none
+    let sel = get(&e, "/files?sel=none.txt", &ca).await.text();
+    assert!(!sel.contains("class=\"sheet-close\""));
+    let css = send(&e, "GET", "/static/app.css", &[], Body::empty())
+        .await
+        .text();
+    assert!(css.contains(".tabbar") && css.contains("safe-area-inset-bottom"));
+}
+
+#[tokio::test]
 async fn menus_close_when_you_click_elsewhere_press_esc_or_open_another() {
     let e = env().await;
     let ca = login(&e, "anna").await;

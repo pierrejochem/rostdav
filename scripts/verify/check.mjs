@@ -8,7 +8,7 @@ const [base, user, password, out] = process.argv.slice(2);
 const VIEWPORTS = { phone: [360, 740], tablet: [768, 1024], desktop: [1280, 800] };
 const SCHEMES = ["light", "dark"];
 const PUBLIC = ["/login"];
-const PAGES = ["/files", "/recent", "/search?q=a", "/shares", "/trash", "/about", "/admin/users"];
+const PAGES = ["/files", "/recent", "/search?q=a", "/shares", "/trash", "/more", "/about", "/admin/users"];
 const FONTS = ["Space Grotesk", "JetBrains Mono"];
 
 const failures = [];
@@ -32,8 +32,14 @@ const inspect = () => {
       }
     }
   }
+  const bar = document.querySelector("nav.tabbar");
+  const side = document.querySelector("nav.side");
+  const shown = (el) => !!el && getComputedStyle(el).display !== "none";
+  const tabs = bar && shown(bar)
+    ? { fixed: getComputedStyle(bar).position === "fixed", links: [...bar.querySelectorAll("a")].map((a) => a.getBoundingClientRect().height) }
+    : null;
   const de = document.documentElement;
-  return { body, bad: [...new Set(bad)], small: [...new Set(small)], overflow: de.scrollWidth - de.clientWidth };
+  return { tabs, sideShown: shown(side), body, bad: [...new Set(bad)], small: [...new Set(small)], overflow: de.scrollWidth - de.clientWidth };
 };
 
 const browser = await chromium.launch({ channel: "chrome" });
@@ -56,6 +62,19 @@ try {
         if (r.overflow > 0) fail(where, `horizontal overflow ${r.overflow}px`);
         if (!FONTS.includes(r.body)) fail(where, `body font is ${r.body}`);
         for (const b of r.bad) fail(where, `font mismatch: ${b}`);
+        if (PUBLIC.includes(path)) {
+          // sign-in page: no navigation at all
+        } else if (vp === "phone") {
+          if (!r.tabs) fail(where, "no tab bar on the phone");
+          else {
+            if (!r.tabs.fixed) fail(where, "tab bar is not fixed");
+            if (r.tabs.links.length !== 4 || r.tabs.links.some((h) => h < 44)) fail(where, `tab bar links: ${r.tabs.links}`);
+          }
+          if (r.sideShown) fail(where, "side navigation still shown on the phone");
+        } else {
+          if (r.tabs) fail(where, "tab bar shown above phone width");
+          if (!r.sideShown) fail(where, "side navigation missing");
+        }
         if (vp === "phone") for (const s of r.small) fail(where, `touch target under 44px: ${s}`);
         await page.screenshot({ path: `${out}/${path.replace(/\W+/g, "_")}-${vp}-${scheme}.png`, fullPage: true });
       };
