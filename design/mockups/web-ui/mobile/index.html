@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Rostdav – mobile mockups</title>
+<style>
+:root{--bg:#ECE4DA;--text:#15171C;--text-2:#4F4842;--frame:#15171C}
+@media (prefers-color-scheme:dark){:root{--bg:#0B0C10;--text:#F4EFE8;--text-2:#C2BAB1;--frame:#2A2C33}}
+body{margin:0;padding:32px 16px 64px;background:var(--bg);color:var(--text);font:16px/1.5 Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+h1{margin:0 0 4px;font-size:28px;letter-spacing:-.5px}
+h2{margin:40px 0 4px;font-size:18px}
+p{margin:0 0 16px;max-width:70ch;color:var(--text-2)}
+.row{display:flex;flex-wrap:wrap;gap:28px}
+figure{margin:0}
+figcaption{margin-top:10px;font-size:14px;color:var(--text-2);text-align:center}
+.phone{width:390px;height:844px;box-sizing:content-box;border:10px solid var(--frame);border-radius:44px;overflow:hidden;background:#000}
+iframe{display:block;width:390px;height:844px;border:0}
+</style>
+</head>
+<body>
+<h1>Rostdav on a phone</h1>
+<p>Mobile-first redesign of the web interface: a floating glass tab bar (Files, Recent, Shares, More), round Upload and New folder buttons above it, the selected file as a bottom sheet, and a More page for everything else. Inter is the font. These are snapshots of the real pages (<code>scripts/screenshots.mjs</code>), so they match what the server sends; the links in them do not work.</p>
+
+<h2>Light</h2>
+<div class="row">
+  <figure><div class="phone"><iframe src="files-light.html" title="Files, light"></iframe></div><figcaption>Files</figcaption></figure>
+  <figure><div class="phone"><iframe src="upload-light.html" title="Upload menu, light"></iframe></div><figcaption>Upload and New folder</figcaption></figure>
+  <figure><div class="phone"><iframe src="sheet-light.html" title="File sheet, light"></iframe></div><figcaption>A selected file as a sheet</figcaption></figure>
+  <figure><div class="phone"><iframe src="more-light.html" title="More, light"></iframe></div><figcaption>More</figcaption></figure>
+</div>
+
+<h2>Dark</h2>
+<div class="row">
+  <figure><div class="phone"><iframe src="files-dark.html" title="Files, dark"></iframe></div><figcaption>Files</figcaption></figure>
+  <figure><div class="phone"><iframe src="upload-dark.html" title="Upload menu, dark"></iframe></div><figcaption>Upload and New folder</figcaption></figure>
+  <figure><div class="phone"><iframe src="sheet-dark.html" title="File sheet, dark"></iframe></div><figcaption>A selected file as a sheet</figcaption></figure>
+  <figure><div class="phone"><iframe src="more-dark.html" title="More, dark"></iframe></div><figcaption>More</figcaption></figure>
+</div>
+</body>
+</html>

@@ -17,4 +17,4 @@ just site-serve    # sync + preview at http://127.0.0.1:1111
 
 The build fails on a broken internal link or anchor. Every page needs a `description` (it becomes the search-result snippet); the generated pages take it from the document's first paragraph.
 
-Screenshots in `static/media/screens/` were taken from a demo server in dark mode at 1280×800 (see the commit that added them); retake them when the interface changes noticeably.
+Screenshots in `static/media/screens/` are taken from a demo server in dark mode at 1280×800; retake them with `scripts/screenshots.mjs` (the file header says how to prepare the server) when the interface changes noticeably.

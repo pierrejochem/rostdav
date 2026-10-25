@@ -18,3 +18,8 @@ interactive mockups (theme switch, selection); links between them do not work ou
 `canvas.json`; they need the canvas runtime and are for reading, not for opening.
 
 The mockups use Space Grotesk and JetBrains Mono; the implementation ships the same font files (`crates/rostdav-web/static/fonts/`, ADR 0006 decision 3).
+
+
+## Mobile
+
+`mobile/` holds the phone layout (tab bar, sheet, More page) and the Inter font, which the six pages above predate. Open `mobile/index.html`; regenerate with `node scripts/screenshots.mjs` (see its header).
