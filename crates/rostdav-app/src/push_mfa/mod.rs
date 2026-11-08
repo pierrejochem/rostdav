@@ -1,5 +1,13 @@
 //! Push sign-in approval with the RustMFA app (ADR 0014).
 
+mod attestation;
+mod error;
+mod google_roots;
+
+pub use attestation::{AttestationResult, verify_attestation};
+pub use error::MfaError;
+pub use google_roots::google_roots;
+
 use crate::AppState;
 
 /// Whether a registering phone must prove a hardware-backed key.
@@ -39,6 +47,15 @@ impl AppState {
     pub fn mfa_cfg(&self) -> MfaConfig {
         self.cfg().mfa
     }
+}
+
+#[cfg(test)]
+pub(crate) fn sha256_hex(data: &[u8]) -> String {
+    ring::digest::digest(&ring::digest::SHA256, data)
+        .as_ref()
+        .iter()
+        .map(|b| format!("{b:02x}"))
+        .collect()
 }
 
 #[cfg(test)]

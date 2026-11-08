@@ -50,8 +50,13 @@ Migration `0013_push_mfa.sql` with four `STRICT` tables, a plain index on every 
 
 - `rustmfa-contract` (own crate, `rostdav-mfa` repository): signing formats and verification shared with the app and its test vectors. **Decision:** git dependency pinned by revision. Until that repository is published, development uses a local `[patch]` in an uncommitted `.cargo/config.toml`; the dependency is committed only once the repository exists.
 - `x509-cert` and `der` (RustCrypto, MIT/Apache): parse the attestation chain and the Android key description.
-- `rcgen` (dev only): synthetic attestation chains in tests.
-- Android attestation root certificates are pinned in the source. They are fetched from Google's published key-attestation documentation at implementation time, with the source address and each SHA-256 fingerprint recorded in this ADR before the code merges.
+- `ring` (already in the tree through the update check, ISC-style licence the policy allows): verifies the certificate signatures (RSA and ECDSA P-256/P-384). This avoids adding separate RSA and ECDSA crates, and `rcgen` is not needed: the tests build synthetic chains with `x509-cert` and sign them with `ring`.
+- Android attestation roots are pinned in `push_mfa/google_roots.rs`. Source and check on 2026-11-08: the list at `https://android.googleapis.com/attestation/root` against the certificates on Google's key-attestation documentation page. Pinned are the two that both list:
+  - RSA 4096, `serialNumber=f92009e853b6b045`, valid to 2042-03-15, SHA-256 `cedb1cb6dc896ae5ec797348bce9286753c2b38ee71ce0fbe34a9a1248800dfc`
+  - ECDSA P-384, `CN=Key Attestation CA1`, valid to 2035-07-15, SHA-256 `6d9db4ce6c5c0b293166d08986e05774a8776ceb525d9e4329520de12ba4bcc0`
+
+  The documentation page lists three older roots (from 2016, 2019 and 2021) that the endpoint does not return. They are not pinned. A phone whose chain ends in one of them is rejected, and `attestation = "off"` is the way out until a release pins more roots.
+- Google's attestation revocation list (`https://android.googleapis.com/attestation/status`) is not consulted: it needs a network request at registration. A revoked attestation key is therefore still accepted. Out of scope for now; the owner can revoke a device by hand.
 
 ### Out of scope
 

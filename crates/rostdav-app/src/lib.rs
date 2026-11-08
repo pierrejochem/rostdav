@@ -56,7 +56,9 @@ pub use indexer::{PassReport, SearchStatus};
 pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
-pub use push_mfa::{AttestationPolicy, MfaConfig};
+pub use push_mfa::{
+    AttestationPolicy, AttestationResult, MfaConfig, MfaError, google_roots, verify_attestation,
+};
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{
     LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,

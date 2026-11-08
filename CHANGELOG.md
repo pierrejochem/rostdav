@@ -8,6 +8,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - **Settings for push sign-in approval** (`[mfa]` section: challenge lifetime, enrollment lifetime, audience, attestation policy), the first step of ADR 0014. They have no effect yet.
 - **Database tables for push sign-in approval** (migration 0013: phones, enrollment tokens, challenges, request nonces). Nothing uses them yet.
+- **Key attestation check for push sign-in approval phones**: verifies that a phone's key lives in secure hardware (certificate chain to a pinned Google root, hardware security level, challenge, key match). Nothing calls it yet.
 
 ## [0.10.0] - 2026-10-25
 

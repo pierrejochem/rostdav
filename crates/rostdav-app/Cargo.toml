@@ -8,6 +8,9 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+x509-cert.workspace = true
+der.workspace = true
+ring.workspace = true
 rostdav-core.workspace = true
 rostdav-meta.workspace = true
 rostdav-storage.workspace = true
