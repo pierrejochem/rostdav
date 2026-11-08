@@ -61,6 +61,15 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
             anonymize_ip: cfg.audit.anonymize_ip,
             retention_days: cfg.audit.retention_days,
         })
+        .with_mfa(rostdav_app::MfaConfig {
+            challenge_ttl_secs: i64::from(cfg.mfa.challenge_ttl_seconds),
+            enroll_ttl_secs: i64::from(cfg.mfa.enroll_ttl_seconds),
+            audience: cfg.mfa.audience.clone(),
+            attestation: match cfg.mfa.attestation {
+                config::MfaAttestation::Required => rostdav_app::AttestationPolicy::Required,
+                config::MfaAttestation::Off => rostdav_app::AttestationPolicy::Off,
+            },
+        })
         // what the file and the environment leave open can be changed in the web interface
         .with_locked_settings(cfg.set_explicitly.iter().cloned())
         .load_setting_overrides()

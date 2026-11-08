@@ -25,6 +25,7 @@ pub struct Config {
     pub search: Search,
     pub web: Web,
     pub security: Security,
+    pub mfa: Mfa,
     pub log: Log,
     /// Keys (`section.name`) that the file or an environment variable set. The web interface
     /// shows those as "set by configuration" and does not let an administrator change them.
@@ -59,6 +60,61 @@ pub struct Security {
     /// File with the 32 raw key bytes. Default: `totp.key` in the data directory,
     /// created when the first user starts a setup.
     pub totp_key_file: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum MfaAttestation {
+    /// Phones must prove a hardware-backed key (default).
+    Required,
+    /// No check; for custom ROMs, with the trade-off described in `docs/admin.md`.
+    Off,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct Mfa {
+    /// Seconds a sign-in challenge can be answered (10 to 300).
+    pub challenge_ttl_seconds: u32,
+    /// Seconds an enrollment QR code stays valid (60 to 900).
+    pub enroll_ttl_seconds: u32,
+    /// Service identifier signed into every challenge (1 to 64 of `A-Za-z0-9._-`).
+    pub audience: String,
+    /// Whether phones must attest a hardware-backed key.
+    pub attestation: MfaAttestation,
+}
+
+impl Default for Mfa {
+    fn default() -> Self {
+        Self {
+            challenge_ttl_seconds: 90,
+            enroll_ttl_seconds: 300,
+            audience: "rostdav".into(),
+            attestation: MfaAttestation::Required,
+        }
+    }
+}
+
+impl Mfa {
+    fn validate(&self) -> anyhow::Result<()> {
+        anyhow::ensure!(
+            (10..=300).contains(&self.challenge_ttl_seconds),
+            "mfa.challenge_ttl_seconds must be between 10 and 300"
+        );
+        anyhow::ensure!(
+            (60..=900).contains(&self.enroll_ttl_seconds),
+            "mfa.enroll_ttl_seconds must be between 60 and 900"
+        );
+        anyhow::ensure!(
+            (1..=64).contains(&self.audience.len())
+                && self
+                    .audience
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-')),
+            "mfa.audience must be 1 to 64 characters of A-Z a-z 0-9 . _ -"
+        );
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -276,6 +332,7 @@ impl Config {
         }
         figment = figment.merge(Env::prefixed("ROSTDAV_").split("__"));
         let mut cfg: Config = figment.extract()?;
+        cfg.mfa.validate()?;
         // the same sources without the defaults layer: what is in there was set on purpose
         let mut given = Figment::new();
         match explicit_file {
@@ -304,6 +361,63 @@ mod tests {
         let cfg = Config::default();
         assert!(cfg.server.listen.ip().is_loopback());
         assert_eq!(cfg.log.format, LogFormat::Json);
+    }
+
+    #[test]
+    fn mfa_defaults_match_the_design() {
+        let m = Config::default().mfa;
+        assert_eq!(m.challenge_ttl_seconds, 90);
+        assert_eq!(m.enroll_ttl_seconds, 300);
+        assert_eq!(m.audience, "rostdav");
+        assert_eq!(m.attestation, MfaAttestation::Required);
+    }
+
+    #[test]
+    fn mfa_section_overrides_defaults() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "m.toml",
+                "[mfa]\nchallenge_ttl_seconds = 60\nattestation = \"off\"\n",
+            )?;
+            let cfg = Config::load(Some(Path::new("m.toml"))).map_err(|e| e.to_string())?;
+            assert_eq!(cfg.mfa.challenge_ttl_seconds, 60);
+            assert_eq!(cfg.mfa.attestation, MfaAttestation::Off);
+            assert_eq!(cfg.mfa.enroll_ttl_seconds, 300);
+            Ok(())
+        });
+    }
+
+    #[test]
+    fn mfa_rejects_values_out_of_range() {
+        let cases = [
+            ("challenge_ttl_seconds = 9", "mfa.challenge_ttl_seconds"),
+            ("challenge_ttl_seconds = 301", "mfa.challenge_ttl_seconds"),
+            ("enroll_ttl_seconds = 59", "mfa.enroll_ttl_seconds"),
+            ("enroll_ttl_seconds = 901", "mfa.enroll_ttl_seconds"),
+            ("audience = \"\"", "mfa.audience"),
+            ("audience = \"a b\"", "mfa.audience"),
+            ("audience = \"a\\nb\"", "mfa.audience"),
+        ];
+        for (line, key) in cases {
+            figment::Jail::expect_with(|jail| {
+                jail.create_file("m.toml", &format!("[mfa]\n{line}\n"))?;
+                let err = Config::load(Some(Path::new("m.toml"))).expect_err(line);
+                assert!(err.to_string().contains(key), "{line}: {err}");
+                Ok(())
+            });
+        }
+    }
+
+    #[test]
+    fn mfa_accepts_the_range_limits() {
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "m.toml",
+                "[mfa]\nchallenge_ttl_seconds = 10\nenroll_ttl_seconds = 900\naudience = \"a.b_c-1\"\n",
+            )?;
+            Config::load(Some(Path::new("m.toml"))).map_err(|e| e.to_string())?;
+            Ok(())
+        });
     }
 
     #[test]

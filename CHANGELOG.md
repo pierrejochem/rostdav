@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+
+- **Settings for push sign-in approval** (`[mfa]` section: challenge lifetime, enrollment lifetime, audience, attestation policy), the first step of ADR 0014. They have no effect yet.
+
 ## [0.10.0] - 2026-10-25
 
 ### Changed

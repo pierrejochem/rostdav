@@ -129,6 +129,19 @@ Users turn on TOTP (authenticator app) themselves under Devices & security; see 
 - **Lockout.** Five wrong codes lock the second step for that user for 15 minutes. A user who lost the authenticator and the recovery codes needs `rostdav admin user reset-2fa <login>` or Administration › Users › Manage › Reset two-factor authentication.
 - **Event log:** `auth.2fa_enabled`, `auth.2fa_disabled`, `auth.2fa_codes_regenerated`, `admin.2fa_reset`, failed codes as `auth.login_failed` with `second_factor`. Codes and secrets are never logged.
 
+## Push sign-in approval (RustMFA)
+
+Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa.md)). The feature is being built; so far only the settings exist.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `mfa.challenge_ttl_seconds` | 90 | Seconds a sign-in challenge can be answered (10 to 300). |
+| `mfa.enroll_ttl_seconds` | 300 | Seconds an enrollment QR code stays valid (60 to 900). |
+| `mfa.audience` | `rostdav` | Service identifier signed into every challenge: 1 to 64 characters of `A-Z a-z 0-9 . _ -`. Changing it invalidates challenges in flight. |
+| `mfa.attestation` | `required` | `required`: a phone must prove a hardware-backed key at registration. `off`: no check, for custom ROMs without Google key attestation. With `off`, a stolen enrollment QR code is enough to register software keys, so keep the enrollment time short. |
+
+A value outside its range stops the server at start-up with a message naming the key.
+
 ## Version check
 
 Off by default. Administration, Server, "Updates" turns it on: the server then asks the GitHub releases API once a day (and on "Check now") which version is the newest, and shows a newer one with its release notes. The request carries only `User-Agent: rostdav/<version>`. While it is off, the server makes no outbound connection. After an error the server tries again in an hour; the page shows the reason. The switch is kept in the database, so a restart keeps it. Events: `admin.update_check_on`, `admin.update_check_off`, `admin.update_installed`. The About page (every user) shows the release notes of the running build and the versions before it; they are compiled in and need no network. 

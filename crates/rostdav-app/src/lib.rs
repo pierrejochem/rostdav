@@ -19,6 +19,7 @@ mod files;
 mod indexer;
 mod login_flow;
 mod password;
+mod push_mfa;
 mod ratelimit;
 mod search;
 #[cfg(test)]
@@ -55,6 +56,7 @@ pub use indexer::{PassReport, SearchStatus};
 pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
+pub use push_mfa::{AttestationPolicy, MfaConfig};
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{
     LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,
@@ -124,6 +126,7 @@ struct AppConfig {
     extractor: Option<std::path::PathBuf>,
     limits: Limits,
     audit: AuditOptions,
+    mfa: MfaConfig,
     versioning: VersioningOptions,
     trash: TrashOptions,
     web: WebOptions,
@@ -360,6 +363,12 @@ impl AppState {
             audit,
             ..self.cfg()
         };
+        self.reconfigured(config)
+    }
+
+    #[must_use]
+    pub fn with_mfa(self, mfa: MfaConfig) -> Self {
+        let config = AppConfig { mfa, ..self.cfg() };
         self.reconfigured(config)
     }
 
