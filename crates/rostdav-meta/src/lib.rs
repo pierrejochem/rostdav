@@ -8,6 +8,7 @@ mod auth;
 mod avatars;
 mod favorites;
 mod nodes;
+mod push_mfa;
 mod search_index;
 mod shares;
 mod trash;
@@ -21,6 +22,7 @@ pub use auth::{
 };
 pub use avatars::StoredAvatar;
 pub use nodes::{CommitOpts, NewBlob, Node, NodeKind, VersionPolicy, WriteCondition, Written};
+pub use push_mfa::{ChallengeRow, DeviceRow, NewChallenge, NewDevice};
 pub use search_index::{
     Candidate, Content, DocFacts, FORMAT_VERSION as SEARCH_FORMAT_VERSION, IndexStatus, MAX_FAILS,
     NodeFacts, Pending, SearchIndex, state as search_state,
@@ -77,6 +79,11 @@ const MIGRATIONS: &[(i64, &str, &str)] = &[
         12,
         "cascade_indexes",
         include_str!("../migrations/0012_cascade_indexes.sql"),
+    ),
+    (
+        13,
+        "push_mfa",
+        include_str!("../migrations/0013_push_mfa.sql"),
     ),
 ];
 

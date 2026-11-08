@@ -103,6 +103,10 @@ A central error type in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, `Pr
 | `login_flows` | poll_token_hash, login_token_hash, client_name, state, user_id, app_password_id, expires_at |
 | `totp` | user_id, secret_enc, enabled_at, last_used_step |
 | `recovery_codes` | id, user_id, code_hash, used_at |
+| `mfa_devices` | id, user_id, name, status (active/revoked), request_pub, approval_pub, push_channel, push_token, hardware_backed, strongbox, created_at, last_seen_at, revoked_at ([ADR 0014](adr/0014-push-mfa.md)) |
+| `mfa_enroll_tokens` | token_hash, user_id, expires_at, used_at |
+| `mfa_challenges` | id, user_id, device_id, login_ref, nonce, number, candidates, audience, created_at, expires_at, status, consumed_at |
+| `mfa_nonces` | device_id, nonce, expires_at |
 | `nodes` | see ADR 0002 |
 | `blobs` | id, size, checksum, created_at |
 | `versions` | id, node_id, blob_id, size, mtime, author_app_password_id, created_at |
