@@ -1,6 +1,9 @@
 //! Push sign-in approval with the RustMFA app (ADR 0014).
 
 mod attestation;
+mod challenges;
+#[cfg(test)]
+mod challenges_tests;
 mod devauth;
 #[cfg(test)]
 mod devauth_tests;
@@ -9,14 +12,17 @@ mod enroll;
 mod enroll_tests;
 mod error;
 mod google_roots;
+mod push;
 #[cfg(test)]
 pub(crate) mod testkit;
 
 pub use attestation::{AttestationResult, verify_attestation};
+pub use challenges::{ChallengeDetails, ChallengeStatus, NewChallenge};
 pub use devauth::{DevicePrincipal, ParsedAuth, parse_authorization};
 pub use enroll::{EnrollToken, RegisterInput, Registered};
 pub use error::MfaError;
 pub use google_roots::google_roots;
+pub use push::{NoopPush, PushChannel, PushFuture};
 
 use crate::AppState;
 

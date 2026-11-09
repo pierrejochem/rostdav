@@ -146,6 +146,8 @@ A value outside its range stops the server at start-up with a message naming the
 
 A phone whose signed request fails five times in 15 minutes (wrong signature, unknown device, replayed nonce, bad timestamp) is blocked for 15 minutes; this block is not listed on the lockouts page yet. Requests of a revoked phone, or of a disabled account, are refused.
 
+A user can have five sign-in approvals started in 15 minutes (this keeps a stolen password from flooding a phone with prompts); further attempts are refused until the window ends. The approval screen shows the sign-in device name but no location: Rostdav has no IP geolocation.
+
 ## Version check
 
 Off by default. Administration, Server, "Updates" turns it on: the server then asks the GitHub releases API once a day (and on "Check now") which version is the newest, and shows a newer one with its release notes. The request carries only `User-Agent: rostdav/<version>`. While it is off, the server makes no outbound connection. After an error the server tries again in an hour; the page shows the reason. The switch is kept in the database, so a restart keeps it. Events: `admin.update_check_on`, `admin.update_check_off`, `admin.update_installed`. The About page (every user) shows the release notes of the running build and the versions before it; they are compiled in and need no network. 

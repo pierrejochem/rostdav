@@ -45,7 +45,8 @@ CREATE TABLE mfa_challenges (
     expires_at  INTEGER NOT NULL,
     status      TEXT    NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending', 'approved', 'denied', 'expired')),
-    consumed_at INTEGER
+    consumed_at INTEGER,
+    login_device TEXT   NOT NULL DEFAULT ''
 ) STRICT;
 CREATE INDEX mfa_challenges_user   ON mfa_challenges(user_id);
 CREATE INDEX mfa_challenges_device ON mfa_challenges(device_id, status);

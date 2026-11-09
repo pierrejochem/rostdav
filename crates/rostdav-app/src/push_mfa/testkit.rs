@@ -16,8 +16,11 @@ use x509_cert::spki::{AlgorithmIdentifierOwned, SubjectPublicKeyInfoOwned};
 use x509_cert::time::{Time, Validity};
 
 use crate::{AppState, Principal, Scope, Via};
+use ring::signature::ECDSA_P256_SHA256_FIXED_SIGNING;
 use rostdav_meta::Db;
+use rostdav_meta::NewDevice;
 use rostdav_storage::LocalStore;
+use std::sync::{Arc, Mutex};
 
 pub(crate) const NOW: i64 = 1_800_000_000;
 pub(crate) const EC_PUBLIC_KEY: ObjectIdentifier =
@@ -234,4 +237,84 @@ pub(crate) async fn add_user(st: &AppState, name: &str) -> Principal {
         via: Via::AccountPassword,
         scope: Scope::Full,
     }
+}
+
+/// A key whose signatures are raw R||S, as the phone's are.
+pub(crate) fn fixed_key() -> EcdsaKeyPair {
+    let rng = SystemRandom::new();
+    let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng).expect("key");
+    EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref(), &rng).expect("pair")
+}
+
+pub(crate) struct Phone {
+    pub(crate) id: String,
+    pub(crate) request: EcdsaKeyPair,
+    pub(crate) approval: EcdsaKeyPair,
+    pub(crate) user_id: i64,
+}
+
+pub(crate) async fn enrolled(st: &AppState, user: &str, id: &str) -> Phone {
+    let p = add_user(st, user).await;
+    let (request, approval) = (fixed_key(), fixed_key());
+    st.inner
+        .db
+        .mfa_device_insert(&NewDevice {
+            id,
+            user_id: p.user_id,
+            name: "Pixel",
+            request_pub: &spki_b64(&request),
+            approval_pub: &spki_b64(&approval),
+            push_channel: "fcm",
+            push_token: "t",
+            hardware_backed: true,
+            strongbox: false,
+        })
+        .await
+        .expect("insert");
+    Phone {
+        id: id.to_owned(),
+        request,
+        approval,
+        user_id: p.user_id,
+    }
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct Capture(pub(crate) Arc<Mutex<Vec<u8>>>);
+
+impl std::io::Write for Capture {
+    fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
+        if let Ok(mut g) = self.0.lock() {
+            g.extend_from_slice(b);
+        }
+        Ok(b.len())
+    }
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for Capture {
+    type Writer = Capture;
+    fn make_writer(&'a self) -> Capture {
+        self.clone()
+    }
+}
+
+/// One capturing subscriber for the whole test binary. A per-test subscriber is not reliable:
+/// tracing caches whether a call site is enabled, and a parallel test without a subscriber can
+/// switch it off.
+pub(crate) fn captured() -> &'static Capture {
+    static CAPTURE: std::sync::OnceLock<Capture> = std::sync::OnceLock::new();
+    CAPTURE.get_or_init(|| {
+        let cap = Capture::default();
+        let sub = tracing_subscriber::fmt()
+            .with_max_level(tracing::Level::TRACE)
+            .with_ansi(false)
+            .with_writer(cap.clone())
+            .finish();
+        // the first test to get here wins; no other test sets a global subscriber
+        let _ = tracing::subscriber::set_global_default(sub);
+        cap
+    })
 }

@@ -93,6 +93,8 @@ pub struct NewChallenge<'a> {
     /// JSON array of the three numbers shown on the phone.
     pub candidates: &'a str,
     pub audience: &'a str,
+    /// What the user is signing in with, shown on the phone (for example "Firefox on Linux").
+    pub login_device: &'a str,
     pub expires_at: i64,
 }
 
@@ -111,10 +113,11 @@ pub struct ChallengeRow {
     /// `pending`, `approved`, `denied` or `expired`.
     pub status: String,
     pub consumed_at: Option<i64>,
+    pub login_device: String,
 }
 
 const CHALLENGE_COLUMNS: &str = "id, user_id, device_id, login_ref, nonce, number, candidates, \
-     audience, created_at, expires_at, status, consumed_at";
+     audience, created_at, expires_at, status, consumed_at, login_device";
 
 type ChallengeTuple = (
     String,
@@ -129,6 +132,7 @@ type ChallengeTuple = (
     i64,
     String,
     Option<i64>,
+    String,
 );
 
 impl From<ChallengeTuple> for ChallengeRow {
@@ -146,6 +150,7 @@ impl From<ChallengeTuple> for ChallengeRow {
             expires_at: t.9,
             status: t.10,
             consumed_at: t.11,
+            login_device: t.12,
         }
     }
 }
@@ -323,8 +328,8 @@ impl Db {
     pub async fn mfa_challenge_insert(&self, c: &NewChallenge<'_>) -> Result<()> {
         sql::query(
             "INSERT INTO mfa_challenges (id, user_id, device_id, login_ref, nonce, number,
-                 candidates, audience, created_at, expires_at, status, consumed_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL)",
+                 candidates, audience, created_at, expires_at, status, consumed_at, login_device)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?)",
         )
         .bind(c.id)
         .bind(c.user_id)
@@ -336,6 +341,7 @@ impl Db {
         .bind(c.audience)
         .bind(now_secs())
         .bind(c.expires_at)
+        .bind(c.login_device)
         .execute(self.pool())
         .await
         .map_err(err)?;
@@ -379,6 +385,22 @@ impl Db {
              WHERE id = ? AND status = 'pending' AND expires_at > ?",
         )
         .bind(to)
+        .bind(now)
+        .bind(id)
+        .bind(now)
+        .execute(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(r.rows_affected() > 0)
+    }
+
+    /// Marks a pending challenge whose time has run out as `expired`. True for the one caller
+    /// that changed it, so the expiry is recorded once.
+    pub async fn mfa_challenge_expire(&self, id: &str, now: i64) -> Result<bool> {
+        let r = sql::query(
+            "UPDATE mfa_challenges SET status = 'expired', consumed_at = ?
+             WHERE id = ? AND status = 'pending' AND expires_at <= ?",
+        )
         .bind(now)
         .bind(id)
         .bind(now)
@@ -436,8 +458,56 @@ mod tests {
             number: 47,
             candidates: "[47,12,83]",
             audience: "rostdav",
+            login_device: "Firefox on Linux",
             expires_at,
         }
+    }
+
+    #[tokio::test]
+    async fn challenge_keeps_the_login_device() {
+        let (db, uid) = db_with_user().await;
+        db.mfa_device_insert(&device("d1", uid)).await.expect("dev");
+        db.mfa_challenge_insert(&challenge("c1", "d1", uid, 2_000_000_000))
+            .await
+            .expect("insert");
+        let row = db.mfa_challenge_get("c1").await.expect("get").expect("row");
+        assert_eq!(row.login_device, "Firefox on Linux");
+    }
+
+    #[tokio::test]
+    async fn expire_marks_only_pending_challenges_that_are_past_due() {
+        let (db, uid) = db_with_user().await;
+        db.mfa_device_insert(&device("d1", uid)).await.expect("dev");
+        for id in ["c1", "c2", "c3"] {
+            db.mfa_challenge_insert(&challenge(id, "d1", uid, 1_000))
+                .await
+                .expect("insert");
+        }
+        // not due yet
+        assert!(!db.mfa_challenge_expire("c1", 999).await.expect("e"));
+        // c2 was answered before it ran out
+        assert!(
+            db.mfa_challenge_resolve("c2", "denied", 500)
+                .await
+                .expect("r")
+        );
+        assert!(db.mfa_challenge_expire("c1", 1_000).await.expect("e"));
+        // once only, and an answered challenge keeps its status
+        assert!(!db.mfa_challenge_expire("c1", 1_001).await.expect("e"));
+        assert!(!db.mfa_challenge_expire("c2", 1_001).await.expect("e"));
+        let status = |id: &'static str| {
+            let db = db.clone();
+            async move {
+                db.mfa_challenge_get(id)
+                    .await
+                    .expect("g")
+                    .expect("row")
+                    .status
+            }
+        };
+        assert_eq!(status("c1").await, "expired");
+        assert_eq!(status("c2").await, "denied");
+        assert_eq!(status("c3").await, "pending");
     }
 
     #[tokio::test]

@@ -57,8 +57,10 @@ pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use push_mfa::{
-    AttestationPolicy, AttestationResult, DevicePrincipal, EnrollToken, MfaConfig, MfaError,
-    ParsedAuth, RegisterInput, Registered, google_roots, parse_authorization, verify_attestation,
+    AttestationPolicy, AttestationResult, ChallengeDetails, ChallengeStatus, DevicePrincipal,
+    EnrollToken, MfaConfig, MfaError, NewChallenge as MfaNewChallenge, NoopPush, ParsedAuth,
+    PushChannel, PushFuture, RegisterInput, Registered, google_roots, parse_authorization,
+    verify_attestation,
 };
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{
@@ -100,6 +102,8 @@ struct Inner {
     mfa_limiter: ratelimit::RateLimiter,
     /// Trusted attestation roots that replace Google's in tests.
     mfa_roots: std::sync::Mutex<Option<Vec<Vec<u8>>>>,
+    /// How phones are woken for a new challenge (ADR 0014).
+    mfa_push: std::sync::RwLock<Arc<dyn push_mfa::PushChannel>>,
     /// Instance ID used in Nextcloud-style file IDs (`oc:id`), e.g. `oc` + 10 characters.
     instance_id: String,
     /// 32-byte key for stateless tickets and CSRF values (stored in `settings`).
@@ -231,6 +235,7 @@ impl AppState {
                     std::time::Duration::from_secs(15 * 60),
                 ),
                 mfa_roots: std::sync::Mutex::new(None),
+                mfa_push: std::sync::RwLock::new(Arc::new(push_mfa::NoopPush)),
                 instance_id,
                 server_key,
                 maintenance: maintenance.into(),
@@ -273,6 +278,11 @@ impl AppState {
                     std::time::Duration::from_secs(15 * 60),
                 ),
                 mfa_roots: std::sync::Mutex::new(None),
+                mfa_push: std::sync::RwLock::new(
+                    old.mfa_push
+                        .read()
+                        .map_or_else(|e| e.into_inner().clone(), |g| g.clone()),
+                ),
                 instance_id: old.instance_id.clone(),
                 server_key: old.server_key,
                 maintenance: old

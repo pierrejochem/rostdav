@@ -1,56 +1,13 @@
-use std::sync::{Arc, Mutex};
-
 use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
 use ring::rand::SystemRandom;
-use ring::signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair};
-use rostdav_meta::NewDevice;
+use ring::signature::EcdsaKeyPair;
 
 use super::devauth::parse_authorization;
 use crate::AppState;
 use crate::push_mfa::MfaError;
-use crate::push_mfa::testkit::{NOW, add_user, spki_b64, state};
+use crate::push_mfa::testkit::{NOW, Phone, captured, enrolled, fixed_key, spki_b64, state};
 
 const PATH: &str = "/mfa/v1/challenges?status=pending";
-
-/// A key whose signatures are raw R||S, as the phone's are.
-fn fixed_key() -> EcdsaKeyPair {
-    let rng = SystemRandom::new();
-    let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng).expect("key");
-    EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref(), &rng).expect("pair")
-}
-
-struct Phone {
-    id: String,
-    request: EcdsaKeyPair,
-    approval: EcdsaKeyPair,
-    user_id: i64,
-}
-
-async fn enrolled(st: &AppState, user: &str, id: &str) -> Phone {
-    let p = add_user(st, user).await;
-    let (request, approval) = (fixed_key(), fixed_key());
-    st.inner
-        .db
-        .mfa_device_insert(&NewDevice {
-            id,
-            user_id: p.user_id,
-            name: "Pixel",
-            request_pub: &spki_b64(&request),
-            approval_pub: &spki_b64(&approval),
-            push_channel: "fcm",
-            push_token: "t",
-            hardware_backed: true,
-            strongbox: false,
-        })
-        .await
-        .expect("insert");
-    Phone {
-        id: id.to_owned(),
-        request,
-        approval,
-        user_id: p.user_id,
-    }
-}
 
 fn sign_with(
     key: &EcdsaKeyPair,
@@ -413,46 +370,6 @@ async fn last_seen_is_updated_on_success_only() {
     assert_eq!(seen().await, None);
     auth(&st, &good(&p, NOW, "n1"), NOW).await.expect("auth");
     assert_eq!(seen().await, Some(NOW));
-}
-
-#[derive(Clone, Default)]
-struct Capture(Arc<Mutex<Vec<u8>>>);
-
-impl std::io::Write for Capture {
-    fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
-        if let Ok(mut g) = self.0.lock() {
-            g.extend_from_slice(b);
-        }
-        Ok(b.len())
-    }
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-}
-
-impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for Capture {
-    type Writer = Capture;
-    fn make_writer(&'a self) -> Capture {
-        self.clone()
-    }
-}
-
-/// One capturing subscriber for the whole test binary. A per-test subscriber is not reliable:
-/// tracing caches whether a call site is enabled, and a parallel test without a subscriber can
-/// switch it off.
-fn captured() -> &'static Capture {
-    static CAPTURE: std::sync::OnceLock<Capture> = std::sync::OnceLock::new();
-    CAPTURE.get_or_init(|| {
-        let cap = Capture::default();
-        let sub = tracing_subscriber::fmt()
-            .with_max_level(tracing::Level::TRACE)
-            .with_ansi(false)
-            .with_writer(cap.clone())
-            .finish();
-        // the first test to get here wins; no other test sets a global subscriber
-        let _ = tracing::subscriber::set_global_default(sub);
-        cap
-    })
 }
 
 #[tokio::test]
