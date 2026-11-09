@@ -10,6 +10,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - **Database tables for push sign-in approval** (migration 0013: phones, enrollment tokens, challenges, request nonces). Nothing uses them yet.
 - **Key attestation check for push sign-in approval phones**: verifies that a phone's key lives in secure hardware (certificate chain to a pinned Google root, hardware security level, challenge, key match). Nothing calls it yet.
 - **Enrollment service for the RustMFA app**: a signed-in user creates a single-use token (QR code), the phone registers its two public keys with the token and an attestation. Wrong tokens and failed attestations are rate limited per address. Not reachable over HTTP yet.
+- **Request authentication for the RustMFA app**: checks the signed `Authorization: RustMFA-Sig` header of a phone (timestamp within 60 seconds, signature by the request key, nonce used once in 5 minutes, phone and account still active). Five failures for one phone in 15 minutes block it for 15 minutes. Not reachable over HTTP yet.
 
 ## [0.10.0] - 2026-10-25
 

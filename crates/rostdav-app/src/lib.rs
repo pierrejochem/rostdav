@@ -57,8 +57,8 @@ pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use push_mfa::{
-    AttestationPolicy, AttestationResult, EnrollToken, MfaConfig, MfaError, RegisterInput,
-    Registered, google_roots, verify_attestation,
+    AttestationPolicy, AttestationResult, DevicePrincipal, EnrollToken, MfaConfig, MfaError,
+    ParsedAuth, RegisterInput, Registered, google_roots, parse_authorization, verify_attestation,
 };
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{

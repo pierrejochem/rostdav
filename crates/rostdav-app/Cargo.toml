@@ -34,6 +34,7 @@ quick-xml.workspace = true
 minisign-verify.workspace = true
 
 [dev-dependencies]
+tracing-subscriber.workspace = true
 tempfile.workspace = true
 serde_json.workspace = true
 
