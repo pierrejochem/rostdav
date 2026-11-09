@@ -95,6 +95,8 @@ pub fn router_with(state: AppState, opts: &HttpOptions) -> Router {
         .merge(rostdav_dav::router())
         .merge(rostdav_compat::router(compat))
         .merge(rostdav_web::router())
+        // phones sign their requests; no session cookie, no CSRF token (ADR 0014)
+        .merge(rostdav_mfa_api::router())
         .layer(middleware)
         .layer(axum::middleware::from_fn_with_state(
             state.clone(),

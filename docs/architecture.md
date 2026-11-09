@@ -21,7 +21,8 @@ flowchart TB
     HTTP --> DAV[dav: WebDAV adapter]
     HTTP --> COMPAT[compat: status.php, OCS, Login Flow v2]
     HTTP --> WEB[web: HTML interface]
-    DAV & COMPAT & WEB --> APP
+    HTTP --> MFAAPI[mfa-api: RustMFA phone API]
+    DAV & COMPAT & WEB & MFAAPI --> APP
 
     subgraph APP[app: services]
       ID[Identity]
@@ -49,6 +50,7 @@ flowchart TB
 | `rostdav-dav` | WebDAV methods, PROPFIND/PROPPATCH XML, Nextcloud properties, chunked upload | core, app |
 | `rostdav-compat` | `status.php`, capabilities, OCS endpoints (user, sharing), Login Flow v2 | core, app |
 | `rostdav-web` | HTML pages (askama), sessions, CSRF, static assets | core, app |
+| `rostdav-mfa-api` | HTTP API of the RustMFA app: phone registration, sign-in approval, device list ([ADR 0014](adr/0014-push-mfa.md)) | core, app |
 | `rostdav` (binary) | Configuration, wiring, router, CLI (`serve`, `admin …`) | all |
 
 Rule: protocol crates know neither the database nor the file system. Only `rostdav-app` coordinates `meta` and `storage`.
@@ -64,6 +66,7 @@ Tower layers in this order:
    - Basic Auth with **app password** → `Principal { user, via: AppPassword(id) }`
    - Basic Auth with **account password** → only allowed if neither 2FA is active nor "WebDAV with app passwords only" is set
    - Session cookie → only for `rostdav-web`
+   - Signed device request (`Authorization: RustMFA-Sig …`) → only for `rostdav-mfa-api`; no cookie, no CSRF token
    - Public link token → restricted principal for the share
 5. **Rate limiting** – per IP and per username on all sign-in paths, including login flow polling and 2FA codes.
 6. **CSRF** – only for state-changing web routes.

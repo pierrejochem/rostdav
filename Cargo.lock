@@ -3120,6 +3120,7 @@ dependencies = [
  "rostdav-core",
  "rostdav-dav",
  "rostdav-meta",
+ "rostdav-mfa-api",
  "rostdav-storage",
  "rostdav-web",
  "serde",
@@ -3219,6 +3220,24 @@ dependencies = [
  "tracing",
  "turso",
  "ulid",
+]
+
+[[package]]
+name = "rostdav-mfa-api"
+version = "0.10.0"
+dependencies = [
+ "axum",
+ "base64 0.23.1",
+ "ring",
+ "rostdav-app",
+ "rostdav-core",
+ "rustmfa-contract",
+ "serde",
+ "serde_json",
+ "serde_urlencoded",
+ "tokio",
+ "tower",
+ "tracing",
 ]
 
 [[package]]

@@ -24,6 +24,7 @@ rostdav-app.workspace = true
 rostdav-dav.workspace = true
 rostdav-compat.workspace = true
 rostdav-web.workspace = true
+rostdav-mfa-api.workspace = true
 anyhow.workspace = true
 axum.workspace = true
 clap.workspace = true

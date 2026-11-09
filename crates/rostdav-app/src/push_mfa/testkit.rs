@@ -1,4 +1,6 @@
-//! Test helpers: synthetic Android attestation chains signed with throwaway keys.
+//! Test helpers: synthetic Android attestation chains signed with throwaway keys, fake phones,
+//! a fresh application state. Compiled for this crate's tests and, with the `test-util` feature,
+//! for the integration tests of the HTTP crate. Never part of a production build.
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use der::asn1::{BitString, ObjectIdentifier, OctetString, UtcTime};
@@ -22,22 +24,20 @@ use rostdav_meta::NewDevice;
 use rostdav_storage::LocalStore;
 use std::sync::{Arc, Mutex};
 
-pub(crate) const NOW: i64 = 1_800_000_000;
-pub(crate) const EC_PUBLIC_KEY: ObjectIdentifier =
-    ObjectIdentifier::new_unwrap("1.2.840.10045.2.1");
-pub(crate) const P256: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.3.1.7");
-pub(crate) const ECDSA_SHA256: ObjectIdentifier =
-    ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.2");
-pub(crate) const KEY_DESCRIPTION: ObjectIdentifier =
+pub const NOW: i64 = 1_800_000_000;
+pub const EC_PUBLIC_KEY: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.2.1");
+pub const P256: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.3.1.7");
+pub const ECDSA_SHA256: ObjectIdentifier = ObjectIdentifier::new_unwrap("1.2.840.10045.4.3.2");
+pub const KEY_DESCRIPTION: ObjectIdentifier =
     ObjectIdentifier::new_unwrap("1.3.6.1.4.1.11129.2.1.17");
 
-pub(crate) fn key() -> EcdsaKeyPair {
+pub fn key() -> EcdsaKeyPair {
     let rng = SystemRandom::new();
     let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, &rng).expect("key");
     EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_ASN1_SIGNING, pkcs8.as_ref(), &rng).expect("pair")
 }
 
-pub(crate) fn spki(kp: &EcdsaKeyPair) -> SubjectPublicKeyInfoOwned {
+pub fn spki(kp: &EcdsaKeyPair) -> SubjectPublicKeyInfoOwned {
     SubjectPublicKeyInfoOwned {
         algorithm: AlgorithmIdentifierOwned {
             oid: EC_PUBLIC_KEY,
@@ -47,16 +47,16 @@ pub(crate) fn spki(kp: &EcdsaKeyPair) -> SubjectPublicKeyInfoOwned {
     }
 }
 
-pub(crate) fn spki_b64(kp: &EcdsaKeyPair) -> String {
+pub fn spki_b64(kp: &EcdsaKeyPair) -> String {
     STANDARD.encode(spki(kp).to_der().expect("der"))
 }
 
-pub(crate) fn time(secs: i64) -> Time {
+pub fn time(secs: i64) -> Time {
     let d = Duration::from_secs(u64::try_from(secs).expect("positive"));
     Time::UtcTime(UtcTime::from_unix_duration(d).expect("utc time"))
 }
 
-pub(crate) fn tlv(tag: u8, content: &[u8]) -> Vec<u8> {
+pub fn tlv(tag: u8, content: &[u8]) -> Vec<u8> {
     let mut out = vec![tag];
     match content.len() {
         n if n < 128 => out.push(u8::try_from(n).expect("short")),
@@ -70,11 +70,7 @@ pub(crate) fn tlv(tag: u8, content: &[u8]) -> Vec<u8> {
 }
 
 /// The value of the Android key description extension (only the fields the verifier reads).
-pub(crate) fn key_description(
-    attestation_level: u8,
-    keymaster_level: u8,
-    challenge: &[u8],
-) -> Vec<u8> {
+pub fn key_description(attestation_level: u8, keymaster_level: u8, challenge: &[u8]) -> Vec<u8> {
     let mut seq = Vec::new();
     seq.extend(tlv(0x02, &[4])); // attestationVersion
     seq.extend(tlv(0x0a, &[attestation_level]));
@@ -87,7 +83,7 @@ pub(crate) fn key_description(
     tlv(0x30, &seq)
 }
 
-pub(crate) fn issue(
+pub fn issue(
     subject: &str,
     subject_kp: &EcdsaKeyPair,
     issuer: &str,
@@ -132,16 +128,16 @@ pub(crate) fn issue(
     .expect("cert")
 }
 
-pub(crate) struct Opts {
-    pub(crate) attestation_level: u8,
-    pub(crate) keymaster_level: u8,
-    pub(crate) challenge: Vec<u8>,
-    pub(crate) leaf_validity: (i64, i64),
-    pub(crate) with_extension: bool,
-    pub(crate) include_root: bool,
+pub struct Opts {
+    pub attestation_level: u8,
+    pub keymaster_level: u8,
+    pub challenge: Vec<u8>,
+    pub leaf_validity: (i64, i64),
+    pub with_extension: bool,
+    pub include_root: bool,
     /// The time the root and intermediate certificates are valid around.
-    pub(crate) base: i64,
-    pub(crate) leaf_issuer: &'static str,
+    pub base: i64,
+    pub leaf_issuer: &'static str,
 }
 
 impl Default for Opts {
@@ -159,17 +155,17 @@ impl Default for Opts {
     }
 }
 
-pub(crate) struct Fixture {
-    pub(crate) chain: Vec<String>,
-    pub(crate) approval_spki: String,
-    pub(crate) root: Vec<u8>,
-    pub(crate) leaf_der: Vec<u8>,
-    pub(crate) intermediate_der: Vec<u8>,
+pub struct Fixture {
+    pub chain: Vec<String>,
+    pub approval_spki: String,
+    pub root: Vec<u8>,
+    pub leaf_der: Vec<u8>,
+    pub intermediate_der: Vec<u8>,
     #[allow(dead_code)] // signs the challenge answers in the challenge tests
-    pub(crate) approval_kp: EcdsaKeyPair,
+    pub approval_kp: EcdsaKeyPair,
 }
 
-pub(crate) fn fixture(o: Opts) -> Fixture {
+pub fn fixture(o: Opts) -> Fixture {
     let (root_kp, inter_kp, leaf_kp) = (key(), key(), key());
     let wide = (o.base - 100_000, o.base + 100_000);
     let root = issue(
@@ -214,7 +210,7 @@ pub(crate) fn fixture(o: Opts) -> Fixture {
 }
 
 /// A fresh application state in a temporary directory.
-pub(crate) async fn state() -> (tempfile::TempDir, AppState) {
+pub async fn state() -> (tempfile::TempDir, AppState) {
     let dir = tempfile::tempdir().expect("tempdir");
     let store = LocalStore::open(dir.path().join("data"))
         .await
@@ -225,7 +221,7 @@ pub(crate) async fn state() -> (tempfile::TempDir, AppState) {
 }
 
 /// A user who signed in with the account password, as the web interface sees them.
-pub(crate) async fn add_user(st: &AppState, name: &str) -> Principal {
+pub async fn add_user(st: &AppState, name: &str) -> Principal {
     let u = st
         .add_user(name, "correct-horse-battery", false)
         .await
@@ -240,20 +236,20 @@ pub(crate) async fn add_user(st: &AppState, name: &str) -> Principal {
 }
 
 /// A key whose signatures are raw R||S, as the phone's are.
-pub(crate) fn fixed_key() -> EcdsaKeyPair {
+pub fn fixed_key() -> EcdsaKeyPair {
     let rng = SystemRandom::new();
     let pkcs8 = EcdsaKeyPair::generate_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, &rng).expect("key");
     EcdsaKeyPair::from_pkcs8(&ECDSA_P256_SHA256_FIXED_SIGNING, pkcs8.as_ref(), &rng).expect("pair")
 }
 
-pub(crate) struct Phone {
-    pub(crate) id: String,
-    pub(crate) request: EcdsaKeyPair,
-    pub(crate) approval: EcdsaKeyPair,
-    pub(crate) user_id: i64,
+pub struct Phone {
+    pub id: String,
+    pub request: EcdsaKeyPair,
+    pub approval: EcdsaKeyPair,
+    pub user_id: i64,
 }
 
-pub(crate) async fn enrolled(st: &AppState, user: &str, id: &str) -> Phone {
+pub async fn enrolled(st: &AppState, user: &str, id: &str) -> Phone {
     let p = add_user(st, user).await;
     let (request, approval) = (fixed_key(), fixed_key());
     st.inner
@@ -280,7 +276,7 @@ pub(crate) async fn enrolled(st: &AppState, user: &str, id: &str) -> Phone {
 }
 
 #[derive(Clone, Default)]
-pub(crate) struct Capture(pub(crate) Arc<Mutex<Vec<u8>>>);
+pub struct Capture(pub Arc<Mutex<Vec<u8>>>);
 
 impl std::io::Write for Capture {
     fn write(&mut self, b: &[u8]) -> std::io::Result<usize> {
@@ -304,7 +300,7 @@ impl<'a> tracing_subscriber::fmt::MakeWriter<'a> for Capture {
 /// One capturing subscriber for the whole test binary. A per-test subscriber is not reliable:
 /// tracing caches whether a call site is enabled, and a parallel test without a subscriber can
 /// switch it off.
-pub(crate) fn captured() -> &'static Capture {
+pub fn captured() -> &'static Capture {
     static CAPTURE: std::sync::OnceLock<Capture> = std::sync::OnceLock::new();
     CAPTURE.get_or_init(|| {
         let cap = Capture::default();
@@ -320,7 +316,7 @@ pub(crate) fn captured() -> &'static Capture {
 }
 
 /// Attestation options whose certificates are valid now: the service reads the real clock.
-pub(crate) fn live_opts() -> Opts {
+pub fn live_opts() -> Opts {
     let now = crate::now_secs();
     Opts {
         base: now,

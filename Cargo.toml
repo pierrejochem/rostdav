@@ -8,6 +8,7 @@ members = [
     "crates/rostdav-dav",
     "crates/rostdav-compat",
     "crates/rostdav-web",
+    "crates/rostdav-mfa-api",
     "crates/rostdav",
 ]
 
@@ -30,6 +31,7 @@ rostdav-app = { path = "crates/rostdav-app" }
 rostdav-dav = { path = "crates/rostdav-dav" }
 rostdav-compat = { path = "crates/rostdav-compat" }
 rostdav-web = { path = "crates/rostdav-web" }
+rostdav-mfa-api = { path = "crates/rostdav-mfa-api" }
 
 anyhow = "1"
 axum = { version = "0.8", features = ["multipart"] }

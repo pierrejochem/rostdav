@@ -27,7 +27,8 @@ pub enum ChallengeStatus {
 }
 
 impl ChallengeStatus {
-    fn as_str(self) -> &'static str {
+    /// The word the contract uses (`pending`, `approved`, `denied`, `expired`).
+    pub fn as_str(self) -> &'static str {
         match self {
             Self::Pending => "pending",
             Self::Approved => "approved",
@@ -512,8 +513,8 @@ impl AppState {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn set_push_channel_for_tests(&self, p: Arc<dyn PushChannel>) {
+    #[cfg(any(test, feature = "test-util"))]
+    pub fn set_push_channel_for_tests(&self, p: Arc<dyn PushChannel>) {
         if let Ok(mut g) = self.inner.mfa_push.write() {
             *g = p;
         }

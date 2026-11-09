@@ -216,8 +216,8 @@ impl AppState {
             .unwrap_or_else(google_roots)
     }
 
-    #[cfg(test)]
-    pub(crate) fn set_attestation_roots_for_tests(&self, roots: Vec<Vec<u8>>) {
+    #[cfg(any(test, feature = "test-util"))]
+    pub fn set_attestation_roots_for_tests(&self, roots: Vec<Vec<u8>>) {
         if let Ok(mut g) = self.inner.mfa_roots.lock() {
             *g = Some(roots);
         }

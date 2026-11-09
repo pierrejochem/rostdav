@@ -16,8 +16,8 @@ mod enroll_tests;
 mod error;
 mod google_roots;
 mod push;
-#[cfg(test)]
-pub(crate) mod testkit;
+#[cfg(any(test, feature = "test-util"))]
+pub mod testkit;
 
 pub use attestation::{AttestationResult, verify_attestation};
 pub use challenges::{ChallengeDetails, ChallengeStatus, NewChallenge};

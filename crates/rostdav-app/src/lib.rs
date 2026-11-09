@@ -56,6 +56,8 @@ pub use indexer::{PassReport, SearchStatus};
 pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
+#[cfg(feature = "test-util")]
+pub use push_mfa::testkit;
 pub use push_mfa::{
     AttestationPolicy, AttestationResult, ChallengeDetails, ChallengeStatus, DeviceInfo,
     DevicePrincipal, EnrollToken, MfaAuditEvent, MfaConfig, MfaError,
