@@ -142,6 +142,8 @@ Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa
 
 A value outside its range stops the server at start-up with a message naming the key.
 
+**Limits.** A user can create five enrollment tokens in 15 minutes. A client address that sends five wrong or unusable enrollment tokens, or five attestation chains that fail, is blocked from registering for 15 minutes (these blocks are not listed on the lockouts page yet). Malformed requests do not count. Device names are shortened to 128 characters and stripped of control characters.
+
 ## Version check
 
 Off by default. Administration, Server, "Updates" turns it on: the server then asks the GitHub releases API once a day (and on "Check now") which version is the newest, and shows a newer one with its release notes. The request carries only `User-Agent: rostdav/<version>`. While it is off, the server makes no outbound connection. After an error the server tries again in an hour; the page shows the reason. The switch is kept in the database, so a restart keeps it. Events: `admin.update_check_on`, `admin.update_check_off`, `admin.update_installed`. The About page (every user) shows the release notes of the running build and the versions before it; they are compiled in and need no network. 

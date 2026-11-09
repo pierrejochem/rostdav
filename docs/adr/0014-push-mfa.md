@@ -49,6 +49,7 @@ Migration `0013_push_mfa.sql` with four `STRICT` tables, a plain index on every 
 ### Dependencies (justification)
 
 - `rustmfa-contract` (own crate, `rostdav-mfa` repository): signing formats and verification shared with the app and its test vectors. **Decision:** git dependency pinned by revision. Until that repository is published, development uses a local `[patch]` in an uncommitted `.cargo/config.toml`; the dependency is committed only once the repository exists.
+  **Amendment 2026-11-08:** the owner chose a temporary path dependency on the sibling checkout (`../rostdav-mfa/contract/rustmfa-contract`, marked in `Cargo.toml`) for the development branch. It must become a git dependency pinned by revision before the branch is merged into `main`; until then the branch builds only next to that checkout.
 - `x509-cert` and `der` (RustCrypto, MIT/Apache): parse the attestation chain and the Android key description.
 - `ring` (already in the tree through the update check, ISC-style licence the policy allows): verifies the certificate signatures (RSA and ECDSA P-256/P-384). This avoids adding separate RSA and ECDSA crates, and `rcgen` is not needed: the tests build synthetic chains with `x509-cert` and sign them with `ring`.
 - Android attestation roots are pinned in `push_mfa/google_roots.rs`. Source and check on 2026-11-08: the list at `https://android.googleapis.com/attestation/root` against the certificates on Google's key-attestation documentation page. Pinned are the two that both list:

@@ -57,7 +57,8 @@ pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use push_mfa::{
-    AttestationPolicy, AttestationResult, MfaConfig, MfaError, google_roots, verify_attestation,
+    AttestationPolicy, AttestationResult, EnrollToken, MfaConfig, MfaError, RegisterInput,
+    Registered, google_roots, verify_attestation,
 };
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{
@@ -94,6 +95,11 @@ struct Inner {
     limiter: ratelimit::RateLimiter,
     /// Wrong second-factor codes: five per user in 15 minutes (ADR 0007).
     totp_limiter: ratelimit::RateLimiter,
+    /// Push sign-in approval: failed registrations per address and enrollment tokens per user,
+    /// five in 15 minutes each (ADR 0014).
+    mfa_limiter: ratelimit::RateLimiter,
+    /// Trusted attestation roots that replace Google's in tests.
+    mfa_roots: std::sync::Mutex<Option<Vec<Vec<u8>>>>,
     /// Instance ID used in Nextcloud-style file IDs (`oc:id`), e.g. `oc` + 10 characters.
     instance_id: String,
     /// 32-byte key for stateless tickets and CSRF values (stored in `settings`).
@@ -220,6 +226,11 @@ impl AppState {
                     5,
                     std::time::Duration::from_secs(15 * 60),
                 ),
+                mfa_limiter: ratelimit::RateLimiter::new(
+                    5,
+                    std::time::Duration::from_secs(15 * 60),
+                ),
+                mfa_roots: std::sync::Mutex::new(None),
                 instance_id,
                 server_key,
                 maintenance: maintenance.into(),
@@ -257,6 +268,11 @@ impl AppState {
                     5,
                     std::time::Duration::from_secs(15 * 60),
                 ),
+                mfa_limiter: ratelimit::RateLimiter::new(
+                    5,
+                    std::time::Duration::from_secs(15 * 60),
+                ),
+                mfa_roots: std::sync::Mutex::new(None),
                 instance_id: old.instance_id.clone(),
                 server_key: old.server_key,
                 maintenance: old
