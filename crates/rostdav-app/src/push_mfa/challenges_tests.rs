@@ -967,3 +967,33 @@ async fn a_stale_row_whose_time_ran_out_gives_expired() {
     assert!(matches!(r, Err(MfaError::Expired)), "{r:?}");
     assert_eq!(row(&st, &c.challenge_id).await.status, "expired");
 }
+
+#[tokio::test]
+async fn an_answer_that_lost_to_a_revoke_gives_device_revoked_and_never_approves() {
+    let (_d, st) = state().await;
+    let p = enrolled(&st, "anna", "dev_a").await;
+    let c = create(&st, &p, "l").await;
+    // the answer read the challenge and the device while both were fine ...
+    let stale = row(&st, &c.challenge_id).await;
+    // ... then the phone was revoked before its update ran
+    st.inner
+        .db
+        .mfa_device_revoke("dev_a", p.user_id, now())
+        .await
+        .expect("revoke");
+    let r = st
+        .finish(
+            &stale,
+            ChallengeStatus::Approved,
+            "mfa.challenge_approved",
+            now(),
+        )
+        .await;
+    assert!(matches!(r, Err(MfaError::DeviceRevoked)), "{r:?}");
+    assert_eq!(row(&st, &c.challenge_id).await.status, "pending");
+    assert!(
+        !actions(&st)
+            .await
+            .contains(&"mfa.challenge_approved".to_owned())
+    );
+}

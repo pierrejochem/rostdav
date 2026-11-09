@@ -486,7 +486,18 @@ impl AppState {
                 .await?
                 .ok_or(MfaError::NotFound)?;
             Self::open_or_err(self.current_status(&fresh, now).await?)?;
-            return Err(MfaError::AlreadyConsumed);
+            // still open: the update refused because the phone was revoked in between
+            let revoked = self
+                .inner
+                .db
+                .mfa_device_get(&row.device_id)
+                .await?
+                .is_none_or(|d| d.status != "active");
+            return Err(if revoked {
+                MfaError::DeviceRevoked
+            } else {
+                MfaError::AlreadyConsumed
+            });
         }
         self.audit_challenge(row, action).await;
         Ok(())

@@ -61,3 +61,6 @@ CREATE TABLE mfa_nonces (
 ) STRICT;
 CREATE INDEX mfa_nonces_device ON mfa_nonces(device_id);
 CREATE INDEX mfa_nonces_expiry ON mfa_nonces(expires_at);
+
+-- The own-events view of the app reads the events of one actor by action prefix.
+CREATE INDEX events_actor ON events(actor, action);

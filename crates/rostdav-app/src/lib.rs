@@ -57,10 +57,10 @@ pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use push_mfa::{
-    AttestationPolicy, AttestationResult, ChallengeDetails, ChallengeStatus, DevicePrincipal,
-    EnrollToken, MfaConfig, MfaError, NewChallenge as MfaNewChallenge, NoopPush, ParsedAuth,
-    PushChannel, PushFuture, RegisterInput, Registered, google_roots, parse_authorization,
-    verify_attestation,
+    AttestationPolicy, AttestationResult, ChallengeDetails, ChallengeStatus, DeviceInfo,
+    DevicePrincipal, EnrollToken, MfaAuditEvent, MfaConfig, MfaError,
+    NewChallenge as MfaNewChallenge, NoopPush, ParsedAuth, PushChannel, PushFuture, RegisterInput,
+    Registered, google_roots, parse_authorization, verify_attestation,
 };
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{

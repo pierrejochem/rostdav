@@ -107,6 +107,8 @@ A central error type in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, `Pr
 | `mfa_enroll_tokens` | token_hash, user_id, expires_at, used_at |
 | `mfa_challenges` | id, user_id, device_id, login_ref, nonce, number, candidates, audience, created_at, expires_at, status, consumed_at, login_device |
 | `mfa_nonces` | device_id, nonce, expires_at |
+
+Migration 0013 also adds `events_actor` on `events(actor, action)` for the own-events view of the RustMFA app.
 | `nodes` | see ADR 0002 |
 | `blobs` | id, size, checksum, created_at |
 | `versions` | id, node_id, blob_id, size, mtime, author_app_password_id, created_at |

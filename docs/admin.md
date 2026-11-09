@@ -148,6 +148,8 @@ A phone whose signed request fails five times in 15 minutes (wrong signature, un
 
 A user can have five sign-in approvals started in 15 minutes (this keeps a stolen password from flooding a phone with prompts); further attempts are refused until the window ends. The approval screen shows the sign-in device name but no location: Rostdav has no IP geolocation.
 
+When a user revokes a phone, its open approvals end at once. Revoking the last phone of an account removes that account's push approval factor; Rostdav does not stop this, because a lost phone must be revocable. The audit log records `mfa.device_registered`, `mfa.device_revoked`, `mfa.key_rotated`, `mfa.push_token_updated` and the challenge events, with the user's name as the actor and never a key, token or signature.
+
 ## Version check
 
 Off by default. Administration, Server, "Updates" turns it on: the server then asks the GitHub releases API once a day (and on "Check now") which version is the newest, and shows a newer one with its release notes. The request carries only `User-Agent: rostdav/<version>`. While it is off, the server makes no outbound connection. After an error the server tries again in an hour; the page shows the reason. The switch is kept in the database, so a restart keeps it. Events: `admin.update_check_on`, `admin.update_check_off`, `admin.update_installed`. The About page (every user) shows the release notes of the running build and the versions before it; they are compiled in and need no network. 

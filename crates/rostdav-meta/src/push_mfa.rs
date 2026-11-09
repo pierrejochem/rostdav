@@ -271,13 +271,18 @@ impl Db {
         id: &str,
         request_pub: &str,
         approval_pub: &str,
+        hardware_backed: bool,
+        strongbox: bool,
     ) -> Result<bool> {
         let r = sql::query(
-            "UPDATE mfa_devices SET request_pub = ?, approval_pub = ?
+            "UPDATE mfa_devices SET request_pub = ?, approval_pub = ?, hardware_backed = ?,
+                 strongbox = ?
              WHERE id = ? AND status = 'active'",
         )
         .bind(request_pub)
         .bind(approval_pub)
+        .bind(hardware_backed)
+        .bind(strongbox)
         .bind(id)
         .execute(self.pool())
         .await
@@ -377,12 +382,14 @@ impl Db {
         Ok(rows.into_iter().map(ChallengeRow::from).collect())
     }
 
-    /// Moves a pending, unexpired challenge to `to` (`approved`, `denied` or `expired`).
-    /// One conditional statement: true for exactly one caller.
+    /// Moves a pending, unexpired challenge of an active device to `to` (`approved`, `denied` or
+    /// `expired`). One conditional statement: true for exactly one caller, and never after the
+    /// device was revoked.
     pub async fn mfa_challenge_resolve(&self, id: &str, to: &str, now: i64) -> Result<bool> {
         let r = sql::query(
             "UPDATE mfa_challenges SET status = ?, consumed_at = ?
-             WHERE id = ? AND status = 'pending' AND expires_at > ?",
+             WHERE id = ? AND status = 'pending' AND expires_at > ?
+               AND device_id IN (SELECT id FROM mfa_devices WHERE status = 'active')",
         )
         .bind(to)
         .bind(now)
@@ -392,6 +399,63 @@ impl Db {
         .await
         .map_err(err)?;
         Ok(r.rows_affected() > 0)
+    }
+
+    /// Ends a pending challenge as `expired` whatever its time (its phone was revoked). True for
+    /// the one caller that changed it.
+    pub async fn mfa_challenge_cancel(&self, id: &str, now: i64) -> Result<bool> {
+        let r = sql::query(
+            "UPDATE mfa_challenges SET status = 'expired', consumed_at = ?
+             WHERE id = ? AND status = 'pending'",
+        )
+        .bind(now)
+        .bind(id)
+        .execute(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(r.rows_affected() > 0)
+    }
+
+    /// The newest `limit` events of `actor` whose action starts with `prefix`, newest first.
+    /// `prefix` must end in a character that has a successor ASCII character (like the dot).
+    pub async fn events_of_actor_with_prefix(
+        &self,
+        actor: &str,
+        prefix: &str,
+        limit: i64,
+    ) -> Result<Vec<crate::Event>> {
+        let mut upper = prefix.to_owned();
+        let last = upper
+            .pop()
+            .ok_or(rostdav_core::Error::BadRequest("empty prefix"))?;
+        upper.push(char::from(
+            u8::try_from(last).map_or(0x7f, |b| b.saturating_add(1)),
+        ));
+        let rows: Vec<(i64, i64, String, String, String, String, String)> = sql::query_as(
+            "SELECT id, ts, actor, action, target, ip, details FROM events
+             WHERE actor = ? AND action >= ? AND action < ? ORDER BY id DESC LIMIT ?",
+        )
+        .bind(actor)
+        .bind(prefix)
+        .bind(upper)
+        .bind(limit)
+        .fetch_all(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(rows
+            .into_iter()
+            .map(
+                |(id, ts, actor, action, target, ip, details)| crate::Event {
+                    id,
+                    ts,
+                    actor,
+                    action,
+                    target,
+                    ip,
+                    details,
+                },
+            )
+            .collect())
     }
 
     /// Marks a pending challenge whose time has run out as `expired`. True for the one caller
@@ -461,6 +525,93 @@ mod tests {
             login_device: "Firefox on Linux",
             expires_at,
         }
+    }
+
+    #[tokio::test]
+    async fn cancel_ends_a_pending_challenge_once_whatever_its_time() {
+        let (db, uid) = db_with_user().await;
+        db.mfa_device_insert(&device("d1", uid)).await.expect("dev");
+        for id in ["c1", "c2"] {
+            db.mfa_challenge_insert(&challenge(id, "d1", uid, 2_000_000_000))
+                .await
+                .expect("insert");
+        }
+        assert!(
+            db.mfa_challenge_resolve("c2", "approved", 5)
+                .await
+                .expect("r")
+        );
+        assert!(db.mfa_challenge_cancel("c1", 10).await.expect("cancel"));
+        assert!(!db.mfa_challenge_cancel("c1", 11).await.expect("again"));
+        assert!(!db.mfa_challenge_cancel("c2", 11).await.expect("answered"));
+        let st = |id: &'static str| {
+            let db = db.clone();
+            async move {
+                db.mfa_challenge_get(id)
+                    .await
+                    .expect("g")
+                    .expect("row")
+                    .status
+            }
+        };
+        assert_eq!(
+            (st("c1").await.as_str(), st("c2").await.as_str()),
+            ("expired", "approved")
+        );
+    }
+
+    #[tokio::test]
+    async fn events_of_an_actor_are_limited_to_the_prefix_newest_first() {
+        let (db, _uid) = db_with_user().await;
+        for (ts, actor, action) in [
+            (1, "anna", "mfa.device_registered"),
+            (2, "anna", "auth.login"),
+            (3, "ben", "mfa.device_registered"),
+            (4, "anna", "mfa.challenge_created"),
+            (5, "anna", "mfb.other"),
+            (6, "anna", "mfa"),
+            (7, "anna", "mfa.challenge_approved"),
+        ] {
+            db.record_event_at(ts, actor, action, "t", "", "{}")
+                .await
+                .expect("event");
+        }
+        let got: Vec<(i64, String)> = db
+            .events_of_actor_with_prefix("anna", "mfa.", 2)
+            .await
+            .expect("events")
+            .into_iter()
+            .map(|e| (e.ts, e.action))
+            .collect();
+        assert_eq!(
+            got,
+            [
+                (7, "mfa.challenge_approved".to_owned()),
+                (4, "mfa.challenge_created".to_owned())
+            ]
+        );
+        let all = db
+            .events_of_actor_with_prefix("anna", "mfa.", 10)
+            .await
+            .expect("e");
+        assert_eq!(all.len(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_revoked_device_cannot_resolve_its_challenge() {
+        let (db, uid) = db_with_user().await;
+        db.mfa_device_insert(&device("d1", uid)).await.expect("dev");
+        db.mfa_challenge_insert(&challenge("c1", "d1", uid, 2_000_000_000))
+            .await
+            .expect("insert");
+        assert!(db.mfa_device_revoke("d1", uid, 5).await.expect("revoke"));
+        assert!(
+            !db.mfa_challenge_resolve("c1", "approved", 6)
+                .await
+                .expect("resolve")
+        );
+        let row = db.mfa_challenge_get("c1").await.expect("g").expect("row");
+        assert_eq!(row.status, "pending");
     }
 
     #[tokio::test]
@@ -555,7 +706,7 @@ mod tests {
                 .expect("push")
         );
         assert!(
-            db.mfa_device_set_keys("dev_a", "r2", "a2")
+            db.mfa_device_set_keys("dev_a", "r2", "a2", false, true)
                 .await
                 .expect("keys")
         );
@@ -573,6 +724,7 @@ mod tests {
             ),
             ("r2", "a2", Some(77))
         );
+        assert_eq!((d.hardware_backed, d.strongbox), (false, true));
         assert!(
             !db.mfa_device_set_push("missing", "fcm", "t")
                 .await
@@ -788,6 +940,10 @@ mod tests {
             (
                 "SELECT id FROM mfa_devices WHERE user_id = 1",
                 "mfa_devices_user",
+            ),
+            (
+                "SELECT id FROM events WHERE actor = 'a' AND action >= 'mfa.' AND action < 'mfa/' ORDER BY id DESC LIMIT 5",
+                "events_actor",
             ),
         ];
         for (q, index) in cases {

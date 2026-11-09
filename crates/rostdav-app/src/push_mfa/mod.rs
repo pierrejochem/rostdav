@@ -7,6 +7,9 @@ mod challenges_tests;
 mod devauth;
 #[cfg(test)]
 mod devauth_tests;
+mod devices;
+#[cfg(test)]
+mod devices_tests;
 mod enroll;
 #[cfg(test)]
 mod enroll_tests;
@@ -19,6 +22,7 @@ pub(crate) mod testkit;
 pub use attestation::{AttestationResult, verify_attestation};
 pub use challenges::{ChallengeDetails, ChallengeStatus, NewChallenge};
 pub use devauth::{DevicePrincipal, ParsedAuth, parse_authorization};
+pub use devices::{DeviceInfo, MfaAuditEvent};
 pub use enroll::{EnrollToken, RegisterInput, Registered};
 pub use error::MfaError;
 pub use google_roots::google_roots;

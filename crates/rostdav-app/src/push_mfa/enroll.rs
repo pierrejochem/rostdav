@@ -50,10 +50,21 @@ fn invalid(reason: &'static str) -> MfaError {
     MfaError::InvalidRequest(reason)
 }
 
-fn sha256(data: &[u8]) -> Vec<u8> {
+pub(super) fn sha256(data: &[u8]) -> Vec<u8> {
     ring::digest::digest(&ring::digest::SHA256, data)
         .as_ref()
         .to_vec()
+}
+
+/// The push channel and token a phone gives, at registration or later.
+pub(super) fn check_push(channel: &str, token: &str) -> Result<(), MfaError> {
+    if !matches!(channel, "fcm" | "unifiedpush") {
+        return Err(invalid("push channel must be fcm or unifiedpush"));
+    }
+    if token.is_empty() || token.len() > MAX_PUSH_TOKEN || token.chars().any(char::is_control) {
+        return Err(invalid("push token is missing or too long"));
+    }
+    Ok(())
 }
 
 /// Checks the input without touching the token; returns the cleaned device name.
@@ -73,15 +84,7 @@ fn validate(i: &RegisterInput) -> Result<String, MfaError> {
     if i.request_public_key == i.approval_public_key {
         return Err(invalid("request key and approval key must differ"));
     }
-    if !matches!(i.push_channel.as_str(), "fcm" | "unifiedpush") {
-        return Err(invalid("push channel must be fcm or unifiedpush"));
-    }
-    if i.push_token.is_empty()
-        || i.push_token.len() > MAX_PUSH_TOKEN
-        || i.push_token.chars().any(char::is_control)
-    {
-        return Err(invalid("push token is missing or too long"));
-    }
+    check_push(&i.push_channel, &i.push_token)?;
     let name = sanitize_text(&i.device_name).trim().to_owned();
     if name.is_empty() {
         return Err(invalid("device name is missing"));
@@ -205,7 +208,7 @@ impl AppState {
     }
 
     /// Google's roots, unless a test set its own.
-    fn attestation_roots(&self) -> Vec<Vec<u8>> {
+    pub(super) fn attestation_roots(&self) -> Vec<Vec<u8>> {
         self.inner
             .mfa_roots
             .lock()

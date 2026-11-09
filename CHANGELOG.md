@@ -12,6 +12,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - **Enrollment service for the RustMFA app**: a signed-in user creates a single-use token (QR code), the phone registers its two public keys with the token and an attestation. Wrong tokens and failed attestations are rate limited per address. Not reachable over HTTP yet.
 - **Request authentication for the RustMFA app**: checks the signed `Authorization: RustMFA-Sig` header of a phone (timestamp within 60 seconds, signature by the request key, nonce used once in 5 minutes, phone and account still active). Five failures for one phone in 15 minutes block it for 15 minutes. Not reachable over HTTP yet.
 - **Sign-in challenges for the RustMFA app**: the server can start an approval for one phone (a two-digit number, two decoys, 90 seconds by default), list pending ones, and accept an approve or deny signed with the phone's biometric key. A wrong number denies the challenge. Only one answer can win. Five challenges per user in 15 minutes. Push delivery is a stub until the sign-in page work; not reachable over HTTP yet.
+- **Phone management for the RustMFA app**: list, revoke (this also ends the phone's open sign-in approvals), change the push token, rotate both keys (the new approval key needs a fresh attestation), and a view of the user's own security events. A revoked phone can no longer approve, even an answer that was already in flight. Not reachable over HTTP yet.
 
 ## [0.10.0] - 2026-10-25
 

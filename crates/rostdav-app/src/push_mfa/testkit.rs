@@ -318,3 +318,13 @@ pub(crate) fn captured() -> &'static Capture {
         cap
     })
 }
+
+/// Attestation options whose certificates are valid now: the service reads the real clock.
+pub(crate) fn live_opts() -> Opts {
+    let now = crate::now_secs();
+    Opts {
+        base: now,
+        leaf_validity: (now - 1000, now + 1000),
+        ..Opts::default()
+    }
+}
