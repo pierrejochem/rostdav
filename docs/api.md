@@ -37,7 +37,7 @@ Causes are only logged (with request ID), never returned.
 
 ## RustMFA device API
 
-Used by the RustMFA Android app ([ADR 0014](adr/0014-push-mfa.md)). The machine-readable contract is `rustmfa-v1.yaml` in the `rostdav-mfa` repository; its JSON mirror is what the tests read. All paths are under `/api/v1`. Bodies are JSON, at most 64 KiB, and fields the contract does not name are refused. Every response has `cache-control: no-store`.
+Used by the RustMFA Android app ([ADR 0014](adr/0014-push-mfa.md)). The machine-readable contract is `rustmfa-v1.yaml` in the `rostdav-mfa` repository; its JSON mirror is exported by the `rustmfa-contract` crate and is what the tests read. All paths are under `/api/v1`. Bodies are JSON, at most 64 KiB, and fields the contract does not name are refused. Every response has `cache-control: no-store`.
 
 **Signing.** Every route except registration needs
 

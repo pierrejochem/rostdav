@@ -31,12 +31,7 @@ fn sha256(data: &[u8]) -> Vec<u8> {
 // ---- the contract as JSON ---------------------------------------------------------------------
 
 fn spec() -> Value {
-    let p = concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../../rostdav-mfa/contract/openapi/rustmfa-v1.json"
-    );
-    serde_json::from_str(&std::fs::read_to_string(p).expect("contract JSON mirror missing"))
-        .expect("contract JSON")
+    serde_json::from_str(rustmfa_contract::OPENAPI_JSON).expect("contract JSON")
 }
 
 fn resolve<'a>(spec: &'a Value, schema: &'a Value) -> &'a Value {

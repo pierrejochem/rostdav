@@ -61,9 +61,8 @@ ulid = "3"
 chacha20poly1305 = "0.11"
 hmac = "0.13"
 # Push sign-in approval (ADR 0014)
-# TEMPORARY path dependency on the sibling checkout of the rostdav-mfa repository. Replace it with
-# a git dependency pinned by revision before this branch is merged (ADR 0014, "Dependencies").
-rustmfa-contract = { path = "../rostdav-mfa/contract/rustmfa-contract" }
+# Shared signing formats and test vectors, pinned by revision (ADR 0014, "Dependencies").
+rustmfa-contract = { git = "https://github.com/pierrejochem/rostdav-mfa", rev = "9d869bad8f6b971bb6cfe87f869ffe857c435389" }
 x509-cert = { version = "0.2", default-features = false }
 der = { version = "0.7", features = ["alloc", "oid"] }
 ring = { version = "0.17", default-features = false, features = ["alloc"] }
