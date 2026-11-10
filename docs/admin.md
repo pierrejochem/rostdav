@@ -139,8 +139,11 @@ Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa
 | `mfa.enroll_ttl_seconds` | 300 | Seconds an enrollment QR code stays valid (60 to 900). |
 | `mfa.audience` | `rostdav` | Service identifier signed into every challenge: 1 to 64 characters of `A-Z a-z 0-9 . _ -`. Changing it invalidates challenges in flight. |
 | `mfa.attestation` | `required` | `required`: a phone must prove a hardware-backed key at registration. `off`: no check, for custom ROMs without Google key attestation. With `off`, a stolen enrollment QR code is enough to register software keys, so keep the enrollment time short. |
+| `mfa.fcm.project_id`, `mfa.fcm.service_account_file` | unset | Wake phones through Firebase Cloud Messaging. Both or neither. See below. |
 
 A value outside its range stops the server at start-up with a message naming the key.
+
+**Push delivery (FCM).** Without it a phone sees a sign-in request only when its app polls. To turn it on: create a Firebase project (or use the one of your RustMFA build), add a service account with the role "Firebase Cloud Messaging API Admin", download its JSON key, store it outside the data directory with mode 0600, and set `mfa.fcm.project_id` and `mfa.fcm.service_account_file`. A file that cannot be read or is not a service account stops the server at start-up (the message names the key and never shows the file). Rostdav signs a token request with the key, keeps the access token for about an hour and sends one data message per challenge. The message holds only the challenge id; Google learns that a request is pending for a phone, nothing else. A push that fails (Google unreachable, phone unregistered) is logged with the challenge id and never blocks the sign-in: the phone still finds the request by polling.
 
 **Limits.** A user can create five enrollment tokens in 15 minutes. A client address that sends five wrong or unusable enrollment tokens, or five attestation chains that fail, is blocked from registering for 15 minutes (these blocks are not listed on the lockouts page yet). Malformed requests do not count. Device names are shortened to 128 characters and stripped of control characters.
 

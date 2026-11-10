@@ -513,10 +513,15 @@ impl AppState {
         }
     }
 
-    #[cfg(any(test, feature = "test-util"))]
-    pub fn set_push_channel_for_tests(&self, p: Arc<dyn PushChannel>) {
+    /// Replaces the push channel (the server installs FCM at start-up).
+    pub fn set_push_channel(&self, p: Arc<dyn PushChannel>) {
         if let Ok(mut g) = self.inner.mfa_push.write() {
             *g = p;
         }
+    }
+
+    #[cfg(any(test, feature = "test-util"))]
+    pub fn set_push_channel_for_tests(&self, p: Arc<dyn PushChannel>) {
+        self.set_push_channel(p);
     }
 }

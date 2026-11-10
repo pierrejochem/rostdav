@@ -18,6 +18,9 @@ mod enroll_tests;
 mod error;
 #[cfg(test)]
 mod factor_tests;
+mod fcm;
+#[cfg(test)]
+mod fcm_tests;
 mod google_roots;
 mod login;
 #[cfg(test)]
@@ -32,6 +35,7 @@ pub use devauth::{DevicePrincipal, ParsedAuth, parse_authorization};
 pub use devices::{DeviceInfo, MfaAuditEvent};
 pub use enroll::{EnrollQr, EnrollToken, RegisterInput, Registered, enroll_qr_payload};
 pub use error::MfaError;
+pub use fcm::FcmPush;
 pub use google_roots::google_roots;
 pub use login::{LoginChallenge, SecondStepOptions};
 pub use push::{NoopPush, PushChannel, PushFuture};

@@ -82,6 +82,18 @@ pub struct Mfa {
     pub audience: String,
     /// Whether phones must attest a hardware-backed key.
     pub attestation: MfaAttestation,
+    /// Waking phones through Firebase Cloud Messaging. Off unless both keys are set.
+    pub fcm: MfaFcm,
+}
+
+/// `[mfa.fcm]`: the Firebase project and the service-account file that may send to it.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default, deny_unknown_fields)]
+pub struct MfaFcm {
+    /// Firebase project id.
+    pub project_id: Option<String>,
+    /// Google service-account JSON file (the key never goes into the configuration itself).
+    pub service_account_file: Option<PathBuf>,
 }
 
 impl Default for Mfa {
@@ -91,6 +103,7 @@ impl Default for Mfa {
             enroll_ttl_seconds: 300,
             audience: "rostdav".into(),
             attestation: MfaAttestation::Required,
+            fcm: MfaFcm::default(),
         }
     }
 }
@@ -113,6 +126,19 @@ impl Mfa {
                     .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-')),
             "mfa.audience must be 1 to 64 characters of A-Z a-z 0-9 . _ -"
         );
+        anyhow::ensure!(
+            self.fcm.project_id.is_some() == self.fcm.service_account_file.is_some(),
+            "mfa.fcm needs both project_id and service_account_file, or neither"
+        );
+        if let Some(id) = &self.fcm.project_id {
+            anyhow::ensure!(
+                (1..=128).contains(&id.len())
+                    && id.bytes().all(
+                        |b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b'-' | b':')
+                    ),
+                "mfa.fcm.project_id must be 1 to 128 characters of A-Z a-z 0-9 . _ - :"
+            );
+        }
         Ok(())
     }
 }
@@ -403,6 +429,37 @@ mod tests {
                 jail.create_file("m.toml", &format!("[mfa]\n{line}\n"))?;
                 let err = Config::load(Some(Path::new("m.toml"))).expect_err(line);
                 assert!(err.to_string().contains(key), "{line}: {err}");
+                Ok(())
+            });
+        }
+    }
+
+    #[test]
+    fn fcm_settings_are_off_by_default_and_need_both_keys_or_none() {
+        assert_eq!(Config::default().mfa.fcm, MfaFcm::default());
+        figment::Jail::expect_with(|jail| {
+            jail.create_file(
+                "m.toml",
+                "[mfa.fcm]\nproject_id = \"demo-project\"\nservice_account_file = \"/etc/rostdav/fcm.json\"\n",
+            )?;
+            let cfg = Config::load(Some(Path::new("m.toml"))).map_err(|e| e.to_string())?;
+            assert_eq!(cfg.mfa.fcm.project_id.as_deref(), Some("demo-project"));
+            assert_eq!(
+                cfg.mfa.fcm.service_account_file,
+                Some(PathBuf::from("/etc/rostdav/fcm.json"))
+            );
+            Ok(())
+        });
+        for line in [
+            "project_id = \"demo-project\"",
+            "service_account_file = \"/etc/rostdav/fcm.json\"",
+            "project_id = \"bad id!\"\nservice_account_file = \"/x\"",
+            "project_id = \"\"\nservice_account_file = \"/x\"",
+        ] {
+            figment::Jail::expect_with(|jail| {
+                jail.create_file("m.toml", &format!("[mfa.fcm]\n{line}\n"))?;
+                let err = Config::load(Some(Path::new("m.toml"))).expect_err(line);
+                assert!(err.to_string().contains("mfa.fcm"), "{line}: {err}");
                 Ok(())
             });
         }

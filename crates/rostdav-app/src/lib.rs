@@ -60,10 +60,10 @@ pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use push_mfa::testkit;
 pub use push_mfa::{
     AttestationPolicy, AttestationResult, ChallengeDetails, ChallengeStatus, DeviceInfo,
-    DevicePrincipal, EnrollQr, EnrollToken, LoginChallenge, MfaAuditEvent, MfaConfig, MfaError,
-    NewChallenge as MfaNewChallenge, NoopPush, ParsedAuth, PushChannel, PushFuture, RegisterInput,
-    Registered, SecondStepOptions, enroll_qr_payload, google_roots, parse_authorization,
-    verify_attestation,
+    DevicePrincipal, EnrollQr, EnrollToken, FcmPush, LoginChallenge, MfaAuditEvent, MfaConfig,
+    MfaError, NewChallenge as MfaNewChallenge, NoopPush, ParsedAuth, PushChannel, PushFuture,
+    RegisterInput, Registered, SecondStepOptions, enroll_qr_payload, google_roots,
+    parse_authorization, verify_attestation,
 };
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{

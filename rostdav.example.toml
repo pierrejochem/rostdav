@@ -71,6 +71,14 @@ data_dir = "./data"
 # "off": no check, for custom ROMs without Google key attestation.
 # attestation = "required"
 
+[mfa.fcm]
+# Wake phones through Firebase Cloud Messaging when a sign-in approval waits. Off unless both keys
+# are set. The file is a Google service-account key (JSON) with the role "Firebase Cloud
+# Messaging API Admin"; keep it readable for the Rostdav user only. Without FCM a phone sees a
+# request when its app polls.
+# project_id = "my-firebase-project"
+# service_account_file = "/etc/rostdav/fcm-service-account.json"
+
 [limits]
 # Maximum size of a single upload in bytes (default: 16 GiB).
 # max_upload_bytes = 17179869184

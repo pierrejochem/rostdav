@@ -26,7 +26,7 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
     let state = AppState::new(db, store)
         .await
         .context("initializing the application state failed")?;
-    Ok(state
+    let state = state
         .with_limits(rostdav_app::Limits {
             max_upload_bytes: cfg.limits.max_upload_bytes,
             max_chunk_bytes: cfg.limits.max_chunk_bytes,
@@ -74,7 +74,28 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
         // what the file and the environment leave open can be changed in the web interface
         .with_locked_settings(cfg.set_explicitly.iter().cloned())
         .load_setting_overrides()
-        .await?)
+        .await?;
+    install_push_channel(&state, cfg).await?;
+    Ok(state)
+}
+
+/// FCM, if `[mfa.fcm]` is set. A file that cannot be used stops the server: a push channel that
+/// silently does nothing would leave phones unwoken with no hint why.
+async fn install_push_channel(state: &AppState, cfg: &config::Config) -> anyhow::Result<()> {
+    let (Some(project), Some(file)) = (&cfg.mfa.fcm.project_id, &cfg.mfa.fcm.service_account_file)
+    else {
+        return Ok(());
+    };
+    let json = tokio::fs::read_to_string(file).await.with_context(|| {
+        format!(
+            "mfa.fcm.service_account_file: cannot read {}",
+            file.display()
+        )
+    })?;
+    let fcm = rostdav_app::FcmPush::from_service_account(project, &json)
+        .map_err(|e| anyhow::anyhow!("mfa.fcm.service_account_file: {e}"))?;
+    state.set_push_channel(std::sync::Arc::new(fcm));
+    Ok(())
 }
 
 /// Where the key for the two-factor secrets comes from (ADR 0007).
