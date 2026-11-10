@@ -68,6 +68,14 @@ Migration `0013_push_mfa.sql` with four `STRICT` tables, a plain index on every 
 - Attestation of key rotation beyond the rule below, remote attestation of boot state (`verifiedBootState`).
 - Key rotation attestation: the rotation request carries a fresh attestation chain whose challenge is the SHA-256 of `"rotate:" + device_id + ":" + request_pub`.
 
+## Implementation notes (backend, 2026-11-09)
+
+- The device API lives in the new crate `rostdav-mfa-api` and is merged into the main router. Challenge creation is an in-process call, not an HTTP route.
+- Approve and deny verify the approval-key signature before the number check, so the non-biometric request key cannot end a challenge.
+- A revoked phone gets `DEVICE_REVOKED` only after its signature verified. Revoking wins races with an approval in flight.
+- Bodies over 64 KiB are refused with 413. The challenge list supports `status=pending` only.
+- Device ids are `dev_` plus a random token, challenge ids `ch_` plus a random token.
+
 ## Consequences
 
 - Sign-in is the most security-sensitive code. Acceptance criteria are tests for: concurrent approve (one winner), nonce replay and window, wrong device and wrong user, revoked device with a pending challenge, enroll token reuse/expiry/other user, software-only and wrong-challenge attestation, DER signature rejected, altered signed fields rejected, error table, no secrets in logs.
