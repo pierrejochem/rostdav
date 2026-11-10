@@ -71,6 +71,7 @@ Prioritized by smallest testable benefit. Every milestone ends with green tests 
 | M11 | Web interface: files, devices, settings, administration, light/dark ([ADR 0006](adr/0006-web-interface.md)). **11a ✅** (sign-in, Files, Trash, Devices, Settings, public link page); **11b (share dialog, versions panel, details, folder filter, chunked browser upload) ✅**; **11c administration (users, event log, status/fsck, server settings) ✅**, **11d: profile, change password, data export, languages (de/en) ✅** | M7–M10 |
 | M12 ✅ | Optional two-factor authentication (TOTP + recovery codes; [ADR 0007](adr/0007-two-factor-authentication.md), 2026-10-22) | M11 |
 | M13 ✅ | Retention rules, data export (2026-10-22; the export is streamed as a tar archive instead of a background job with a download link, see [ui.md](ui.md)) | M8, M10 |
+| M14 (server side ✅, 2026-11-10: backend, sign-in steps, web device pages, FCM, lockouts page; Android app open) | Push sign-in approval with the RustMFA app: device enrollment, signed challenges, device API ([ADR 0014](adr/0014-push-mfa.md), accepted 2026-11-08, approval point 3 granted) | M12 |
 
 ## Phase 5: Hardening and delivery
 

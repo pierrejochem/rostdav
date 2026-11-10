@@ -12,6 +12,8 @@ mod login_page;
 mod more;
 mod pages;
 mod pages_more;
+mod phone_step;
+mod phones;
 mod session;
 mod sharing;
 mod twofactor;
@@ -130,6 +132,9 @@ pub fn router() -> Router<AppState> {
             "/login/2fa",
             get(twofactor::login_second_show).post(twofactor::login_second_submit),
         )
+        .route("/login/2fa/phone", post(phone_step::start))
+        .route("/login/2fa/phone/status", get(phone_step::status))
+        .route("/login/2fa/phone/finish", post(phone_step::finish))
         .route(
             "/settings/2fa",
             get(twofactor::setup_page).post(twofactor::setup_confirm),
@@ -143,6 +148,11 @@ pub fn router() -> Router<AppState> {
             get(twofactor::codes_page).post(twofactor::codes_submit),
         )
         .route("/devices", get(pages_more::devices))
+        .route(
+            "/devices/phones/enroll",
+            get(phones::enroll_page).post(phones::enroll_submit),
+        )
+        .route("/devices/phones/revoke", post(phones::revoke))
         .route("/devices/create", post(pages_more::device_create))
         .route("/devices/revoke", post(pages_more::device_revoke))
         .route(
@@ -152,6 +162,10 @@ pub fn router() -> Router<AppState> {
         .route(
             "/login/v2/flow/{token}",
             get(login_page::show).post(login_page::submit),
+        )
+        .route(
+            "/login/v2/flow/{token}/phone-status",
+            get(login_page::phone_status),
         )
         .route(
             "/index.php/login/v2/flow/{token}",

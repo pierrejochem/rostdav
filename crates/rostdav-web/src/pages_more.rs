@@ -343,8 +343,9 @@ async fn devices_page(state: &AppState, a: &Authed, status: StatusCode, notice: 
         }
         _ => String::new(),
     };
+    let phones = crate::phones::phones_card(state, a).await;
     let body = format!(
-        "{}{notice}{}{twofa}<div class=\"cols\">{}{}</div>",
+        "{}{notice}{}{twofa}{phones}<div class=\"cols\">{}{}</div>",
         ui::page_head(
             lang,
             "Devices & security",

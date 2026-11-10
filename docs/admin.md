@@ -34,7 +34,7 @@ The CLI works on the data directory directly, next to a running server. It is tr
 | `rostdav admin import <path> --user <login> [--dest <folder>] [--overwrite]` | Copy a host directory into a user's files |
 | `rostdav admin backup <new-dir> [--include-key]` | Consistent copy of database and blobs while the server runs (hard links on the same file system), see [deployment.md](deployment.md) |
 | `rostdav admin audit export [--since <date>]` | Event log as JSON Lines |
-| `rostdav admin user reset-2fa <login>` | Remove the two-factor secret and recovery codes of a locked-out user and end their browser sessions (app passwords stay) |
+| `rostdav admin user reset-2fa <login>` | Remove the two-factor secret and recovery codes of a locked-out user, revoke their RustMFA phones and end their browser sessions (app passwords stay) |
 
 Rules enforced by the service (CLI and later the web UI alike): an administrator cannot disable or delete themselves; the last enabled administrator cannot be disabled, demoted or deleted; a user can only be deleted with `--yes`; data can only be transferred to an existing, enabled, different user.
 
@@ -125,9 +125,35 @@ New users get `[limits] default_quota` (default `unlimited`); existing users kee
 Users turn on TOTP (authenticator app) themselves under Devices & security; see [ADR 0007](adr/0007-two-factor-authentication.md). What an administrator needs to know:
 
 - **Key file.** The secrets are encrypted with a key that is *not* in the database: `totp.key` in the data directory (32 random bytes, mode 0600, created when the first user starts a setup). Back it up with the data, but keep it apart from copies of the database if you want a stolen database dump to be useless. Without the key, existing secrets cannot be read: reset 2FA for the affected users. Alternatives: `[security] totp_key_file = "/path"` or `ROSTDAV_SECURITY__TOTP_KEY` (base64 of 32 bytes).
-- **WebDAV and OCS.** While 2FA is on for a user, their *account password* no longer works there (401); app passwords do. Tell users who still use the account password in a WebDAV client to create an app password first.
-- **Lockout.** Five wrong codes lock the second step for that user for 15 minutes. A user who lost the authenticator and the recovery codes needs `rostdav admin user reset-2fa <login>` or Administration › Users › Manage › Reset two-factor authentication.
+- **WebDAV and OCS.** While 2FA is on for a user, or while they have an enrolled RustMFA phone, their *account password* no longer works there (401); app passwords do. Tell users who still use the account password in a WebDAV client to create an app password first.
+- **Lockout.** Five wrong codes lock the second step for that user for 15 minutes. A user who lost the authenticator and the recovery codes, or whose only second factor was a lost phone, needs `rostdav admin user reset-2fa <login>` (it also revokes their phones) or Administration › Users › Manage › Reset two-factor authentication.
 - **Event log:** `auth.2fa_enabled`, `auth.2fa_disabled`, `auth.2fa_codes_regenerated`, `admin.2fa_reset`, failed codes as `auth.login_failed` with `second_factor`. Codes and secrets are never logged.
+
+## Push sign-in approval (RustMFA)
+
+Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa.md)). The server side of the phone API is implemented (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`). The browser sign-in and the Login Flow v2 page (connecting a Nextcloud app) have the phone step. Users add and revoke phones under Devices & security. The account password is asked again before the QR code is shown, and a current authenticator code as well when two-factor codes are on. Revoking the phone that is the only second factor asks for the password too, because it takes the second step away. Without push delivery (FCM, below) a phone only sees a request when its app polls. The QR code carries the server address, taken from `server.public_url`; set it when Rostdav runs behind a TLS proxy, or the code says `http://<Host>`.
+
+| Key | Default | Meaning |
+|---|---|---|
+| `mfa.challenge_ttl_seconds` | 90 | Seconds a sign-in challenge can be answered (10 to 300). |
+| `mfa.enroll_ttl_seconds` | 300 | Seconds an enrollment QR code stays valid (60 to 900). |
+| `mfa.audience` | `rostdav` | Service identifier signed into every challenge: 1 to 64 characters of `A-Z a-z 0-9 . _ -`. Changing it invalidates challenges in flight. |
+| `mfa.attestation` | `required` | `required`: a phone must prove a hardware-backed key at registration. `off`: no check, for custom ROMs without Google key attestation. With `off`, a stolen enrollment QR code is enough to register software keys, so keep the enrollment time short. |
+| `mfa.fcm.project_id`, `mfa.fcm.service_account_file` | unset | Wake phones through Firebase Cloud Messaging. Both or neither. See below. |
+
+A value outside its range stops the server at start-up with a message naming the key.
+
+**Push delivery (FCM).** Without it a phone sees a sign-in request only when its app polls. To turn it on: create a Firebase project (or use the one of your RustMFA build), add a service account with the role "Firebase Cloud Messaging API Admin", download its JSON key, store it outside the data directory with mode 0600, and set `mfa.fcm.project_id` and `mfa.fcm.service_account_file`. A file that cannot be read or is not a service account stops the server at start-up (the message names the key and never shows the file). Rostdav signs a token request with the key, keeps the access token for about an hour and sends one data message per challenge. The message holds only the challenge id; Google learns that a request is pending for a phone, nothing else. A push that fails (Google unreachable, phone unregistered) is logged with the challenge id and never blocks the sign-in: the phone still finds the request by polling.
+
+**Limits.** A user can create five enrollment tokens in 15 minutes. A client address that sends five wrong or unusable enrollment tokens, or five attestation chains that fail, is blocked from registering for 15 minutes. Malformed requests do not count. Device names are shortened to 128 characters and stripped of control characters.
+
+A phone whose signed request fails five times in 15 minutes (wrong signature, unknown device, replayed nonce, bad timestamp) is blocked for 15 minutes. Requests of a revoked phone, or of a disabled account, are refused.
+
+All of these blocks are listed on Administration › Security ("Address (phone enrollment)", "User (phone enrollment)", "User (sign-in approvals)", "Phone (signed requests)") and can be lifted there.
+
+A user can have five sign-in approvals started in 15 minutes (this keeps a stolen password from flooding a phone with prompts); further attempts are refused until the window ends. The approval screen shows the sign-in device name but no location: Rostdav has no IP geolocation.
+
+When a user revokes a phone, its open approvals end at once. Revoking the last phone of an account removes that account's push approval factor; Rostdav does not stop this, because a lost phone must be revocable. The audit log records `mfa.device_registered`, `mfa.device_revoked`, `mfa.key_rotated`, `mfa.push_token_updated` and the challenge events, with the user's name as the actor and never a key, token or signature.
 
 ## Version check
 

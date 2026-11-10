@@ -4,6 +4,32 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- **An enrolled RustMFA phone counts as a second factor**, like an authenticator app (ADR 0014). Once a user has an active phone, WebDAV and OCS no longer accept their account password (app passwords still work) and the browser sign-in asks for a second step.
+
+### Fixed
+
+- **Recovery of a user whose only second factor is a phone**: `reset-2fa` (command line and administration page) now revokes the user's RustMFA phones too, and the administration page sees a phone as a second factor. Before, such a user who lost the phone could not sign in and nobody could help.
+- **Adding or removing the only second factor from the web needs more than a session**: enrolling a phone asks for a current authenticator code as well when codes are on, and revoking the phone that is the only second factor asks for the password.
+- **Reloading the number page does not start a second approval**: the open approval of a sign-in is shown again (browser and Login Flow v2), so the phone gets one prompt.
+
+### Added
+
+- **Phone blocks on the lockouts page**: the rate-limit blocks of the phone features (enrollment per address and per user, signed requests per phone, sign-in approvals per user) are listed on Administration › Security and can be lifted there.
+- **Push delivery through FCM** (`[mfa.fcm]`: `project_id`, `service_account_file`): when a sign-in approval waits, Rostdav wakes the phone with a data message that holds the challenge id only. Off unless both keys are set; a bad service-account file stops the server at start-up. A failed push is logged and never blocks the sign-in.
+- **Phones in the web interface**: Devices & security lists the user's RustMFA phones (name, status, last seen) with revoke, and the last security events. "Add a phone" asks for the account password again and shows a single-use enrollment QR code (`rustmfa://enroll?server=…&token=…`). Five codes per user in 15 minutes. Revoking a phone ends its open sign-in approvals.
+- **Sign in with the RustMFA phone in the browser**: the second step offers "Send to my phone" (next to the code form when authenticator codes are on). The page shows a number, the user picks it on the phone, and the page signs in once the phone approved. A denied or expired request goes back to the second step. The Login Flow v2 page (connecting a Nextcloud app) has the same step.
+- **A sign-in approval belongs to one sign-in**: a challenge started for a sign-in can only be polled and turned into a session by the browser that passed the password step, and only once; a phone revoked after it approved releases nothing. Not reachable from the sign-in page yet.
+- **Settings for push sign-in approval** (`[mfa]` section: challenge lifetime, enrollment lifetime, audience, attestation policy), the first step of ADR 0014. They have no effect yet.
+- **Database tables for push sign-in approval** (migration 0013: phones, enrollment tokens, challenges, request nonces). Nothing uses them yet.
+- **Key attestation check for push sign-in approval phones**: verifies that a phone's key lives in secure hardware (certificate chain to a pinned Google root, hardware security level, challenge, key match). Nothing calls it yet.
+- **Enrollment service for the RustMFA app**: a signed-in user creates a single-use token (QR code), the phone registers its two public keys with the token and an attestation. Wrong tokens and failed attestations are rate limited per address. Not reachable over HTTP yet.
+- **Request authentication for the RustMFA app**: checks the signed `Authorization: RustMFA-Sig` header of a phone (timestamp within 60 seconds, signature by the request key, nonce used once in 5 minutes, phone and account still active). Five failures for one phone in 15 minutes block it for 15 minutes. Not reachable over HTTP yet.
+- **Sign-in challenges for the RustMFA app**: the server can start an approval for one phone (a two-digit number, two decoys, 90 seconds by default), list pending ones, and accept an approve or deny signed with the phone's biometric key. A wrong number denies the challenge. Only one answer can win. Five challenges per user in 15 minutes. Push delivery is a stub until the sign-in page work; not reachable over HTTP yet.
+- **Phone management for the RustMFA app**: list, revoke (this also ends the phone's open sign-in approvals), change the push token, rotate both keys (the new approval key needs a fresh attestation), and a view of the user's own security events. A revoked phone can no longer approve, even an answer that was already in flight. Not reachable over HTTP yet.
+- **HTTP API for the RustMFA app** (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`, `/api/v1/audit`): phones register and sign their requests; they list and revoke phones, change their push token, rotate keys, fetch and answer sign-in approvals, and read their own security events. Requests are signed (no cookie, no CSRF token), bodies are limited to 64 KiB, and errors follow the contract. Creating an enrollment token and the sign-in page integration follow separately.
+
 ## [0.10.0] - 2026-10-25
 
 ### Changed

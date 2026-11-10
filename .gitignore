@@ -10,3 +10,4 @@ graphify-out/
 scripts/verify/node_modules/
 scripts/verify/out/
 .playwright-mcp/
+.openidea/

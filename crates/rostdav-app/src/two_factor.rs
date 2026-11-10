@@ -329,7 +329,7 @@ impl AppState {
         Ok(codes)
     }
 
-    async fn reauthenticate(
+    pub(crate) async fn reauthenticate(
         &self,
         p: &Principal,
         password: &str,
@@ -353,7 +353,8 @@ impl AppState {
         }
     }
 
-    /// Administrator reset for a locked-out user: removes secret and codes, ends browser sessions.
+    /// Administrator reset for a locked-out user: removes secret and codes, revokes their RustMFA
+    /// phones, ends browser sessions.
     pub async fn user_reset_two_factor(
         &self,
         actor: &crate::admin::Actor<'_>,
@@ -361,14 +362,30 @@ impl AppState {
     ) -> Result<bool> {
         actor.require_admin()?;
         let u = self.target_user(name).await?;
-        let was = self.inner.db.totp_delete(u.id).await?;
+        let totp = self.inner.db.totp_delete(u.id).await?;
+        // a lost phone is a lost second factor too: revoke every phone (this also ends their
+        // open sign-in approvals), or the user could never sign in again
+        let mut phones = 0u32;
+        for d in self.inner.db.mfa_devices_of(u.id).await? {
+            if d.status == "active" {
+                // a phone revoked in the meantime is not an error here
+                if self
+                    .mfa_revoke_device(u.id, &d.id, &actor.name())
+                    .await
+                    .is_ok()
+                {
+                    phones += 1;
+                }
+            }
+        }
         self.inner.db.delete_user_sessions(u.id).await?;
+        let was = totp || phones > 0;
         self.audit(
             &actor.name(),
             "admin.2fa_reset",
             &u.name,
             None,
-            json!({"was_on": was}),
+            json!({"was_on": was, "totp": totp, "phones_revoked": phones}),
         )
         .await;
         Ok(was)
@@ -413,7 +430,7 @@ impl AppState {
     ) -> Result<bool> {
         actor.require_admin()?;
         let u = self.target_user(name).await?;
-        self.inner.db.totp_enabled(u.id).await
+        self.has_second_factor(u.id).await
     }
 
     /// Second step of a browser sign-in: the ticket and a code (or recovery code).
@@ -588,7 +605,7 @@ fn matching_step(secret: &[u8], code: &str, last: i64) -> Option<i64> {
     found
 }
 
-fn percent_label(s: &str) -> String {
+pub(crate) fn percent_label(s: &str) -> String {
     let mut out = String::new();
     for b in s.bytes() {
         if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) {
@@ -600,7 +617,7 @@ fn percent_label(s: &str) -> String {
     out
 }
 
-fn qr_svg(uri: &str) -> Result<String> {
+pub(crate) fn qr_svg(uri: &str) -> Result<String> {
     let code = qrcode::QrCode::new(uri.as_bytes()).map_err(|_| Error::Unavailable)?;
     let svg = code
         .render::<qrcode::render::svg::Color>()
@@ -791,6 +808,29 @@ mod tests {
             .await
             .expect("confirm");
         (s, setup, codes)
+    }
+
+    #[tokio::test]
+    async fn enrolling_a_phone_needs_a_current_code_when_totp_is_on() {
+        let (_d, st) = state(TotpKeySource::File(PathBuf::new())).await;
+        let (s, setup, _codes) = enabled(&st, "anna").await;
+        let ip = ip();
+        for code in ["", "000000"] {
+            let r = st.web_mfa_enroll_start(&s, PW, code, "http://h", ip).await;
+            assert!(
+                matches!(r, Err(crate::MfaError::Unauthenticated)),
+                "code {code:?}: {r:?}"
+            );
+        }
+        // the password alone is not enough, and a wrong password with a right code is not either
+        let r = st
+            .web_mfa_enroll_start(&s, "nope", &current_code(&setup, 1), "http://h", ip)
+            .await;
+        assert!(matches!(r, Err(crate::MfaError::Unauthenticated)), "{r:?}");
+        let ok = st
+            .web_mfa_enroll_start(&s, PW, &current_code(&setup, 1), "http://h", ip)
+            .await;
+        assert!(ok.is_ok(), "{ok:?}");
     }
 
     #[tokio::test]

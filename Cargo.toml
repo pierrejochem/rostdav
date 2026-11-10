@@ -8,6 +8,7 @@ members = [
     "crates/rostdav-dav",
     "crates/rostdav-compat",
     "crates/rostdav-web",
+    "crates/rostdav-mfa-api",
     "crates/rostdav",
 ]
 
@@ -30,6 +31,7 @@ rostdav-app = { path = "crates/rostdav-app" }
 rostdav-dav = { path = "crates/rostdav-dav" }
 rostdav-compat = { path = "crates/rostdav-compat" }
 rostdav-web = { path = "crates/rostdav-web" }
+rostdav-mfa-api = { path = "crates/rostdav-mfa-api" }
 
 anyhow = "1"
 axum = { version = "0.8", features = ["multipart"] }
@@ -58,6 +60,12 @@ argon2 = { version = "0.5", features = ["std"] }
 ulid = "3"
 chacha20poly1305 = "0.11"
 hmac = "0.13"
+# Push sign-in approval (ADR 0014)
+# Shared signing formats and test vectors, pinned by revision (ADR 0014, "Dependencies").
+rustmfa-contract = { git = "https://github.com/pierrejochem/rostdav-mfa", rev = "31e5218c2ad473257ee048691b9017637cbe20c1" }
+x509-cert = { version = "0.2", default-features = false }
+der = { version = "0.7", features = ["alloc", "oid"] }
+ring = { version = "0.17", default-features = false, features = ["alloc"] }
 sha1 = "0.11"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }
 ureq = { version = "3", default-features = false, features = ["rustls"] }

@@ -5524,3 +5524,839 @@ async fn the_search_page_finds_words_in_files_and_shows_a_safe_snippet() {
             .contains("minutes.txt")
     );
 }
+
+// ---- sign-in with the RustMFA phone (ADR 0014) --------------------------------------------------
+
+use rostdav_app::testkit;
+
+/// The password step of `user`, then the second-step page: the cookies and the form value.
+struct Step {
+    /// `rostdav_2fa=…; rostdav_login=…`
+    cookies: String,
+    ticket: String,
+    csrf: String,
+    html: String,
+}
+
+async fn second_step(e: &Env, user: &str) -> Step {
+    let r = password_step(e, user).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    let ticket = r.cookie("rostdav_2fa").expect("ticket cookie");
+    let page = get(e, "/login/2fa", &ticket).await;
+    assert_eq!(page.status, StatusCode::OK, "{}", page.text());
+    let lc = page.cookie("rostdav_login").expect("login cookie");
+    let html = page.text();
+    Step {
+        cookies: format!("{ticket}; {lc}"),
+        ticket,
+        csrf: extract_csrf(&html),
+        html,
+    }
+}
+
+/// Presses "Send to my phone": the number page (and its cookies).
+async fn send_to_phone(e: &Env, s: &Step) -> Res {
+    post_form(e, "/login/2fa/phone", &s.cookies, &[("csrf", &s.csrf)]).await
+}
+
+fn challenge_id_of(html: &str) -> String {
+    let i = html
+        .find("name=\"id\" value=\"")
+        .expect("challenge id field")
+        + 17;
+    html[i..].split('"').next().expect("id").to_owned()
+}
+
+async fn phone_user(e: &Env, user: &str, device: &str) {
+    testkit::enroll_existing(&e.state, user, device).await;
+}
+
+#[tokio::test]
+async fn second_step_offers_only_the_phone_when_there_is_no_totp() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    assert!(s.html.contains("action=\"/login/2fa/phone\""), "{}", s.html);
+    assert!(s.html.contains("Send to my phone"));
+    assert!(
+        !s.html.contains("name=\"code\""),
+        "no code form without TOTP"
+    );
+}
+
+#[tokio::test]
+async fn second_step_offers_phone_and_code_when_both_are_on() {
+    let e = env().await;
+    let (_c, _secret, _codes) = enable_2fa(&e, "anna").await;
+    phone_user(&e, "anna", "dev_a").await;
+    let s = second_step(&e, "anna").await;
+    assert!(s.html.contains("Send to my phone") && s.html.contains("name=\"code\""));
+}
+
+#[tokio::test]
+async fn a_get_never_creates_a_challenge() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    for uri in ["/login/2fa", "/login/2fa/phone", "/login/2fa/phone/finish"] {
+        let r = get(&e, uri, &s.cookies).await;
+        assert!(r.status != StatusCode::INTERNAL_SERVER_ERROR);
+    }
+    assert!(
+        testkit::pending_challenge_ids(&e.state, "dev_b")
+            .await
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn sending_to_the_phone_needs_csrf_and_origin() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    let r = post_form(&e, "/login/2fa/phone", &s.cookies, &[("csrf", "forged")]).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = send(
+        &e,
+        "POST",
+        "/login/2fa/phone",
+        &[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("cookie", &s.cookies),
+            ("origin", "http://evil.test"),
+        ],
+        Body::from(form(&[("csrf", &s.csrf)])),
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(&e, "/login/2fa/phone", "", &[("csrf", &s.csrf)]).await;
+    assert_eq!(
+        r.h("location"),
+        "/login",
+        "no ticket goes back to the password"
+    );
+    assert!(
+        testkit::pending_challenge_ids(&e.state, "dev_b")
+            .await
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn approve_then_finish_opens_a_session() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    let r = send_to_phone(&e, &s).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert_eq!(r.h("cache-control"), "no-store");
+    let page = r.text();
+    let id = challenge_id_of(&page);
+    assert!(page.contains("/static/phone.js") && page.contains("data-status-url"));
+    assert!(
+        page.contains("class=\"phone-number\""),
+        "the number is shown"
+    );
+    let status_uri = format!("/login/2fa/phone/status?id={id}");
+    let st = get(&e, &status_uri, &s.ticket).await;
+    assert_eq!(st.status, StatusCode::OK);
+    assert_eq!(st.h("cache-control"), "no-store");
+    assert_eq!(st.text(), r#"{"status":"pending"}"#);
+    assert!(testkit::resolve_challenge(&e.state, &id, "approved").await);
+    assert_eq!(
+        get(&e, &status_uri, &s.ticket).await.text(),
+        r#"{"status":"approved"}"#
+    );
+
+    let lc = r.cookie("rostdav_login").expect("fresh login cookie");
+    let both = format!("{}; {lc}", s.ticket);
+    let fin = post_form(
+        &e,
+        "/login/2fa/phone/finish",
+        &both,
+        &[("csrf", &extract_csrf(&page)), ("id", &id)],
+    )
+    .await;
+    assert_eq!(fin.status, StatusCode::SEE_OTHER, "{}", fin.text());
+    assert_eq!(fin.h("location"), "/files");
+    let session = fin.cookie("rostdav_session").expect("session cookie");
+    assert_eq!(get(&e, "/files", &session).await.status, StatusCode::OK);
+    // the ticket cookie is cleared
+    assert!(
+        fin.cookies()
+            .iter()
+            .any(|c| c.starts_with("rostdav_2fa=") && c.contains("Max-Age=0"))
+    );
+    // a second finish gives nothing
+    let again = post_form(
+        &e,
+        "/login/2fa/phone/finish",
+        &both,
+        &[("csrf", &extract_csrf(&page)), ("id", &id)],
+    )
+    .await;
+    assert!(
+        again.cookie("rostdav_session").is_none(),
+        "{}",
+        again.text()
+    );
+}
+
+#[tokio::test]
+async fn finish_before_approval_opens_no_session() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    let r = send_to_phone(&e, &s).await;
+    let page = r.text();
+    let id = challenge_id_of(&page);
+    let lc = r.cookie("rostdav_login").expect("login cookie");
+    let fin = post_form(
+        &e,
+        "/login/2fa/phone/finish",
+        &format!("{}; {lc}", s.ticket),
+        &[("csrf", &extract_csrf(&page)), ("id", &id)],
+    )
+    .await;
+    assert!(fin.cookie("rostdav_session").is_none());
+    assert_ne!(fin.status, StatusCode::SEE_OTHER, "{}", fin.text());
+}
+
+#[tokio::test]
+async fn a_denied_request_shows_a_message_and_opens_no_session() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    let r = send_to_phone(&e, &s).await;
+    let page = r.text();
+    let id = challenge_id_of(&page);
+    assert!(testkit::resolve_challenge(&e.state, &id, "denied").await);
+    let lc = r.cookie("rostdav_login").expect("login cookie");
+    let fin = post_form(
+        &e,
+        "/login/2fa/phone/finish",
+        &format!("{}; {lc}", s.ticket),
+        &[("csrf", &extract_csrf(&page)), ("id", &id)],
+    )
+    .await;
+    assert!(fin.cookie("rostdav_session").is_none());
+    assert!(fin.text().contains("denied"), "{}", fin.text());
+}
+
+#[tokio::test]
+async fn status_of_another_sign_ins_challenge_is_404() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    phone_user(&e, "anna", "dev_a").await;
+    let sb = second_step(&e, "bob").await;
+    let r = send_to_phone(&e, &sb).await;
+    let id = challenge_id_of(&r.text());
+    let sa = second_step(&e, "anna").await;
+    let st = get(&e, &format!("/login/2fa/phone/status?id={id}"), &sa.ticket).await;
+    assert_eq!(st.status, StatusCode::NOT_FOUND);
+    let none = get(&e, &format!("/login/2fa/phone/status?id={id}"), "").await;
+    assert_eq!(none.status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn the_number_is_on_the_page_and_nowhere_else() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    let r = send_to_phone(&e, &s).await;
+    let page = r.text();
+    let number = between(&page, "<p class=\"phone-number\">", "</p>");
+    assert_eq!(number.len(), 2, "{number}");
+    let id = challenge_id_of(&page);
+    let st = get(&e, &format!("/login/2fa/phone/status?id={id}"), &s.ticket).await;
+    assert!(!st.text().contains(&number), "{}", st.text());
+    let js = send(&e, "GET", "/static/phone.js", &[], Body::empty()).await;
+    assert_eq!(js.status, StatusCode::OK);
+}
+
+// ---- Login Flow v2 with the RustMFA phone --------------------------------------------------------
+
+struct FlowStep {
+    url: String,
+    poll_token: String,
+    csrf: String,
+    ticket: String,
+    html: String,
+}
+
+async fn flow_post(e: &Env, url: &str, fields: &[(&str, &str)]) -> Res {
+    send(
+        e,
+        "POST",
+        url,
+        &[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("origin", &origin()),
+        ],
+        Body::from(form(fields)),
+    )
+    .await
+}
+
+/// A started flow whose password step is done: the second-step page of `user`.
+async fn flow_second_step(e: &Env, user: &str) -> FlowStep {
+    let flow = e
+        .state
+        .start_login_flow("Nextcloud Android")
+        .await
+        .expect("flow");
+    let url = format!("/login/v2/flow/{}", flow.login_token);
+    let page = send(e, "GET", &url, &[], Body::empty()).await;
+    let csrf = extract_csrf(&page.text());
+    let r = flow_post(
+        e,
+        &url,
+        &[
+            ("csrf", &csrf),
+            ("user", user),
+            ("password", PW),
+            ("action", "allow"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    let html = r.text();
+    let ticket = between(&html, "name=\"ticket\" value=\"", "\"");
+    FlowStep {
+        url,
+        poll_token: flow.poll_token,
+        csrf,
+        ticket,
+        html,
+    }
+}
+
+async fn flow_send_to_phone(e: &Env, s: &FlowStep) -> Res {
+    flow_post(
+        e,
+        &s.url,
+        &[
+            ("csrf", &s.csrf),
+            ("ticket", &s.ticket),
+            ("action", "phone"),
+        ],
+    )
+    .await
+}
+
+async fn flow_finish(e: &Env, s: &FlowStep, id: &str) -> Res {
+    flow_post(
+        e,
+        &s.url,
+        &[
+            ("csrf", &s.csrf),
+            ("ticket", &s.ticket),
+            ("id", id),
+            ("action", "phone_finish"),
+        ],
+    )
+    .await
+}
+
+fn flow_status_url(page: &str) -> String {
+    between(page, "data-status-url=\"", "\"").replace("&amp;", "&")
+}
+
+#[tokio::test]
+async fn flow_with_a_phone_offers_it_and_grants_after_approval() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    assert!(
+        s.html.contains("Send to my phone") && s.html.contains("value=\"phone\""),
+        "{}",
+        s.html
+    );
+    assert!(
+        !s.html.contains("name=\"code\""),
+        "no code form without TOTP"
+    );
+    let r = flow_send_to_phone(&e, &s).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    let page = r.text();
+    assert!(page.contains("class=\"phone-number\"") && page.contains("/static/phone.js"));
+    let id = challenge_id_of(&page);
+    let status_url = flow_status_url(&page);
+    let st = send(&e, "GET", &status_url, &[], Body::empty()).await;
+    assert_eq!(
+        (st.status, st.text()),
+        (StatusCode::OK, r#"{"status":"pending"}"#.to_owned())
+    );
+    assert_eq!(st.h("cache-control"), "no-store");
+    assert!(
+        e.state
+            .poll_login_flow(&s.poll_token)
+            .await
+            .expect("poll")
+            .is_none(),
+        "nothing granted before the approval"
+    );
+    assert!(testkit::resolve_challenge(&e.state, &id, "approved").await);
+    let fin = flow_finish(&e, &s, &id).await;
+    assert_eq!(fin.status, StatusCode::OK, "{}", fin.text());
+    assert!(fin.text().contains("Device connected"));
+    let granted = e
+        .state
+        .poll_login_flow(&s.poll_token)
+        .await
+        .expect("poll")
+        .expect("credentials");
+    assert_eq!(granted.login_name, "bob");
+    // a second finish is refused and creates nothing
+    let again = flow_finish(&e, &s, &id).await;
+    assert!(
+        !again.text().contains("Device connected"),
+        "{}",
+        again.text()
+    );
+}
+
+#[tokio::test]
+async fn flow_finish_before_approval_grants_nothing() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    let id = challenge_id_of(&flow_send_to_phone(&e, &s).await.text());
+    let fin = flow_finish(&e, &s, &id).await;
+    assert!(!fin.text().contains("Device connected"));
+    assert!(
+        e.state
+            .poll_login_flow(&s.poll_token)
+            .await
+            .expect("poll")
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_denied_flow_request_grants_nothing() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    let id = challenge_id_of(&flow_send_to_phone(&e, &s).await.text());
+    assert!(testkit::resolve_challenge(&e.state, &id, "denied").await);
+    let fin = flow_finish(&e, &s, &id).await;
+    assert!(fin.text().contains("denied"), "{}", fin.text());
+    assert!(
+        e.state
+            .poll_login_flow(&s.poll_token)
+            .await
+            .expect("poll")
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn flow_phone_start_needs_the_csrf_value_and_a_genuine_ticket() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    let r = flow_post(
+        &e,
+        &s.url,
+        &[
+            ("csrf", "forged"),
+            ("ticket", &s.ticket),
+            ("action", "phone"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = flow_post(
+        &e,
+        &s.url,
+        &[
+            ("csrf", &s.csrf),
+            ("ticket", "1.99999999999.deadbeef"),
+            ("action", "phone"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED, "{}", r.text());
+    assert!(
+        testkit::pending_challenge_ids(&e.state, "dev_b")
+            .await
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn a_ticket_of_another_flow_cannot_finish_this_one() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let a = flow_second_step(&e, "bob").await;
+    let b = flow_second_step(&e, "bob").await;
+    let id = challenge_id_of(&flow_send_to_phone(&e, &a).await.text());
+    assert!(testkit::resolve_challenge(&e.state, &id, "approved").await);
+    // flow B's page with flow A's ticket and challenge
+    let r = flow_post(
+        &e,
+        &b.url,
+        &[
+            ("csrf", &b.csrf),
+            ("ticket", &a.ticket),
+            ("id", &id),
+            ("action", "phone_finish"),
+        ],
+    )
+    .await;
+    assert!(!r.text().contains("Device connected"), "{}", r.text());
+    assert!(
+        e.state
+            .poll_login_flow(&b.poll_token)
+            .await
+            .expect("poll")
+            .is_none()
+    );
+    // the status of A's challenge under B's address
+    let uri = format!("{}/phone-status?ticket={}&id={id}", b.url, a.ticket);
+    assert_ne!(
+        send(&e, "GET", &uri, &[], Body::empty()).await.status,
+        StatusCode::OK
+    );
+}
+
+// ---- phones in the web interface ------------------------------------------------------------------
+
+async fn enroll_post(e: &Env, cookie: &str, csrf: &str, password: &str) -> Res {
+    post_form(
+        e,
+        "/devices/phones/enroll",
+        cookie,
+        &[("csrf", csrf), ("password", password)],
+    )
+    .await
+}
+
+#[tokio::test]
+async fn enroll_page_asks_for_the_password_and_needs_a_session() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let r = get(&e, "/devices/phones/enroll", &c).await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert!(r.text().contains("name=\"password\"") && r.text().contains("/devices/phones/enroll"));
+    let r = send(&e, "GET", "/devices/phones/enroll", &[], Body::empty()).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(r.h("location"), "/login");
+}
+
+#[tokio::test]
+async fn enrolling_needs_the_password_and_csrf() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    let r = enroll_post(&e, &c, &csrf, "wrong-password").await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED, "{}", r.text());
+    assert!(!r.text().contains("rustmfa://"));
+    let r = enroll_post(&e, &c, "forged", PW).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        "/devices/phones/enroll",
+        "",
+        &[("csrf", &csrf), ("password", PW)],
+    )
+    .await;
+    assert_ne!(r.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn enrolling_shows_a_qr_code_once() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    let r = enroll_post(&e, &c, &csrf, PW).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert_eq!(r.h("cache-control"), "no-store");
+    let html = r.text();
+    assert!(html.contains("<svg"), "QR code as inline SVG");
+    let payload = between(&html, "<code class=\"enroll-payload\">", "</code>");
+    assert!(
+        payload.starts_with("rustmfa://enroll?server=http%3A%2F%2F"),
+        "{payload}"
+    );
+    let token = payload.split("token=").nth(1).expect("token").to_owned();
+    // the token is not on the devices page or in a link
+    let devices = get(&e, "/devices", &c).await.text();
+    assert!(!devices.contains(&token));
+    assert!(!html.contains(&format!("href=\"{token}")));
+}
+
+#[tokio::test]
+async fn the_sixth_enrollment_in_fifteen_minutes_is_429() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    for _ in 0..5 {
+        assert_eq!(enroll_post(&e, &c, &csrf, PW).await.status, StatusCode::OK);
+    }
+    let r = enroll_post(&e, &c, &csrf, PW).await;
+    assert_eq!(r.status, StatusCode::TOO_MANY_REQUESTS, "{}", r.text());
+    assert!(!r.h("retry-after").is_empty());
+}
+
+#[tokio::test]
+async fn the_devices_page_lists_only_own_phones() {
+    let e = env().await;
+    // sign in first: a user with a phone has to approve on it afterwards
+    let c = login(&e, "anna").await;
+    phone_user(&e, "anna", "dev_a").await;
+    phone_user(&e, "bob", "dev_b").await;
+    let html = get(&e, "/devices", &c).await.text();
+    assert!(
+        html.contains("RustMFA") && html.contains("value=\"dev_a\""),
+        "{html}"
+    );
+    assert!(!html.contains("dev_b"));
+    assert!(html.contains("/devices/phones/enroll"));
+}
+
+#[tokio::test]
+async fn revoking_a_phone_ends_its_open_challenges() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    phone_user(&e, "anna", "dev_a").await;
+    let anna = testkit::user_id(&e.state, "anna").await;
+    e.state
+        .mfa_create_challenge(
+            anna,
+            "dev_a",
+            "ref_1",
+            "Firefox",
+            "127.0.0.1".parse().expect("ip"),
+        )
+        .await
+        .expect("challenge");
+    assert_eq!(
+        testkit::pending_challenge_ids(&e.state, "dev_a")
+            .await
+            .len(),
+        1
+    );
+    let csrf = page_csrf(&e, &c).await;
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", &csrf), ("device_id", "dev_a"), ("password", PW)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert_eq!(r.h("location"), "/devices");
+    assert!(
+        testkit::pending_challenge_ids(&e.state, "dev_a")
+            .await
+            .is_empty()
+    );
+    let html = get(&e, "/devices", &c).await.text();
+    assert!(html.contains("Revoked"), "{html}");
+}
+
+#[tokio::test]
+async fn revoking_needs_csrf_and_cannot_touch_another_users_phone() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let b = login(&e, "bob").await;
+    phone_user(&e, "anna", "dev_a").await;
+    phone_user(&e, "bob", "dev_b").await;
+    let csrf = page_csrf(&e, &c).await;
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", "forged"), ("device_id", "dev_a")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", &csrf), ("device_id", "dev_b")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::NOT_FOUND, "{}", r.text());
+    assert!(
+        get(&e, "/devices", &b)
+            .await
+            .text()
+            .contains("value=\"dev_b\""),
+        "bob's phone is untouched"
+    );
+}
+
+#[tokio::test]
+async fn admin_sees_and_lifts_phone_blocks() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    let bob = testkit::principal(&e.state, "bob", false).await;
+    for _ in 0..5 {
+        e.state.mfa_create_enroll_token(&bob).await.expect("token");
+    }
+    let key = format!("mfa-enroll:{}", bob.user_id);
+    let page = get(&e, "/admin/security", &root).await.text();
+    assert!(
+        page.contains("User (phone enrollment)") && page.contains("<td>bob</td>"),
+        "{page}"
+    );
+    assert!(page.contains(&format!("name=\"key\" value=\"{key}\"")));
+    assert!(page.contains("name=\"kind\" value=\"mfa\""));
+    // the wrong kind clears nothing
+    let r = post_form(
+        &e,
+        "/admin/security/unlock",
+        &root,
+        &[("csrf", &csrf), ("key", &key), ("kind", "password")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(
+        get(&e, "/admin/security", &root)
+            .await
+            .text()
+            .contains(&key)
+    );
+    let r = post_form(
+        &e,
+        "/admin/security/unlock",
+        &root,
+        &[("csrf", &csrf), ("key", &key), ("kind", "mfa")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(
+        !get(&e, "/admin/security", &root)
+            .await
+            .text()
+            .contains(&key)
+    );
+    assert!(e.state.mfa_create_enroll_token(&bob).await.is_ok());
+    // a user who is no administrator gets no lockouts page
+    let b = login(&e, "bob").await;
+    assert_ne!(get(&e, "/admin/security", &b).await.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn enrolling_with_two_factor_on_needs_a_current_code() {
+    let e = env().await;
+    let (c, secret, _codes) = enable_2fa(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    assert!(
+        get(&e, "/devices/phones/enroll", &c)
+            .await
+            .text()
+            .contains("name=\"code\"")
+    );
+    let r = enroll_post(&e, &c, &csrf, PW).await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED, "{}", r.text());
+    assert!(!r.text().contains("rustmfa://"));
+    let r = post_form(
+        &e,
+        "/devices/phones/enroll",
+        &c,
+        &[
+            ("csrf", &csrf),
+            ("password", PW),
+            ("code", &totp_now(&secret, 1)),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert!(r.text().contains("rustmfa://enroll"));
+    // without TOTP the page has no code field
+    let b = login(&e, "bob").await;
+    assert!(
+        !get(&e, "/devices/phones/enroll", &b)
+            .await
+            .text()
+            .contains("name=\"code\"")
+    );
+}
+
+#[tokio::test]
+async fn revoking_the_only_factor_asks_for_the_password() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    phone_user(&e, "anna", "dev_a").await;
+    let csrf = page_csrf(&e, &c).await;
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", &csrf), ("device_id", "dev_a")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    let html = r.text();
+    assert!(
+        html.contains("name=\"password\"") && html.contains("value=\"dev_a\""),
+        "{html}"
+    );
+    assert!(
+        get(&e, "/devices", &c)
+            .await
+            .text()
+            .contains("value=\"dev_a\""),
+        "still active"
+    );
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[
+            ("csrf", &csrf),
+            ("device_id", "dev_a"),
+            ("password", "wrong-password"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED);
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", &csrf), ("device_id", "dev_a"), ("password", PW)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert!(get(&e, "/devices", &c).await.text().contains("Revoked"));
+}
+
+#[tokio::test]
+async fn reloading_the_flow_number_page_does_not_start_a_second_approval() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    let first = challenge_id_of(&flow_send_to_phone(&e, &s).await.text());
+    // F5 on the result of the POST sends the same form again
+    let again = challenge_id_of(&flow_send_to_phone(&e, &s).await.text());
+    assert_eq!(first, again);
+    assert_eq!(
+        testkit::pending_challenge_ids(&e.state, "dev_b")
+            .await
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn pressing_send_twice_in_the_browser_does_not_start_a_second_approval() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    let first = challenge_id_of(&send_to_phone(&e, &s).await.text());
+    let again = challenge_id_of(&send_to_phone(&e, &s).await.text());
+    assert_eq!(first, again);
+    assert_eq!(
+        testkit::pending_challenge_ids(&e.state, "dev_b")
+            .await
+            .len(),
+        1
+    );
+}

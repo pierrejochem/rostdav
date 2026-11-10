@@ -8,6 +8,7 @@ use percent_encoding::{AsciiSet, NON_ALPHANUMERIC, utf8_percent_encode};
 const APP_CSS: &str = include_str!("../static/app.css");
 const UPLOAD_JS: &str = include_str!("../static/upload.js");
 const COPY_JS: &str = include_str!("../static/copy.js");
+const PHONE_JS: &str = include_str!("../static/phone.js");
 const PASSWORD_JS: &str = include_str!("../static/password.js");
 const AVATAR_JS: &str = include_str!("../static/avatar.js");
 const DROPDOWN_JS: &str = include_str!("../static/dropdown.js");
@@ -160,6 +161,11 @@ fn html(status: StatusCode, doc: String) -> Response {
 
 /// A page without navigation (sign-in, device connection).
 pub fn bare(lang: Lang, status: StatusCode, title: &str, body: &str) -> Response {
+    bare_with(lang, status, title, body, "")
+}
+
+/// Like [`bare`], with more markup (script tags) after the page's own script.
+pub fn bare_with(lang: Lang, status: StatusCode, title: &str, body: &str, extra: &str) -> Response {
     html(
         status,
         format!(
@@ -169,7 +175,7 @@ pub fn bare(lang: Lang, status: StatusCode, title: &str, body: &str) -> Response
              <body class=\"bare\"><main class=\"auth\">\
              <section class=\"auth-brand\"><div>{}<p class=\"auth-tag\">{}</p>\
              <ul class=\"auth-points\"><li>{}</li><li>{}</li><li>{}</li></ul></div></section>\
-             <section class=\"auth-form\">{}</section></main>{PASSWORD_SCRIPT}</body></html>",
+             <section class=\"auth-form\">{}</section></main>{PASSWORD_SCRIPT}{extra}</body></html>",
             lang.code(),
             esc(&t(lang, title)),
             brand_logo(),
@@ -414,6 +420,7 @@ pub async fn static_file(
         "upload.js" => (UPLOAD_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "favicon.svg" => (favicon.as_bytes(), "image/svg+xml"),
         "copy.js" => (COPY_JS.as_bytes(), "text/javascript; charset=utf-8"),
+        "phone.js" => (PHONE_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "password.js" => (PASSWORD_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "avatar.js" => (AVATAR_JS.as_bytes(), "text/javascript; charset=utf-8"),
         "dropdown.js" => (DROPDOWN_JS.as_bytes(), "text/javascript; charset=utf-8"),
