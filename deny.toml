@@ -9,6 +9,11 @@ ignore = [
     # extractor child process, which has a time and memory limit. Look again when pdf_oxide
     # moves to skrifa.
     { id = "RUSTSEC-2026-0192", reason = "unmaintained only; used by pdf_oxide in the sandboxed extractor process" },
+    # crypto-bigint 0.5 comes with p256 0.13 in rustmfa-contract (ADR 0014). The server only
+    # verifies ECDSA signatures there: public keys, public signatures and public messages, so
+    # secret-dependent timing has nothing to leak. The server never signs with p256 (the signing
+    # code is in the contract's test-vector tool). Look again when p256 0.14 is released.
+    { id = "RUSTSEC-2026-0387", reason = "crypto-bigint 0.5 via p256 0.13 in rustmfa-contract; verification of public data only" },
 ]
 
 [licenses]

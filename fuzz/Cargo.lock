@@ -3228,7 +3228,7 @@ dependencies = [
 [[package]]
 name = "rustmfa-contract"
 version = "0.1.0"
-source = "git+https://github.com/pierrejochem/rostdav-mfa?rev=9d869bad8f6b971bb6cfe87f869ffe857c435389#9d869bad8f6b971bb6cfe87f869ffe857c435389"
+source = "git+https://github.com/pierrejochem/rostdav-mfa?rev=31e5218c2ad473257ee048691b9017637cbe20c1#31e5218c2ad473257ee048691b9017637cbe20c1"
 dependencies = [
  "base64 0.22.1",
  "p256",
