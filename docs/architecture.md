@@ -108,7 +108,7 @@ A central error type in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, `Pr
 | `recovery_codes` | id, user_id, code_hash, used_at |
 | `mfa_devices` | id, user_id, name, status (active/revoked), request_pub, approval_pub, push_channel, push_token, hardware_backed, strongbox, created_at, last_seen_at, revoked_at ([ADR 0014](adr/0014-push-mfa.md)) |
 | `mfa_enroll_tokens` | token_hash, user_id, expires_at, used_at |
-| `mfa_challenges` | id, user_id, device_id, login_ref, nonce, number, candidates, audience, created_at, expires_at, status, consumed_at, login_device |
+| `mfa_challenges` | id, user_id, device_id, login_ref, nonce, number, candidates, audience, created_at, expires_at, status, consumed_at, login_device, released_at |
 | `mfa_nonces` | device_id, nonce, expires_at |
 
 Migration 0013 also adds `events_actor` on `events(actor, action)` for the own-events view of the RustMFA app.

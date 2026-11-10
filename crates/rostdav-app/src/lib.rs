@@ -60,7 +60,7 @@ pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
 pub use push_mfa::testkit;
 pub use push_mfa::{
     AttestationPolicy, AttestationResult, ChallengeDetails, ChallengeStatus, DeviceInfo,
-    DevicePrincipal, EnrollToken, MfaAuditEvent, MfaConfig, MfaError,
+    DevicePrincipal, EnrollToken, LoginChallenge, MfaAuditEvent, MfaConfig, MfaError,
     NewChallenge as MfaNewChallenge, NoopPush, ParsedAuth, PushChannel, PushFuture, RegisterInput,
     Registered, google_roots, parse_authorization, verify_attestation,
 };

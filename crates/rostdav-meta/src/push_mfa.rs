@@ -413,6 +413,24 @@ impl Db {
         Ok(r.rows_affected() > 0)
     }
 
+    /// Hands an approved challenge to the sign-in that started it, once. True for exactly one
+    /// caller, and only while the approving phone is still active (a phone revoked after it
+    /// approved releases nothing).
+    pub async fn mfa_challenge_release(&self, id: &str, login_ref: &str, now: i64) -> Result<bool> {
+        let r = sql::query(
+            "UPDATE mfa_challenges SET released_at = ?
+             WHERE id = ? AND login_ref = ? AND status = 'approved' AND released_at IS NULL
+               AND device_id IN (SELECT id FROM mfa_devices WHERE status = 'active')",
+        )
+        .bind(now)
+        .bind(id)
+        .bind(login_ref)
+        .execute(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(r.rows_affected() > 0)
+    }
+
     /// Ends a pending challenge as `expired` whatever its time (its phone was revoked). True for
     /// the one caller that changed it.
     pub async fn mfa_challenge_cancel(&self, id: &str, now: i64) -> Result<bool> {

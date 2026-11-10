@@ -30,7 +30,8 @@ CREATE TABLE mfa_enroll_tokens (
 ) STRICT;
 CREATE INDEX mfa_enroll_tokens_user ON mfa_enroll_tokens(user_id);
 
--- One sign-in approval request for one phone. `login_ref` ties it to the sign-in that asked.
+-- One sign-in approval request for one phone. `login_ref` ties it to the sign-in that asked;
+-- `released_at` is set once, when the browser took the approval.
 -- `candidates` is a JSON array of the three numbers shown on the phone, `number` the right one.
 CREATE TABLE mfa_challenges (
     id          TEXT    PRIMARY KEY,
@@ -46,7 +47,8 @@ CREATE TABLE mfa_challenges (
     status      TEXT    NOT NULL DEFAULT 'pending'
                 CHECK (status IN ('pending', 'approved', 'denied', 'expired')),
     consumed_at INTEGER,
-    login_device TEXT   NOT NULL DEFAULT ''
+    login_device TEXT   NOT NULL DEFAULT '',
+    released_at INTEGER
 ) STRICT;
 CREATE INDEX mfa_challenges_user   ON mfa_challenges(user_id);
 CREATE INDEX mfa_challenges_device ON mfa_challenges(device_id, status);

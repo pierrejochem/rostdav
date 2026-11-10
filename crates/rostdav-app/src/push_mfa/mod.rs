@@ -17,6 +17,9 @@ mod error;
 #[cfg(test)]
 mod factor_tests;
 mod google_roots;
+mod login;
+#[cfg(test)]
+mod login_tests;
 mod push;
 #[cfg(any(test, feature = "test-util"))]
 pub mod testkit;
@@ -28,6 +31,7 @@ pub use devices::{DeviceInfo, MfaAuditEvent};
 pub use enroll::{EnrollToken, RegisterInput, Registered};
 pub use error::MfaError;
 pub use google_roots::google_roots;
+pub use login::LoginChallenge;
 pub use push::{NoopPush, PushChannel, PushFuture};
 
 use crate::AppState;
