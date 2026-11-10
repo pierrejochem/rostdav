@@ -853,7 +853,10 @@ async fn the_lifetime_follows_the_configuration() {
     let c = create(&st, &p, "l").await;
     assert_eq!(c.expires_in_seconds, 30);
     let r = row(&st, &c.challenge_id).await;
-    assert_eq!(r.expires_at - r.created_at, 30);
+    // `expires_at` comes from the caller's clock and `created_at` from the database's: they can
+    // straddle a second boundary, so allow one second.
+    let span = r.expires_at - r.created_at;
+    assert!((29..=30).contains(&span), "lifetime span {span}");
 }
 
 #[tokio::test]
