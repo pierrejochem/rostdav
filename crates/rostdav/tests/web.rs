@@ -6020,3 +6020,172 @@ async fn a_ticket_of_another_flow_cannot_finish_this_one() {
         StatusCode::OK
     );
 }
+
+// ---- phones in the web interface ------------------------------------------------------------------
+
+async fn enroll_post(e: &Env, cookie: &str, csrf: &str, password: &str) -> Res {
+    post_form(
+        e,
+        "/devices/phones/enroll",
+        cookie,
+        &[("csrf", csrf), ("password", password)],
+    )
+    .await
+}
+
+#[tokio::test]
+async fn enroll_page_asks_for_the_password_and_needs_a_session() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let r = get(&e, "/devices/phones/enroll", &c).await;
+    assert_eq!(r.status, StatusCode::OK);
+    assert!(r.text().contains("name=\"password\"") && r.text().contains("/devices/phones/enroll"));
+    let r = send(&e, "GET", "/devices/phones/enroll", &[], Body::empty()).await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert_eq!(r.h("location"), "/login");
+}
+
+#[tokio::test]
+async fn enrolling_needs_the_password_and_csrf() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    let r = enroll_post(&e, &c, &csrf, "wrong-password").await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED, "{}", r.text());
+    assert!(!r.text().contains("rustmfa://"));
+    let r = enroll_post(&e, &c, "forged", PW).await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        "/devices/phones/enroll",
+        "",
+        &[("csrf", &csrf), ("password", PW)],
+    )
+    .await;
+    assert_ne!(r.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn enrolling_shows_a_qr_code_once() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    let r = enroll_post(&e, &c, &csrf, PW).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert_eq!(r.h("cache-control"), "no-store");
+    let html = r.text();
+    assert!(html.contains("<svg"), "QR code as inline SVG");
+    let payload = between(&html, "<code class=\"enroll-payload\">", "</code>");
+    assert!(
+        payload.starts_with("rustmfa://enroll?server=http%3A%2F%2F"),
+        "{payload}"
+    );
+    let token = payload.split("token=").nth(1).expect("token").to_owned();
+    // the token is not on the devices page or in a link
+    let devices = get(&e, "/devices", &c).await.text();
+    assert!(!devices.contains(&token));
+    assert!(!html.contains(&format!("href=\"{token}")));
+}
+
+#[tokio::test]
+async fn the_sixth_enrollment_in_fifteen_minutes_is_429() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    for _ in 0..5 {
+        assert_eq!(enroll_post(&e, &c, &csrf, PW).await.status, StatusCode::OK);
+    }
+    let r = enroll_post(&e, &c, &csrf, PW).await;
+    assert_eq!(r.status, StatusCode::TOO_MANY_REQUESTS, "{}", r.text());
+    assert!(!r.h("retry-after").is_empty());
+}
+
+#[tokio::test]
+async fn the_devices_page_lists_only_own_phones() {
+    let e = env().await;
+    // sign in first: a user with a phone has to approve on it afterwards
+    let c = login(&e, "anna").await;
+    phone_user(&e, "anna", "dev_a").await;
+    phone_user(&e, "bob", "dev_b").await;
+    let html = get(&e, "/devices", &c).await.text();
+    assert!(
+        html.contains("RustMFA") && html.contains("value=\"dev_a\""),
+        "{html}"
+    );
+    assert!(!html.contains("dev_b"));
+    assert!(html.contains("/devices/phones/enroll"));
+}
+
+#[tokio::test]
+async fn revoking_a_phone_ends_its_open_challenges() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    phone_user(&e, "anna", "dev_a").await;
+    let anna = testkit::user_id(&e.state, "anna").await;
+    e.state
+        .mfa_create_challenge(
+            anna,
+            "dev_a",
+            "ref_1",
+            "Firefox",
+            "127.0.0.1".parse().expect("ip"),
+        )
+        .await
+        .expect("challenge");
+    assert_eq!(
+        testkit::pending_challenge_ids(&e.state, "dev_a")
+            .await
+            .len(),
+        1
+    );
+    let csrf = page_csrf(&e, &c).await;
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", &csrf), ("device_id", "dev_a")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert_eq!(r.h("location"), "/devices");
+    assert!(
+        testkit::pending_challenge_ids(&e.state, "dev_a")
+            .await
+            .is_empty()
+    );
+    let html = get(&e, "/devices", &c).await.text();
+    assert!(html.contains("Revoked"), "{html}");
+}
+
+#[tokio::test]
+async fn revoking_needs_csrf_and_cannot_touch_another_users_phone() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    let b = login(&e, "bob").await;
+    phone_user(&e, "anna", "dev_a").await;
+    phone_user(&e, "bob", "dev_b").await;
+    let csrf = page_csrf(&e, &c).await;
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", "forged"), ("device_id", "dev_a")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", &csrf), ("device_id", "dev_b")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::NOT_FOUND, "{}", r.text());
+    assert!(
+        get(&e, "/devices", &b)
+            .await
+            .text()
+            .contains("value=\"dev_b\""),
+        "bob's phone is untouched"
+    );
+}

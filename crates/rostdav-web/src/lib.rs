@@ -13,6 +13,7 @@ mod more;
 mod pages;
 mod pages_more;
 mod phone_step;
+mod phones;
 mod session;
 mod sharing;
 mod twofactor;
@@ -147,6 +148,11 @@ pub fn router() -> Router<AppState> {
             get(twofactor::codes_page).post(twofactor::codes_submit),
         )
         .route("/devices", get(pages_more::devices))
+        .route(
+            "/devices/phones/enroll",
+            get(phones::enroll_page).post(phones::enroll_submit),
+        )
+        .route("/devices/phones/revoke", post(phones::revoke))
         .route("/devices/create", post(pages_more::device_create))
         .route("/devices/revoke", post(pages_more::device_revoke))
         .route(

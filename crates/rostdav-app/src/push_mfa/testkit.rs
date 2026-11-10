@@ -359,3 +359,14 @@ pub async fn pending_challenge_ids(st: &AppState, device_id: &str) -> Vec<String
         .map(|c| c.id)
         .collect()
 }
+
+/// The id of an existing user.
+pub async fn user_id(st: &AppState, name: &str) -> i64 {
+    st.inner
+        .db
+        .find_user(name)
+        .await
+        .expect("query")
+        .expect("user exists")
+        .id
+}

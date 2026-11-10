@@ -56,6 +56,7 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
         .with_web(rostdav_app::WebOptions {
             idle_secs: i64::from(cfg.web.session_idle_hours.max(1)) * 3600,
             max_secs: i64::from(cfg.web.session_max_days.max(1)) * 86_400,
+            public_url: cfg.server.public_url.clone(),
         })
         .with_audit(rostdav_app::AuditOptions {
             anonymize_ip: cfg.audit.anonymize_ip,

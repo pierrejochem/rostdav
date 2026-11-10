@@ -21,6 +21,9 @@ pub struct WebOptions {
     pub idle_secs: i64,
     /// Seconds after which a session ends regardless of activity.
     pub max_secs: i64,
+    /// Externally visible base URL (`server.public_url`); the enrollment QR code of the RustMFA
+    /// app carries it. `None`: the pages use the `Host` header of the request.
+    pub public_url: Option<String>,
 }
 
 impl Default for WebOptions {
@@ -28,6 +31,7 @@ impl Default for WebOptions {
         Self {
             idle_secs: 8 * 3600,
             max_secs: 14 * 86_400,
+            public_url: None,
         }
     }
 }
@@ -65,6 +69,11 @@ const PREFS: &[(&str, &[&str])] = &[
 
 impl AppState {
     // ---- sessions ----------------------------------------------------------------
+
+    /// `server.public_url`, if it is set.
+    pub fn public_url(&self) -> Option<String> {
+        self.cfg().web.public_url
+    }
 
     /// Checks the account password. Without a second factor the session is opened;
     /// with one the caller gets a ticket for the second step (ADR 0007).

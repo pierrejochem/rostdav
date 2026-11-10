@@ -471,3 +471,28 @@ No phone is enrolled for this account.	Für dieses Konto ist kein Handy eingeric
 Too many requests. Try again later.	Zu viele Anfragen. Versuche es später noch einmal.
 Sign-in with the phone failed.	Die Anmeldung mit dem Handy ist fehlgeschlagen.
 Continue	Weiter
+Phones (RustMFA)	Handys (RustMFA)
+Add a phone	Handy hinzufügen
+No phone is set up for sign-in approval.	Kein Handy für die Anmelde-Bestätigung eingerichtet.
+Approve browser sign-ins on your phone with the RustMFA app. Once a phone is set up, the account password no longer works for WebDAV; app passwords keep working.	Bestätige Browser-Anmeldungen auf dem Handy mit der RustMFA-App. Sobald ein Handy eingerichtet ist, gilt das Kontopasswort nicht mehr für WebDAV; App-Passwörter funktionieren weiter.
+Added {0}	Hinzugefügt {0}
+Hardware key	Hardware-Schlüssel
+Revoked	Widerrufen
+Recent events	Letzte Ereignisse
+Phone added	Handy hinzugefügt
+Phone revoked	Handy widerrufen
+Keys renewed	Schlüssel erneuert
+Sign-in approval requested	Anmelde-Bestätigung angefragt
+Sign-in approved	Anmeldung bestätigt
+Sign-in denied	Anmeldung abgelehnt
+Sign-in request expired	Anmelde-Anfrage abgelaufen
+Wrong number chosen	Falsche Zahl gewählt
+Enter your password to show the enrollment code for the RustMFA app.	Gib dein Passwort ein, um den Einrichtungscode für die RustMFA-App anzuzeigen.
+Confirm with your password	Mit deinem Passwort bestätigen
+Show enrollment code	Einrichtungscode anzeigen
+Open the RustMFA app and scan this code. It is valid for {0} minutes and works once.	Öffne die RustMFA-App und scanne diesen Code. Er ist {0} Minuten gültig und funktioniert nur einmal.
+Cannot scan? This is what the code says:	Scannen geht nicht? Das sagt der Code:
+Server address: {0}	Serveradresse: {0}
+Scan with the RustMFA app	Mit der RustMFA-App scannen
+Anyone who scans this code before it expires can add a phone to your account. Keep it to yourself.	Wer diesen Code vor Ablauf scannt, kann ein Handy zu deinem Konto hinzufügen. Behalte ihn für dich.
+Enrollment code	Einrichtungscode

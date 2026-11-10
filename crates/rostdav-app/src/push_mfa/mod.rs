@@ -12,6 +12,8 @@ mod devices;
 mod devices_tests;
 mod enroll;
 #[cfg(test)]
+mod enroll_qr_tests;
+#[cfg(test)]
 mod enroll_tests;
 mod error;
 #[cfg(test)]
@@ -28,7 +30,7 @@ pub use attestation::{AttestationResult, verify_attestation};
 pub use challenges::{ChallengeDetails, ChallengeStatus, NewChallenge};
 pub use devauth::{DevicePrincipal, ParsedAuth, parse_authorization};
 pub use devices::{DeviceInfo, MfaAuditEvent};
-pub use enroll::{EnrollToken, RegisterInput, Registered};
+pub use enroll::{EnrollQr, EnrollToken, RegisterInput, Registered, enroll_qr_payload};
 pub use error::MfaError;
 pub use google_roots::google_roots;
 pub use login::{LoginChallenge, SecondStepOptions};

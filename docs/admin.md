@@ -131,7 +131,7 @@ Users turn on TOTP (authenticator app) themselves under Devices & security; see 
 
 ## Push sign-in approval (RustMFA)
 
-Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa.md)). The server side of the phone API is implemented (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`). The browser sign-in and the Login Flow v2 page (connecting a Nextcloud app) have the phone step. Creating an enrollment token in the web interface and push delivery (FCM) are not built yet: so far no user can enroll a phone through the web interface, and a phone only sees a request when its app polls.
+Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa.md)). The server side of the phone API is implemented (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`). The browser sign-in and the Login Flow v2 page (connecting a Nextcloud app) have the phone step. Users add and revoke phones under Devices & security (the account password is asked again before the QR code is shown). Push delivery (FCM) is not built yet: a phone only sees a request when its app polls. The QR code carries the server address, taken from `server.public_url`; set it when Rostdav runs behind a TLS proxy, or the code says `http://<Host>`.
 
 | Key | Default | Meaning |
 |---|---|---|

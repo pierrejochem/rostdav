@@ -588,7 +588,7 @@ fn matching_step(secret: &[u8], code: &str, last: i64) -> Option<i64> {
     found
 }
 
-fn percent_label(s: &str) -> String {
+pub(crate) fn percent_label(s: &str) -> String {
     let mut out = String::new();
     for b in s.bytes() {
         if b.is_ascii_alphanumeric() || b"-_.~".contains(&b) {
@@ -600,7 +600,7 @@ fn percent_label(s: &str) -> String {
     out
 }
 
-fn qr_svg(uri: &str) -> Result<String> {
+pub(crate) fn qr_svg(uri: &str) -> Result<String> {
     let code = qrcode::QrCode::new(uri.as_bytes()).map_err(|_| Error::Unavailable)?;
     let svg = code
         .render::<qrcode::render::svg::Color>()

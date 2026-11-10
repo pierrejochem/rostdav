@@ -92,6 +92,22 @@ fn validate(i: &RegisterInput) -> Result<String, MfaError> {
     Ok(name)
 }
 
+/// The enrollment QR code: the token, what the code says, and the code as an inline SVG.
+#[derive(Debug)]
+pub struct EnrollQr {
+    pub token: EnrollToken,
+    pub payload: String,
+    pub qr_svg: String,
+}
+
+/// What the QR code of the enrollment says: the server address and the token.
+pub fn enroll_qr_payload(base_url: &str, token: &str) -> String {
+    format!(
+        "rustmfa://enroll?server={}&token={token}",
+        crate::two_factor::percent_label(base_url)
+    )
+}
+
 impl AppState {
     /// A single-use token for the enrollment QR code. Only a user who signed in with the
     /// account itself may create one: not an app password, not a public link.
@@ -117,6 +133,37 @@ impl AppState {
         Ok(EnrollToken {
             token,
             expires_in_seconds: ttl,
+        })
+    }
+
+    /// The web interface asks for the account password again before it shows an enrollment QR
+    /// code: a stolen session cookie alone cannot add a phone.
+    pub async fn web_mfa_enroll_start(
+        &self,
+        s: &crate::WebSession,
+        password: &str,
+        server_url: &str,
+        ip: IpAddr,
+    ) -> Result<EnrollQr, MfaError> {
+        let p = &s.principal;
+        if p.via != Via::AccountPassword || p.scope != Scope::Full {
+            return Err(MfaError::Unauthenticated);
+        }
+        match self.authenticate_with(&p.name, password, ip, false).await {
+            Ok(_) => {}
+            Err(rostdav_core::Error::Unauthenticated) => return Err(MfaError::Unauthenticated),
+            Err(rostdav_core::Error::RateLimited { retry_after_secs }) => {
+                return Err(MfaError::RateLimited { retry_after_secs });
+            }
+            Err(e) => return Err(e.into()),
+        }
+        let token = self.mfa_create_enroll_token(p).await?;
+        let payload = enroll_qr_payload(server_url, &token.token);
+        let qr_svg = crate::two_factor::qr_svg(&payload)?;
+        Ok(EnrollQr {
+            token,
+            payload,
+            qr_svg,
         })
     }
 
