@@ -22,6 +22,8 @@ mod fcm;
 #[cfg(test)]
 mod fcm_tests;
 mod google_roots;
+#[cfg(test)]
+mod lockout_tests;
 mod login;
 #[cfg(test)]
 mod login_tests;

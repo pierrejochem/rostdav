@@ -10,6 +10,7 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Added
 
+- **Phone blocks on the lockouts page**: the rate-limit blocks of the phone features (enrollment per address and per user, signed requests per phone, sign-in approvals per user) are listed on Administration › Security and can be lifted there.
 - **Push delivery through FCM** (`[mfa.fcm]`: `project_id`, `service_account_file`): when a sign-in approval waits, Rostdav wakes the phone with a data message that holds the challenge id only. Off unless both keys are set; a bad service-account file stops the server at start-up. A failed push is logged and never blocks the sign-in.
 - **Phones in the web interface**: Devices & security lists the user's RustMFA phones (name, status, last seen) with revoke, and the last security events. "Add a phone" asks for the account password again and shows a single-use enrollment QR code (`rustmfa://enroll?server=…&token=…`). Five codes per user in 15 minutes. Revoking a phone ends its open sign-in approvals.
 - **Sign in with the RustMFA phone in the browser**: the second step offers "Send to my phone" (next to the code form when authenticator codes are on). The page shows a number, the user picks it on the phone, and the page signs in once the phone approved. A denied or expired request goes back to the second step. The Login Flow v2 page (connecting a Nextcloud app) has the same step.

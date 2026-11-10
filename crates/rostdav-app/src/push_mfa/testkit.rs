@@ -370,3 +370,14 @@ pub async fn user_id(st: &AppState, name: &str) -> i64 {
         .expect("user exists")
         .id
 }
+
+/// An existing user as the web interface sees them after the password step.
+pub async fn principal(st: &AppState, name: &str, is_admin: bool) -> Principal {
+    Principal {
+        user_id: user_id(st, name).await,
+        name: name.to_owned(),
+        is_admin,
+        via: Via::AccountPassword,
+        scope: Scope::Full,
+    }
+}

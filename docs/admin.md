@@ -145,9 +145,11 @@ A value outside its range stops the server at start-up with a message naming the
 
 **Push delivery (FCM).** Without it a phone sees a sign-in request only when its app polls. To turn it on: create a Firebase project (or use the one of your RustMFA build), add a service account with the role "Firebase Cloud Messaging API Admin", download its JSON key, store it outside the data directory with mode 0600, and set `mfa.fcm.project_id` and `mfa.fcm.service_account_file`. A file that cannot be read or is not a service account stops the server at start-up (the message names the key and never shows the file). Rostdav signs a token request with the key, keeps the access token for about an hour and sends one data message per challenge. The message holds only the challenge id; Google learns that a request is pending for a phone, nothing else. A push that fails (Google unreachable, phone unregistered) is logged with the challenge id and never blocks the sign-in: the phone still finds the request by polling.
 
-**Limits.** A user can create five enrollment tokens in 15 minutes. A client address that sends five wrong or unusable enrollment tokens, or five attestation chains that fail, is blocked from registering for 15 minutes (these blocks are not listed on the lockouts page yet). Malformed requests do not count. Device names are shortened to 128 characters and stripped of control characters.
+**Limits.** A user can create five enrollment tokens in 15 minutes. A client address that sends five wrong or unusable enrollment tokens, or five attestation chains that fail, is blocked from registering for 15 minutes. Malformed requests do not count. Device names are shortened to 128 characters and stripped of control characters.
 
-A phone whose signed request fails five times in 15 minutes (wrong signature, unknown device, replayed nonce, bad timestamp) is blocked for 15 minutes; this block is not listed on the lockouts page yet. Requests of a revoked phone, or of a disabled account, are refused.
+A phone whose signed request fails five times in 15 minutes (wrong signature, unknown device, replayed nonce, bad timestamp) is blocked for 15 minutes. Requests of a revoked phone, or of a disabled account, are refused.
+
+All of these blocks are listed on Administration › Security ("Address (phone enrollment)", "User (phone enrollment)", "User (sign-in approvals)", "Phone (signed requests)") and can be lifted there.
 
 A user can have five sign-in approvals started in 15 minutes (this keeps a stolen password from flooding a phone with prompts); further attempts are refused until the window ends. The approval screen shows the sign-in device name but no location: Rostdav has no IP geolocation.
 

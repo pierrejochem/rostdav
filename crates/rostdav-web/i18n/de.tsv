@@ -496,3 +496,7 @@ Server address: {0}	Serveradresse: {0}
 Scan with the RustMFA app	Mit der RustMFA-App scannen
 Anyone who scans this code before it expires can add a phone to your account. Keep it to yourself.	Wer diesen Code vor Ablauf scannt, kann ein Handy zu deinem Konto hinzufügen. Behalte ihn für dich.
 Enrollment code	Einrichtungscode
+Address (phone enrollment)	Adresse (Handy-Einrichtung)
+User (phone enrollment)	Benutzer (Handy-Einrichtung)
+User (sign-in approvals)	Benutzer (Anmelde-Bestätigungen)
+Phone (signed requests)	Handy (signierte Anfragen)

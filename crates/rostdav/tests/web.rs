@@ -6189,3 +6189,55 @@ async fn revoking_needs_csrf_and_cannot_touch_another_users_phone() {
         "bob's phone is untouched"
     );
 }
+
+#[tokio::test]
+async fn admin_sees_and_lifts_phone_blocks() {
+    let e = env().await;
+    let root = login(&e, "root").await;
+    let csrf = page_csrf(&e, &root).await;
+    let bob = testkit::principal(&e.state, "bob", false).await;
+    for _ in 0..5 {
+        e.state.mfa_create_enroll_token(&bob).await.expect("token");
+    }
+    let key = format!("mfa-enroll:{}", bob.user_id);
+    let page = get(&e, "/admin/security", &root).await.text();
+    assert!(
+        page.contains("User (phone enrollment)") && page.contains("<td>bob</td>"),
+        "{page}"
+    );
+    assert!(page.contains(&format!("name=\"key\" value=\"{key}\"")));
+    assert!(page.contains("name=\"kind\" value=\"mfa\""));
+    // the wrong kind clears nothing
+    let r = post_form(
+        &e,
+        "/admin/security/unlock",
+        &root,
+        &[("csrf", &csrf), ("key", &key), ("kind", "password")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(
+        get(&e, "/admin/security", &root)
+            .await
+            .text()
+            .contains(&key)
+    );
+    let r = post_form(
+        &e,
+        "/admin/security/unlock",
+        &root,
+        &[("csrf", &csrf), ("key", &key), ("kind", "mfa")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER);
+    assert!(
+        !get(&e, "/admin/security", &root)
+            .await
+            .text()
+            .contains(&key)
+    );
+    assert!(e.state.mfa_create_enroll_token(&bob).await.is_ok());
+    // a user who is no administrator gets no lockouts page
+    let b = login(&e, "bob").await;
+    assert_ne!(get(&e, "/admin/security", &b).await.status, StatusCode::OK);
+}
