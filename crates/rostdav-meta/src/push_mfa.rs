@@ -226,6 +226,18 @@ impl Db {
         Ok(row.map(DeviceRow::from))
     }
 
+    /// How many active phones a user has.
+    pub async fn mfa_active_device_count(&self, user_id: i64) -> Result<i64> {
+        let n: (i64,) = sql::query_as(
+            "SELECT COUNT(*) FROM mfa_devices WHERE user_id = ? AND status = 'active'",
+        )
+        .bind(user_id)
+        .fetch_one(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(n.0)
+    }
+
     pub async fn mfa_devices_of(&self, user_id: i64) -> Result<Vec<DeviceRow>> {
         let rows: Vec<DeviceTuple> = sql::query_as(format!(
             "SELECT {DEVICE_COLUMNS} FROM mfa_devices WHERE user_id = ? ORDER BY created_at, id"

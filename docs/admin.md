@@ -125,7 +125,7 @@ New users get `[limits] default_quota` (default `unlimited`); existing users kee
 Users turn on TOTP (authenticator app) themselves under Devices & security; see [ADR 0007](adr/0007-two-factor-authentication.md). What an administrator needs to know:
 
 - **Key file.** The secrets are encrypted with a key that is *not* in the database: `totp.key` in the data directory (32 random bytes, mode 0600, created when the first user starts a setup). Back it up with the data, but keep it apart from copies of the database if you want a stolen database dump to be useless. Without the key, existing secrets cannot be read: reset 2FA for the affected users. Alternatives: `[security] totp_key_file = "/path"` or `ROSTDAV_SECURITY__TOTP_KEY` (base64 of 32 bytes).
-- **WebDAV and OCS.** While 2FA is on for a user, their *account password* no longer works there (401); app passwords do. Tell users who still use the account password in a WebDAV client to create an app password first.
+- **WebDAV and OCS.** While 2FA is on for a user, or while they have an enrolled RustMFA phone, their *account password* no longer works there (401); app passwords do. Tell users who still use the account password in a WebDAV client to create an app password first.
 - **Lockout.** Five wrong codes lock the second step for that user for 15 minutes. A user who lost the authenticator and the recovery codes needs `rostdav admin user reset-2fa <login>` or Administration › Users › Manage › Reset two-factor authentication.
 - **Event log:** `auth.2fa_enabled`, `auth.2fa_disabled`, `auth.2fa_codes_regenerated`, `admin.2fa_reset`, failed codes as `auth.login_failed` with `second_factor`. Codes and secrets are never logged.
 

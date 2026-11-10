@@ -4,6 +4,10 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Changed
+
+- **An enrolled RustMFA phone counts as a second factor**, like an authenticator app (ADR 0014). Once a user has an active phone, WebDAV and OCS no longer accept their account password (app passwords still work) and the browser sign-in asks for a second step. Until the sign-in page work lands, a user with only a phone cannot finish a browser sign-in.
+
 ### Added
 
 - **Settings for push sign-in approval** (`[mfa]` section: challenge lifetime, enrollment lifetime, audience, attestation policy), the first step of ADR 0014. They have no effect yet.

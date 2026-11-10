@@ -115,7 +115,7 @@ impl AppState {
             .await?
             .ok_or(Error::NotFound)?;
         let p = self.authenticate_with(user, password, ip, false).await?;
-        if self.inner.db.totp_enabled(p.user_id).await? {
+        if self.has_second_factor(p.user_id).await? {
             return Ok(FlowStep::SecondFactor {
                 ticket: self.second_factor_ticket(p.user_id, login_token),
             });

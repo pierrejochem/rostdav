@@ -48,6 +48,8 @@ Migration `0013_push_mfa.sql` with four `STRICT` tables, a plain index on every 
 - `PushChannel` trait in `rostdav-app`; delivery adapters follow in the second step.
   **Implementation notes 2026-11-09:** `rostdav-mfa-api` exposes `router() -> Router<AppState>` (merged into the server's router like the other protocol crates; the paths are complete so the signed path is the received one). It reads at most 64 KiB (413 `INVALID_REQUEST` beyond that; the contract has no 413), refuses unknown JSON fields, and sets `cache-control: no-store`. It has no dependency on `rostdav-meta`. Its integration tests use a `test-util` feature of `rostdav-app` (the `testkit` module: synthetic attestation chains, a fresh state); production builds do not enable it. The tests check responses against a JSON mirror of the OpenAPI file kept in the `rostdav-mfa` repository (a contract test keeps the mirror equal to the YAML), so Rostdav needs no YAML crate. Listing challenges supports `status=pending` only.
 
+  **Implementation notes 2026-11-10:** `AppState::has_second_factor` (TOTP on or at least one active phone) replaces the TOTP-only check at the three sign-in decisions (browser sign-in, Login Flow v2, WebDAV/OCS password). The TOTP management pages keep asking about TOTP alone.
+
 ### Dependencies (justification)
 
 - `rustmfa-contract` (own crate, `rostdav-mfa` repository): signing formats and verification shared with the app and its test vectors. **Decision:** git dependency pinned by revision. Until that repository is published, development uses a local `[patch]` in an uncommitted `.cargo/config.toml`; the dependency is committed only once the repository exists.

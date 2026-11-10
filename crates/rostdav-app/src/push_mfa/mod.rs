@@ -14,6 +14,8 @@ mod enroll;
 #[cfg(test)]
 mod enroll_tests;
 mod error;
+#[cfg(test)]
+mod factor_tests;
 mod google_roots;
 mod push;
 #[cfg(any(test, feature = "test-util"))]
@@ -66,6 +68,13 @@ impl AppState {
     /// The settings in force (a copy, like the other settings).
     pub fn mfa_cfg(&self) -> MfaConfig {
         self.cfg().mfa
+    }
+
+    /// Whether sign-in needs a second step for this user: TOTP is on, or at least one phone is
+    /// active (ADR 0014). Then WebDAV and OCS take app passwords only.
+    pub async fn has_second_factor(&self, user_id: i64) -> rostdav_core::Result<bool> {
+        Ok(self.inner.db.totp_enabled(user_id).await?
+            || self.inner.db.mfa_active_device_count(user_id).await? > 0)
     }
 }
 
