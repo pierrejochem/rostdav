@@ -8,6 +8,12 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 - **An enrolled RustMFA phone counts as a second factor**, like an authenticator app (ADR 0014). Once a user has an active phone, WebDAV and OCS no longer accept their account password (app passwords still work) and the browser sign-in asks for a second step.
 
+### Fixed
+
+- **Recovery of a user whose only second factor is a phone**: `reset-2fa` (command line and administration page) now revokes the user's RustMFA phones too, and the administration page sees a phone as a second factor. Before, such a user who lost the phone could not sign in and nobody could help.
+- **Adding or removing the only second factor from the web needs more than a session**: enrolling a phone asks for a current authenticator code as well when codes are on, and revoking the phone that is the only second factor asks for the password.
+- **Reloading the number page does not start a second approval**: the open approval of a sign-in is shown again (browser and Login Flow v2), so the phone gets one prompt.
+
 ### Added
 
 - **Phone blocks on the lockouts page**: the rate-limit blocks of the phone features (enrollment per address and per user, signed requests per phone, sign-in approvals per user) are listed on Administration › Security and can be lifted there.

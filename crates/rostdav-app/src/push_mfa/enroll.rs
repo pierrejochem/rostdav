@@ -136,12 +136,13 @@ impl AppState {
         })
     }
 
-    /// The web interface asks for the account password again before it shows an enrollment QR
-    /// code: a stolen session cookie alone cannot add a phone.
+    /// The web interface asks for the account password again (and a current code when TOTP is
+    /// on) before it shows an enrollment QR code: a stolen session cookie alone cannot add a phone.
     pub async fn web_mfa_enroll_start(
         &self,
         s: &crate::WebSession,
         password: &str,
+        code: &str,
         server_url: &str,
         ip: IpAddr,
     ) -> Result<EnrollQr, MfaError> {
@@ -149,8 +150,17 @@ impl AppState {
         if p.via != Via::AccountPassword || p.scope != Scope::Full {
             return Err(MfaError::Unauthenticated);
         }
-        match self.authenticate_with(&p.name, password, ip, false).await {
-            Ok(_) => {}
+        // adding a second factor is as sensitive as turning one off: with TOTP on, the password
+        // and a current code are asked for (a stolen session and a phished password are not enough)
+        let checked = if self.inner.db.totp_enabled(p.user_id).await? {
+            self.reauthenticate(p, password, code, ip).await
+        } else {
+            self.authenticate_with(&p.name, password, ip, false)
+                .await
+                .map(|_| ())
+        };
+        match checked {
+            Ok(()) => {}
             Err(rostdav_core::Error::Unauthenticated) => return Err(MfaError::Unauthenticated),
             Err(rostdav_core::Error::RateLimited { retry_after_secs }) => {
                 return Err(MfaError::RateLimited { retry_after_secs });

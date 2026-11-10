@@ -146,15 +146,26 @@ pub async fn phones_card(state: &AppState, a: &Authed) -> String {
 
 // ---- enrollment ---------------------------------------------------------------------------------
 
-fn enroll_form(a: &Authed, error: Option<&str>, status: StatusCode) -> Response {
+fn enroll_form(a: &Authed, totp: bool, error: Option<&str>, status: StatusCode) -> Response {
     let lang = a.lang;
     let err = error
         .map(|e| format!("<div class=\"err\" role=\"alert\">{}</div>", esc(e)))
         .unwrap_or_default();
+    let code = if totp {
+        format!(
+            "<label>{}<input class=\"codeinput small\" type=\"text\" name=\"code\" autocomplete=\"one-time-code\" required></label>",
+            esc(&t(
+                lang,
+                "Code from your authenticator app, or a recovery code"
+            ))
+        )
+    } else {
+        String::new()
+    };
     let form = format!(
         "{err}<form class=\"stack-form\" method=\"post\" action=\"/devices/phones/enroll\">\
          <input type=\"hidden\" name=\"csrf\" value=\"{}\">\
-         <label>{}<input type=\"password\" name=\"password\" autocomplete=\"current-password\" required autofocus></label>\
+         <label>{}<input type=\"password\" name=\"password\" autocomplete=\"current-password\" required autofocus></label>{code}\
          <div class=\"actions\"><button class=\"primary\" type=\"submit\">{}</button><a class=\"button\" href=\"/devices\">{}</a></div></form>",
         esc(&a.csrf),
         esc(&t(lang, "Password")),
@@ -174,14 +185,25 @@ fn enroll_form(a: &Authed, error: Option<&str>, status: StatusCode) -> Response 
     no_store(ui::page(a, status, "Add a phone", "devices", &body))
 }
 
-pub async fn enroll_page(a: Authed) -> Response {
-    enroll_form(&a, None, StatusCode::OK)
+/// Whether the account has TOTP on (then enrolling asks for a code as well).
+async fn totp_on(state: &AppState, a: &Authed) -> bool {
+    state
+        .two_factor_status(&a.session.principal)
+        .await
+        .is_ok_and(|s| s.enabled)
+}
+
+pub async fn enroll_page(State(state): State<AppState>, a: Authed) -> Response {
+    let totp = totp_on(&state, &a).await;
+    enroll_form(&a, totp, None, StatusCode::OK)
 }
 
 #[derive(Deserialize)]
 pub struct EnrollForm {
     csrf: String,
     password: String,
+    #[serde(default)]
+    code: String,
 }
 
 /// The address the phone should talk to: `server.public_url`, else the `Host` of this request.
@@ -217,7 +239,7 @@ pub async fn enroll_submit(
         );
     };
     match state
-        .web_mfa_enroll_start(&a.session, &f.password, &server, client_ip(&parts))
+        .web_mfa_enroll_start(&a.session, &f.password, &f.code, &server, client_ip(&parts))
         .await
     {
         Ok(q) => {
@@ -256,14 +278,19 @@ pub async fn enroll_submit(
                 &body,
             ))
         }
-        Err(MfaError::Unauthenticated) => enroll_form(
-            &a,
-            Some(&t(lang, "Wrong password.")),
-            StatusCode::UNAUTHORIZED,
-        ),
+        Err(MfaError::Unauthenticated) => {
+            let totp = totp_on(&state, &a).await;
+            let text = if totp {
+                "The password or the code is wrong or has been used."
+            } else {
+                "Wrong password."
+            };
+            enroll_form(&a, totp, Some(&t(lang, text)), StatusCode::UNAUTHORIZED)
+        }
         Err(MfaError::RateLimited { retry_after_secs }) => {
             let mut r = enroll_form(
                 &a,
+                totp_on(&state, &a).await,
                 Some(&tf(
                     lang,
                     "Too many attempts. Try again in {0} minutes.",
@@ -287,22 +314,69 @@ pub async fn enroll_submit(
 pub struct RevokeForm {
     csrf: String,
     device_id: String,
+    #[serde(default)]
+    password: String,
+}
+
+/// Revoking the only second factor asks for the password first.
+fn revoke_confirm(
+    a: &Authed,
+    device_id: &str,
+    error: Option<&str>,
+    status: StatusCode,
+) -> Response {
+    let lang = a.lang;
+    let err = error
+        .map(|e| format!("<div class=\"err\" role=\"alert\">{}</div>", esc(e)))
+        .unwrap_or_default();
+    let form = format!(
+        "{err}<form class=\"stack-form\" method=\"post\" action=\"/devices/phones/revoke\">\
+         <input type=\"hidden\" name=\"csrf\" value=\"{}\"><input type=\"hidden\" name=\"device_id\" value=\"{}\">\
+         <label>{}<input type=\"password\" name=\"password\" autocomplete=\"current-password\" required autofocus></label>\
+         <div class=\"actions\"><button class=\"danger\" type=\"submit\">{}</button><a class=\"button\" href=\"/devices\">{}</a></div></form>",
+        esc(&a.csrf),
+        esc(device_id),
+        esc(&t(lang, "Password")),
+        esc(&t(lang, "Revoke")),
+        esc(&t(lang, "Cancel")),
+    );
+    let body = format!(
+        "{}{}",
+        ui::page_head(
+            lang,
+            "Revoke your only second factor?",
+            "This phone is your only second factor. Without it, signing in needs only the password, and WebDAV accepts it again. Enter your password to confirm.",
+            ""
+        ),
+        ui::card(lang, "Confirm with your password", "", &form)
+    );
+    no_store(ui::page(a, status, "Devices", "devices", &body))
 }
 
 pub async fn revoke(
     State(state): State<AppState>,
     a: Authed,
+    parts: Parts,
     Form(f): Form<RevokeForm>,
 ) -> Response {
     if !csrf_ok(&state, &a, &f.csrf) {
         return StatusCode::FORBIDDEN.into_response();
     }
-    let p = &a.session.principal;
+    let lang = a.lang;
     match state
-        .mfa_revoke_device(p.user_id, &f.device_id, &p.name)
+        .web_mfa_revoke(&a.session, &f.device_id, &f.password, client_ip(&parts))
         .await
     {
         Ok(()) => Redirect::to("/devices").into_response(),
+        Err(MfaError::Unauthenticated) if f.password.is_empty() => {
+            revoke_confirm(&a, &f.device_id, None, StatusCode::OK)
+        }
+        Err(MfaError::Unauthenticated) => revoke_confirm(
+            &a,
+            &f.device_id,
+            Some(&t(lang, "Wrong password.")),
+            StatusCode::UNAUTHORIZED,
+        ),
         Err(MfaError::NotFound) => error_response_to(&a, &Error::NotFound, "/devices", "devices"),
         Err(MfaError::Internal(e)) => error_response_to(&a, &e, "/devices", "devices"),
         Err(_) => error_response_to(&a, &Error::Unavailable, "/devices", "devices"),

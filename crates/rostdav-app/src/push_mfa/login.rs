@@ -91,6 +91,23 @@ impl AppState {
         ip: IpAddr,
     ) -> Result<LoginChallenge, MfaError> {
         let user_id = self.login_user(ticket, flow)?;
+        let login_ref = self.login_ref_for(ticket, flow);
+        // a reload of the number page or a double click must not start a second approval (a
+        // second prompt on the phone, another of the five per 15 minutes): the open one is shown
+        // again until it is answered or ends
+        let now = now_secs();
+        if let Some(open) = self
+            .inner
+            .db
+            .mfa_challenge_open_for_login(user_id, &login_ref, now)
+            .await?
+        {
+            return Ok(LoginChallenge {
+                challenge_id: open.id,
+                number: open.number,
+                expires_in_seconds: open.expires_at - now,
+            });
+        }
         let devices = self.inner.db.mfa_devices_of(user_id).await?;
         let device = devices
             .iter()
@@ -98,13 +115,7 @@ impl AppState {
             .max_by_key(|d| d.last_seen_at.unwrap_or(d.created_at))
             .ok_or(MfaError::NotFound)?;
         let c = self
-            .mfa_create_challenge(
-                user_id,
-                &device.id,
-                &self.login_ref_for(ticket, flow),
-                login_device,
-                ip,
-            )
+            .mfa_create_challenge(user_id, &device.id, &login_ref, login_device, ip)
             .await?;
         Ok(LoginChallenge {
             challenge_id: c.challenge_id,

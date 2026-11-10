@@ -500,3 +500,5 @@ Address (phone enrollment)	Adresse (Handy-Einrichtung)
 User (phone enrollment)	Benutzer (Handy-Einrichtung)
 User (sign-in approvals)	Benutzer (Anmelde-Bestätigungen)
 Phone (signed requests)	Handy (signierte Anfragen)
+Revoke your only second factor?	Deinen einzigen zweiten Faktor widerrufen?
+This phone is your only second factor. Without it, signing in needs only the password, and WebDAV accepts it again. Enter your password to confirm.	Dieses Handy ist dein einziger zweiter Faktor. Ohne es genügt für die Anmeldung das Passwort, und WebDAV akzeptiert es wieder. Gib zur Bestätigung dein Passwort ein.

@@ -413,6 +413,29 @@ impl Db {
         Ok(r.rows_affected() > 0)
     }
 
+    /// The newest challenge of one sign-in that can still be answered: pending, not expired, and
+    /// its phone still active.
+    pub async fn mfa_challenge_open_for_login(
+        &self,
+        user_id: i64,
+        login_ref: &str,
+        now: i64,
+    ) -> Result<Option<ChallengeRow>> {
+        let row: Option<ChallengeTuple> = sql::query_as(format!(
+            "SELECT {CHALLENGE_COLUMNS} FROM mfa_challenges
+             WHERE user_id = ? AND login_ref = ? AND status = 'pending' AND expires_at > ?
+               AND device_id IN (SELECT id FROM mfa_devices WHERE status = 'active')
+             ORDER BY created_at DESC, id LIMIT 1"
+        ))
+        .bind(user_id)
+        .bind(login_ref)
+        .bind(now)
+        .fetch_optional(self.pool())
+        .await
+        .map_err(err)?;
+        Ok(row.map(ChallengeRow::from))
+    }
+
     /// Hands an approved challenge to the sign-in that started it, once. True for exactly one
     /// caller, and only while the approving phone is still active (a phone revoked after it
     /// approved releases nothing).

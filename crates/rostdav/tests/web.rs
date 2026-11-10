@@ -6143,7 +6143,7 @@ async fn revoking_a_phone_ends_its_open_challenges() {
         &e,
         "/devices/phones/revoke",
         &c,
-        &[("csrf", &csrf), ("device_id", "dev_a")],
+        &[("csrf", &csrf), ("device_id", "dev_a"), ("password", PW)],
     )
     .await;
     assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
@@ -6240,4 +6240,123 @@ async fn admin_sees_and_lifts_phone_blocks() {
     // a user who is no administrator gets no lockouts page
     let b = login(&e, "bob").await;
     assert_ne!(get(&e, "/admin/security", &b).await.status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn enrolling_with_two_factor_on_needs_a_current_code() {
+    let e = env().await;
+    let (c, secret, _codes) = enable_2fa(&e, "anna").await;
+    let csrf = page_csrf(&e, &c).await;
+    assert!(
+        get(&e, "/devices/phones/enroll", &c)
+            .await
+            .text()
+            .contains("name=\"code\"")
+    );
+    let r = enroll_post(&e, &c, &csrf, PW).await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED, "{}", r.text());
+    assert!(!r.text().contains("rustmfa://"));
+    let r = post_form(
+        &e,
+        "/devices/phones/enroll",
+        &c,
+        &[
+            ("csrf", &csrf),
+            ("password", PW),
+            ("code", &totp_now(&secret, 1)),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    assert!(r.text().contains("rustmfa://enroll"));
+    // without TOTP the page has no code field
+    let b = login(&e, "bob").await;
+    assert!(
+        !get(&e, "/devices/phones/enroll", &b)
+            .await
+            .text()
+            .contains("name=\"code\"")
+    );
+}
+
+#[tokio::test]
+async fn revoking_the_only_factor_asks_for_the_password() {
+    let e = env().await;
+    let c = login(&e, "anna").await;
+    phone_user(&e, "anna", "dev_a").await;
+    let csrf = page_csrf(&e, &c).await;
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", &csrf), ("device_id", "dev_a")],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    let html = r.text();
+    assert!(
+        html.contains("name=\"password\"") && html.contains("value=\"dev_a\""),
+        "{html}"
+    );
+    assert!(
+        get(&e, "/devices", &c)
+            .await
+            .text()
+            .contains("value=\"dev_a\""),
+        "still active"
+    );
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[
+            ("csrf", &csrf),
+            ("device_id", "dev_a"),
+            ("password", "wrong-password"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED);
+    let r = post_form(
+        &e,
+        "/devices/phones/revoke",
+        &c,
+        &[("csrf", &csrf), ("device_id", "dev_a"), ("password", PW)],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::SEE_OTHER, "{}", r.text());
+    assert!(get(&e, "/devices", &c).await.text().contains("Revoked"));
+}
+
+#[tokio::test]
+async fn reloading_the_flow_number_page_does_not_start_a_second_approval() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    let first = challenge_id_of(&flow_send_to_phone(&e, &s).await.text());
+    // F5 on the result of the POST sends the same form again
+    let again = challenge_id_of(&flow_send_to_phone(&e, &s).await.text());
+    assert_eq!(first, again);
+    assert_eq!(
+        testkit::pending_challenge_ids(&e.state, "dev_b")
+            .await
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn pressing_send_twice_in_the_browser_does_not_start_a_second_approval() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = second_step(&e, "bob").await;
+    let first = challenge_id_of(&send_to_phone(&e, &s).await.text());
+    let again = challenge_id_of(&send_to_phone(&e, &s).await.text());
+    assert_eq!(first, again);
+    assert_eq!(
+        testkit::pending_challenge_ids(&e.state, "dev_b")
+            .await
+            .len(),
+        1
+    );
 }

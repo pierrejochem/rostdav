@@ -34,7 +34,7 @@ The CLI works on the data directory directly, next to a running server. It is tr
 | `rostdav admin import <path> --user <login> [--dest <folder>] [--overwrite]` | Copy a host directory into a user's files |
 | `rostdav admin backup <new-dir> [--include-key]` | Consistent copy of database and blobs while the server runs (hard links on the same file system), see [deployment.md](deployment.md) |
 | `rostdav admin audit export [--since <date>]` | Event log as JSON Lines |
-| `rostdav admin user reset-2fa <login>` | Remove the two-factor secret and recovery codes of a locked-out user and end their browser sessions (app passwords stay) |
+| `rostdav admin user reset-2fa <login>` | Remove the two-factor secret and recovery codes of a locked-out user, revoke their RustMFA phones and end their browser sessions (app passwords stay) |
 
 Rules enforced by the service (CLI and later the web UI alike): an administrator cannot disable or delete themselves; the last enabled administrator cannot be disabled, demoted or deleted; a user can only be deleted with `--yes`; data can only be transferred to an existing, enabled, different user.
 
@@ -126,12 +126,12 @@ Users turn on TOTP (authenticator app) themselves under Devices & security; see 
 
 - **Key file.** The secrets are encrypted with a key that is *not* in the database: `totp.key` in the data directory (32 random bytes, mode 0600, created when the first user starts a setup). Back it up with the data, but keep it apart from copies of the database if you want a stolen database dump to be useless. Without the key, existing secrets cannot be read: reset 2FA for the affected users. Alternatives: `[security] totp_key_file = "/path"` or `ROSTDAV_SECURITY__TOTP_KEY` (base64 of 32 bytes).
 - **WebDAV and OCS.** While 2FA is on for a user, or while they have an enrolled RustMFA phone, their *account password* no longer works there (401); app passwords do. Tell users who still use the account password in a WebDAV client to create an app password first.
-- **Lockout.** Five wrong codes lock the second step for that user for 15 minutes. A user who lost the authenticator and the recovery codes needs `rostdav admin user reset-2fa <login>` or Administration › Users › Manage › Reset two-factor authentication.
+- **Lockout.** Five wrong codes lock the second step for that user for 15 minutes. A user who lost the authenticator and the recovery codes, or whose only second factor was a lost phone, needs `rostdav admin user reset-2fa <login>` (it also revokes their phones) or Administration › Users › Manage › Reset two-factor authentication.
 - **Event log:** `auth.2fa_enabled`, `auth.2fa_disabled`, `auth.2fa_codes_regenerated`, `admin.2fa_reset`, failed codes as `auth.login_failed` with `second_factor`. Codes and secrets are never logged.
 
 ## Push sign-in approval (RustMFA)
 
-Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa.md)). The server side of the phone API is implemented (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`). The browser sign-in and the Login Flow v2 page (connecting a Nextcloud app) have the phone step. Users add and revoke phones under Devices & security (the account password is asked again before the QR code is shown). Push delivery (FCM) is not built yet: a phone only sees a request when its app polls. The QR code carries the server address, taken from `server.public_url`; set it when Rostdav runs behind a TLS proxy, or the code says `http://<Host>`.
+Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa.md)). The server side of the phone API is implemented (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`). The browser sign-in and the Login Flow v2 page (connecting a Nextcloud app) have the phone step. Users add and revoke phones under Devices & security. The account password is asked again before the QR code is shown, and a current authenticator code as well when two-factor codes are on. Revoking the phone that is the only second factor asks for the password too, because it takes the second step away. Without push delivery (FCM, below) a phone only sees a request when its app polls. The QR code carries the server address, taken from `server.public_url`; set it when Rostdav runs behind a TLS proxy, or the code says `http://<Host>`.
 
 | Key | Default | Meaning |
 |---|---|---|

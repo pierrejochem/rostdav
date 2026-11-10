@@ -106,6 +106,36 @@ impl AppState {
         Ok(())
     }
 
+    /// Revoking from the web interface. Revoking the phone that is the account's only second
+    /// factor takes the factor away (browser sign-in and WebDAV fall back to the password), so it
+    /// needs the account password, like turning TOTP off: a stolen session cookie alone must not
+    /// be able to do it. Another user's phone is `NotFound` whatever the password.
+    pub async fn web_mfa_revoke(
+        &self,
+        s: &crate::WebSession,
+        device_id: &str,
+        password: &str,
+        ip: std::net::IpAddr,
+    ) -> Result<(), MfaError> {
+        let p = &s.principal;
+        let devices = self.inner.db.mfa_devices_of(p.user_id).await?;
+        let own_active = devices
+            .iter()
+            .any(|d| d.id == device_id && d.status == "active");
+        let active = devices.iter().filter(|d| d.status == "active").count();
+        if own_active && active == 1 && !self.inner.db.totp_enabled(p.user_id).await? {
+            match self.authenticate_with(&p.name, password, ip, false).await {
+                Ok(_) => {}
+                Err(rostdav_core::Error::Unauthenticated) => return Err(MfaError::Unauthenticated),
+                Err(rostdav_core::Error::RateLimited { retry_after_secs }) => {
+                    return Err(MfaError::RateLimited { retry_after_secs });
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+        self.mfa_revoke_device(p.user_id, device_id, &p.name).await
+    }
+
     /// A phone revokes a phone of its own account (itself or another one).
     pub async fn mfa_revoke_device_as(
         &self,

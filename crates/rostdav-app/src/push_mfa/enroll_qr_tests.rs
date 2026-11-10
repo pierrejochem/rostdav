@@ -26,7 +26,7 @@ async fn enrolling_needs_the_account_password() {
         principal: p,
     };
     let r = st
-        .web_mfa_enroll_start(&s, "wrong-password", "http://h", IP)
+        .web_mfa_enroll_start(&s, "wrong-password", "", "http://h", IP)
         .await;
     assert!(matches!(r, Err(MfaError::Unauthenticated)), "{r:?}");
 }
@@ -40,7 +40,7 @@ async fn enrolling_gives_a_token_a_payload_and_a_qr_code() {
         principal: p,
     };
     let q = st
-        .web_mfa_enroll_start(&s, "correct-horse-battery", "http://cloud.test", IP)
+        .web_mfa_enroll_start(&s, "correct-horse-battery", "", "http://cloud.test", IP)
         .await
         .expect("enroll");
     assert_eq!(q.token.expires_in_seconds, 300);
@@ -78,7 +78,9 @@ async fn a_wrong_password_creates_no_token() {
         id: 1,
         principal: p,
     };
-    let _ = st.web_mfa_enroll_start(&s, "nope", "http://h", IP).await;
+    let _ = st
+        .web_mfa_enroll_start(&s, "nope", "", "http://h", IP)
+        .await;
     let events = st.inner.db.events_since(0).await.expect("events");
     assert!(
         !events
@@ -98,7 +100,7 @@ async fn an_app_password_session_cannot_enroll() {
         principal: p,
     };
     let r = st
-        .web_mfa_enroll_start(&s, "correct-horse-battery", "http://h", IP)
+        .web_mfa_enroll_start(&s, "correct-horse-battery", "", "http://h", IP)
         .await;
     assert!(r.is_err(), "{r:?}");
 }

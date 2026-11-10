@@ -343,3 +343,57 @@ async fn web_phone_finish_before_approval_opens_no_session() {
     let r = st.web_phone_finish(&t, &id, IP, "ua").await;
     assert!(matches!(r, Err(MfaError::InvalidRequest(_))), "{r:?}");
 }
+
+#[tokio::test]
+async fn starting_twice_for_one_sign_in_reuses_the_open_challenge() {
+    let (_d, st) = state().await;
+    let p = enrolled(&st, "anna", "dev_a").await;
+    let t = ticket(&st, p.user_id, "");
+    let first = st.mfa_login_start(&t, "", "Firefox", IP).await.expect("1");
+    // a reload of the number page, or a double click
+    let second = st.mfa_login_start(&t, "", "Firefox", IP).await.expect("2");
+    assert_eq!(first.challenge_id, second.challenge_id);
+    assert_eq!(first.number, second.number);
+    assert!(second.expires_in_seconds <= first.expires_in_seconds);
+    assert_eq!(
+        super::testkit::pending_challenge_ids(&st, "dev_a")
+            .await
+            .len(),
+        1,
+        "one prompt on the phone"
+    );
+}
+
+#[tokio::test]
+async fn a_finished_challenge_is_not_reused() {
+    let (_d, st) = state().await;
+    let p = enrolled(&st, "anna", "dev_a").await;
+    let t = ticket(&st, p.user_id, "");
+    let first = st.mfa_login_start(&t, "", "Firefox", IP).await.expect("1");
+    assert!(
+        st.inner
+            .db
+            .mfa_challenge_resolve(&first.challenge_id, "denied", now_secs())
+            .await
+            .expect("resolve")
+    );
+    let second = st.mfa_login_start(&t, "", "Firefox", IP).await.expect("2");
+    assert_ne!(first.challenge_id, second.challenge_id);
+}
+
+#[tokio::test]
+async fn another_sign_in_of_the_same_user_gets_its_own_challenge() {
+    let (_d, st) = state().await;
+    let p = enrolled(&st, "anna", "dev_a").await;
+    let web = ticket(&st, p.user_id, "");
+    let flow = ticket(&st, p.user_id, "flowtoken");
+    let a = st
+        .mfa_login_start(&web, "", "Firefox", IP)
+        .await
+        .expect("web");
+    let b = st
+        .mfa_login_start(&flow, "flowtoken", "Android", IP)
+        .await
+        .expect("flow");
+    assert_ne!(a.challenge_id, b.challenge_id);
+}
