@@ -31,7 +31,7 @@ pub use devices::{DeviceInfo, MfaAuditEvent};
 pub use enroll::{EnrollToken, RegisterInput, Registered};
 pub use error::MfaError;
 pub use google_roots::google_roots;
-pub use login::LoginChallenge;
+pub use login::{LoginChallenge, SecondStepOptions};
 pub use push::{NoopPush, PushChannel, PushFuture};
 
 use crate::AppState;

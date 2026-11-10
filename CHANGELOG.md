@@ -6,10 +6,11 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ### Changed
 
-- **An enrolled RustMFA phone counts as a second factor**, like an authenticator app (ADR 0014). Once a user has an active phone, WebDAV and OCS no longer accept their account password (app passwords still work) and the browser sign-in asks for a second step. Until the sign-in page work lands, a user with only a phone cannot finish a browser sign-in.
+- **An enrolled RustMFA phone counts as a second factor**, like an authenticator app (ADR 0014). Once a user has an active phone, WebDAV and OCS no longer accept their account password (app passwords still work) and the browser sign-in asks for a second step.
 
 ### Added
 
+- **Sign in with the RustMFA phone in the browser**: the second step offers "Send to my phone" (next to the code form when authenticator codes are on). The page shows a number, the user picks it on the phone, and the page signs in once the phone approved. A denied or expired request goes back to the second step. The Login Flow v2 page follows.
 - **A sign-in approval belongs to one sign-in**: a challenge started for a sign-in can only be polled and turned into a session by the browser that passed the password step, and only once; a phone revoked after it approved releases nothing. Not reachable from the sign-in page yet.
 - **Settings for push sign-in approval** (`[mfa]` section: challenge lifetime, enrollment lifetime, audience, attestation policy), the first step of ADR 0014. They have no effect yet.
 - **Database tables for push sign-in approval** (migration 0013: phones, enrollment tokens, challenges, request nonces). Nothing uses them yet.

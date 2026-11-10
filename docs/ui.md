@@ -54,6 +54,7 @@ Avoid collisions with Nextcloud paths that the apps call: check the UI routes ag
 | `/admin/security`, `POST /admin/security/{maintenance,unlock}` | Administration: maintenance mode on/off; active sign-in lockouts (address, user, two-factor) with "Unlock" |
 | `/login/2fa`, `/settings/2fa[/disable\|/codes]` | Second sign-in step; set up, turn off and recovery codes of two-factor authentication (ADR 0007); admin reset at `/admin/users/two-factor-reset` |
 | (all sign-in pages) | Layout of `layout::bare`: a dark brand panel with the full logo (`assets/brand/rostdav-logo-dark.svg`, put into the page so the wordmark uses Inter; the file's own dark tile is cut out) beside the form; below 860 px the panel is a band above it. This replaces the single folder tile of `design/mockups/web-ui/Login.html`; the mockup was not updated. |
+| `/login/2fa/phone`, `/login/2fa/phone/status`, `/login/2fa/phone/finish` | Phone step of the browser sign-in (ADR 0014): "Send to my phone" (POST, CSRF) shows the number, a script (`/static/phone.js`) polls the status (JSON without the number) and submits the finish form; without the script a "Continue" button does the same. All three need the ticket cookie of the password step. |
 | `/login/v2/flow/<token>` | Connect device (Login Flow v2; second step on the same page) |
 | `/static/{app,login}.css` | Embedded stylesheets |
 

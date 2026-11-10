@@ -250,13 +250,26 @@ pub struct Phone {
 }
 
 pub async fn enrolled(st: &AppState, user: &str, id: &str) -> Phone {
-    let p = add_user(st, user).await;
+    add_user(st, user).await;
+    enroll_existing(st, user, id).await
+}
+
+/// A phone for a user that already exists.
+pub async fn enroll_existing(st: &AppState, user: &str, id: &str) -> Phone {
+    let user_id = st
+        .inner
+        .db
+        .find_user(user)
+        .await
+        .expect("query")
+        .expect("user exists")
+        .id;
     let (request, approval) = (fixed_key(), fixed_key());
     st.inner
         .db
         .mfa_device_insert(&NewDevice {
             id,
-            user_id: p.user_id,
+            user_id,
             name: "Pixel",
             request_pub: &spki_b64(&request),
             approval_pub: &spki_b64(&approval),
@@ -271,8 +284,18 @@ pub async fn enrolled(st: &AppState, user: &str, id: &str) -> Phone {
         id: id.to_owned(),
         request,
         approval,
-        user_id: p.user_id,
+        user_id,
     }
+}
+
+/// Answers a pending challenge as the phone would (`approved` or `denied`), without the signed
+/// request. For tests of the sign-in pages, which do not test the phone's protocol.
+pub async fn resolve_challenge(st: &AppState, challenge_id: &str, to: &str) -> bool {
+    st.inner
+        .db
+        .mfa_challenge_resolve(challenge_id, to, crate::now_secs())
+        .await
+        .expect("resolve")
 }
 
 #[derive(Clone, Default)]
@@ -323,4 +346,16 @@ pub fn live_opts() -> Opts {
         leaf_validity: (now - 1000, now + 1000),
         ..Opts::default()
     }
+}
+
+/// Ids of the open challenges of one phone.
+pub async fn pending_challenge_ids(st: &AppState, device_id: &str) -> Vec<String> {
+    st.inner
+        .db
+        .mfa_challenges_pending(device_id, crate::now_secs())
+        .await
+        .expect("pending")
+        .into_iter()
+        .map(|c| c.id)
+        .collect()
 }

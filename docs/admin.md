@@ -131,7 +131,7 @@ Users turn on TOTP (authenticator app) themselves under Devices & security; see 
 
 ## Push sign-in approval (RustMFA)
 
-Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa.md)). The server side of the phone API is implemented (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`). Creating an enrollment token in the web interface, the sign-in page step and push delivery (FCM) are not built yet, so no user can enroll a phone through the web interface so far.
+Settings for approving sign-ins in the RustMFA app ([ADR 0014](adr/0014-push-mfa.md)). The server side of the phone API is implemented (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`). The browser sign-in has the phone step. Creating an enrollment token in the web interface, the Login Flow v2 step and push delivery (FCM) are not built yet: so far no user can enroll a phone through the web interface, and a phone only sees a request when its app polls.
 
 | Key | Default | Meaning |
 |---|---|---|

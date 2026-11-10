@@ -62,7 +62,7 @@ pub use push_mfa::{
     AttestationPolicy, AttestationResult, ChallengeDetails, ChallengeStatus, DeviceInfo,
     DevicePrincipal, EnrollToken, LoginChallenge, MfaAuditEvent, MfaConfig, MfaError,
     NewChallenge as MfaNewChallenge, NoopPush, ParsedAuth, PushChannel, PushFuture, RegisterInput,
-    Registered, google_roots, parse_authorization, verify_attestation,
+    Registered, SecondStepOptions, google_roots, parse_authorization, verify_attestation,
 };
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{

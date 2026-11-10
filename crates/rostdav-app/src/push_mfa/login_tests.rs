@@ -297,3 +297,49 @@ async fn the_audit_has_start_and_release_but_never_the_number() {
     assert!(!details.contains("number"), "{details}");
     assert!(!details.contains(&t), "the ticket is a secret");
 }
+
+#[tokio::test]
+async fn second_step_options_report_what_the_user_can_use() {
+    let (_d, st) = state().await;
+    let p = enrolled(&st, "anna", "dev_a").await;
+    let t = ticket(&st, p.user_id, "");
+    let o = st.web_second_step_options(&t).await.expect("options");
+    assert!(o.phone && !o.totp, "{o:?}");
+    assert!(st.web_second_step_options("1.2.bad").await.is_none());
+    // a ticket of the Login Flow page is not one of the browser sign-in
+    let tf = ticket(&st, p.user_id, "flowtoken");
+    assert!(st.web_second_step_options(&tf).await.is_none());
+}
+
+#[tokio::test]
+async fn web_phone_finish_opens_one_session() {
+    let (_d, st) = state().await;
+    let p = enrolled(&st, "anna", "dev_a").await;
+    let (t, id) = started(&st, &p, "").await;
+    approve(&st, &id).await;
+    let (cookie, principal) = st
+        .web_phone_finish(&t, &id, IP, "ua")
+        .await
+        .expect("finish");
+    assert_eq!(principal.user_id, p.user_id);
+    let s = st.web_session(&cookie).await.expect("q").expect("session");
+    assert_eq!(s.principal.user_id, p.user_id);
+    let again = st.web_phone_finish(&t, &id, IP, "ua").await;
+    assert!(matches!(again, Err(MfaError::AlreadyConsumed)), "{again:?}");
+    let events = st.inner.db.events_since(0).await.expect("events");
+    assert!(
+        events
+            .iter()
+            .any(|e| e.action == "auth.login" && e.details.contains("phone")),
+        "{events:?}"
+    );
+}
+
+#[tokio::test]
+async fn web_phone_finish_before_approval_opens_no_session() {
+    let (_d, st) = state().await;
+    let p = enrolled(&st, "anna", "dev_a").await;
+    let (t, id) = started(&st, &p, "").await;
+    let r = st.web_phone_finish(&t, &id, IP, "ua").await;
+    assert!(matches!(r, Err(MfaError::InvalidRequest(_))), "{r:?}");
+}

@@ -8,7 +8,7 @@ use serde_json::json;
 
 use super::{ChallengeStatus, MfaError};
 use crate::secrets::mac;
-use crate::{AppState, now_secs};
+use crate::{AppState, Principal, Scope, Via, now_secs};
 
 /// A challenge started for a sign-in, for the page that shows the number.
 #[derive(Debug)]
@@ -19,7 +19,58 @@ pub struct LoginChallenge {
     pub expires_in_seconds: i64,
 }
 
+/// What the second step of the browser sign-in can offer this user.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SecondStepOptions {
+    pub totp: bool,
+    pub phone: bool,
+}
+
 impl AppState {
+    /// The second-step choices behind a browser sign-in ticket; `None` if the ticket is not
+    /// genuine, current and for the browser sign-in.
+    pub async fn web_second_step_options(&self, ticket: &str) -> Option<SecondStepOptions> {
+        let user_id = self.second_factor_ticket_user(ticket, "")?;
+        let totp = self.inner.db.totp_enabled(user_id).await.ok()?;
+        let phone = self.inner.db.mfa_active_device_count(user_id).await.ok()? > 0;
+        Some(SecondStepOptions { totp, phone })
+    }
+
+    /// Second step of a browser sign-in with an approved phone challenge: one session, once.
+    pub async fn web_phone_finish(
+        &self,
+        ticket: &str,
+        challenge_id: &str,
+        ip: IpAddr,
+        user_agent: &str,
+    ) -> Result<(String, Principal), MfaError> {
+        let user_id = self.mfa_login_release(ticket, "", challenge_id).await?;
+        let u = self
+            .inner
+            .db
+            .find_user_by_id(user_id)
+            .await?
+            .filter(|u| !u.disabled)
+            .ok_or(MfaError::Unauthenticated)?;
+        let p = Principal {
+            user_id: u.id,
+            name: u.name,
+            is_admin: u.is_admin,
+            via: Via::AccountPassword,
+            scope: Scope::Full,
+        };
+        let cookie = self.open_session(&p, ip, user_agent).await?;
+        self.audit(
+            &p.name,
+            "auth.login",
+            "web",
+            Some(ip),
+            json!({"second_factor": "phone"}),
+        )
+        .await;
+        Ok((cookie, p))
+    }
+
     /// The user of a genuine, current ticket for this flow (`""` is the browser sign-in).
     fn login_user(&self, ticket: &str, flow: &str) -> Result<i64, MfaError> {
         self.second_factor_ticket_user(ticket, flow)

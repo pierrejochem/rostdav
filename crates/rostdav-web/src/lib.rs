@@ -12,6 +12,7 @@ mod login_page;
 mod more;
 mod pages;
 mod pages_more;
+mod phone_step;
 mod session;
 mod sharing;
 mod twofactor;
@@ -130,6 +131,9 @@ pub fn router() -> Router<AppState> {
             "/login/2fa",
             get(twofactor::login_second_show).post(twofactor::login_second_submit),
         )
+        .route("/login/2fa/phone", post(phone_step::start))
+        .route("/login/2fa/phone/status", get(phone_step::status))
+        .route("/login/2fa/phone/finish", post(phone_step::finish))
         .route(
             "/settings/2fa",
             get(twofactor::setup_page).post(twofactor::setup_confirm),

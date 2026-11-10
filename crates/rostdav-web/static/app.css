@@ -357,3 +357,5 @@ a.name>span{min-width:0}
 @media (max-width:760px){.listing th:nth-child(3),.listing td:nth-child(3){width:96px;white-space:normal}.listing th:nth-child(4),.listing td:nth-child(4){width:92px}.listing td:first-child{max-width:0;width:100%}}
 /* Phone: long values (source URL, database name) wrap instead of being clipped */
 @media (max-width:760px){td.num{white-space:normal;overflow-wrap:anywhere;word-break:break-word}.tbl table{table-layout:auto}}
+.phone-number{font-size:56px;font-weight:700;letter-spacing:.12em;text-align:center;margin:8px 0}
+.phone-wait{text-align:center;color:var(--text-2)}

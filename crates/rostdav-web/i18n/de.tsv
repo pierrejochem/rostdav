@@ -456,3 +456,18 @@ The search index is not open yet. The server opens it a few seconds after it sta
 The index is built in the background. It holds the text of files in a file of its own in the data directory and can be removed at any time with the command rostdav admin search rebuild.	Der Index wird im Hintergrund aufgebaut. Er enthält den Text von Dateien in einer eigenen Datei im Datenverzeichnis und kann jederzeit mit dem Befehl rostdav admin search rebuild entfernt werden.
 More	Mehr
 Close	Schließen
+Send to my phone	An mein Handy senden
+Approve the request on your RustMFA phone.	Bestätige die Anfrage auf deinem RustMFA-Handy.
+Approve on your phone	Auf dem Handy bestätigen
+Pick this number on your phone:	Wähle diese Zahl auf deinem Handy:
+Waiting for approval…	Warte auf Bestätigung …
+Use another method	Andere Methode verwenden
+Valid for {0} seconds.	Gültig für {0} Sekunden.
+Not approved yet.	Noch nicht bestätigt.
+The request was denied on the phone.	Die Anfrage wurde auf dem Handy abgelehnt.
+The request expired. Send a new one.	Die Anfrage ist abgelaufen. Sende eine neue.
+This approval was already used. Sign in again.	Diese Bestätigung wurde schon verwendet. Melde dich neu an.
+No phone is enrolled for this account.	Für dieses Konto ist kein Handy eingerichtet.
+Too many requests. Try again later.	Zu viele Anfragen. Versuche es später noch einmal.
+Sign-in with the phone failed.	Die Anmeldung mit dem Handy ist fehlgeschlagen.
+Continue	Weiter
