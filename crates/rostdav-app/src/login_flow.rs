@@ -9,6 +9,7 @@ use rostdav_core::{Error, Result};
 use serde_json::json;
 
 use crate::AppState;
+use crate::push_mfa::{ChallengeStatus, LoginChallenge, MfaError, SecondStepOptions};
 use crate::secrets::{flow_key, hash_token, mac, mac_eq, open, random_token, seal};
 
 const TOKEN_LEN: usize = 128;
@@ -145,6 +146,87 @@ impl AppState {
             .ok_or(Error::NotFound)?;
         let p = self.second_factor_principal(user_id, code, ip).await?;
         self.grant_flow_to(&flow, &p, ip).await
+    }
+
+    /// Whether the CSRF value belongs to this flow's form.
+    pub fn flow_check_csrf(&self, login_token: &str, csrf: &str) -> Result<()> {
+        self.check_csrf(login_token, "allow", csrf)
+    }
+
+    /// What the second step of this flow can offer; `None` if the ticket is not genuine, current
+    /// and issued for this flow.
+    pub async fn flow_second_step_options(
+        &self,
+        login_token: &str,
+        ticket: &str,
+    ) -> Option<SecondStepOptions> {
+        let user_id = self.second_factor_ticket_user(ticket, login_token)?;
+        Some(SecondStepOptions {
+            totp: self.inner.db.totp_enabled(user_id).await.ok()?,
+            phone: self.inner.db.mfa_active_device_count(user_id).await.ok()? > 0,
+        })
+    }
+
+    /// The phone step of the flow: starts the challenge. The flow must still be open.
+    pub async fn flow_phone_start(
+        &self,
+        login_token: &str,
+        ticket: &str,
+        login_device: &str,
+        ip: IpAddr,
+    ) -> Result<LoginChallenge, MfaError> {
+        self.open_flow(login_token).await?;
+        self.mfa_login_start(ticket, login_token, login_device, ip)
+            .await
+    }
+
+    /// Where the flow's challenge stands.
+    pub async fn flow_phone_status(
+        &self,
+        login_token: &str,
+        ticket: &str,
+        challenge_id: &str,
+    ) -> Result<ChallengeStatus, MfaError> {
+        self.mfa_login_status(ticket, login_token, challenge_id)
+            .await
+    }
+
+    /// An approved challenge becomes the app password for the poller, once.
+    pub async fn flow_phone_finish(
+        &self,
+        login_token: &str,
+        ticket: &str,
+        challenge_id: &str,
+        ip: IpAddr,
+    ) -> Result<(), MfaError> {
+        let flow = self.open_flow(login_token).await?;
+        let user_id = self
+            .mfa_login_release(ticket, login_token, challenge_id)
+            .await?;
+        let u = self
+            .inner
+            .db
+            .find_user_by_id(user_id)
+            .await?
+            .filter(|u| !u.disabled)
+            .ok_or(MfaError::Unauthenticated)?;
+        let p = crate::auth::Principal {
+            user_id: u.id,
+            name: u.name,
+            is_admin: u.is_admin,
+            via: crate::auth::Via::AccountPassword,
+            scope: crate::auth::Scope::Full,
+        };
+        self.grant_flow_to(&flow, &p, ip).await?;
+        Ok(())
+    }
+
+    async fn open_flow(&self, login_token: &str) -> Result<rostdav_meta::LoginFlow, MfaError> {
+        self.inner
+            .db
+            .open_flow_by_login(&hash_token(login_token))
+            .await?
+            .ok_or(MfaError::NotFound)
     }
 
     async fn grant_flow_to(

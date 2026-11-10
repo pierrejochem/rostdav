@@ -158,6 +158,10 @@ pub fn router() -> Router<AppState> {
             get(login_page::show).post(login_page::submit),
         )
         .route(
+            "/login/v2/flow/{token}/phone-status",
+            get(login_page::phone_status),
+        )
+        .route(
             "/index.php/login/v2/flow/{token}",
             get(login_page::show).post(login_page::submit),
         )

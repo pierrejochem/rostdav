@@ -17,7 +17,7 @@ use crate::session::{
 };
 use crate::twofactor::signed_in;
 
-const PHONE_SCRIPT: &str = "<script src=\"/static/phone.js\"></script>";
+pub(crate) const PHONE_SCRIPT: &str = "<script src=\"/static/phone.js\"></script>";
 
 fn user_agent(headers: &HeaderMap) -> &str {
     headers
@@ -128,6 +128,58 @@ pub async fn start(
     }
 }
 
+/// What the number card needs besides the challenge.
+pub(crate) struct NumberCard<'a> {
+    pub csrf: &'a str,
+    /// Where the page polls; already a safe attribute value.
+    pub status_url: &'a str,
+    /// Where the finish form posts to.
+    pub action: &'a str,
+    /// More hidden fields of the finish form (already escaped markup).
+    pub hidden: &'a str,
+    /// Where "Use another method" and a denied or expired request lead.
+    pub back_href: &'a str,
+}
+
+/// The card with the number, the waiting area (polled by `phone.js`) and the finish form.
+pub(crate) fn number_card(
+    lang: Lang,
+    c: &rostdav_app::LoginChallenge,
+    n: &NumberCard<'_>,
+) -> String {
+    let id = esc(&c.challenge_id);
+    format!(
+        "<div class=\"card\"><div class=\"stepline\"><span class=\"chip\">{}</span></div>\
+         <div><h1>{}</h1><p>{}</p></div>\
+         <p class=\"phone-number\">{}</p>\
+         <div class=\"phone-wait\" data-status-url=\"{}\" data-finish-form=\"phone-finish\" data-back-url=\"{}\">{}</div>\
+         <form id=\"phone-finish\" method=\"post\" action=\"{}\">\
+         <input type=\"hidden\" name=\"csrf\" value=\"{}\"><input type=\"hidden\" name=\"id\" value=\"{id}\">{}\
+         <button class=\"primary\" type=\"submit\">{}</button></form>\
+         <p class=\"foot\"><a href=\"{}\">{}</a></p>\
+         <div class=\"note\">{}</div></div>",
+        esc(&t(lang, "Step 2 of 2")),
+        esc(&t(lang, "Approve on your phone")),
+        esc(&t(lang, "Pick this number on your phone:")),
+        c.number,
+        n.status_url,
+        esc(n.back_href),
+        esc(&t(lang, "Waiting for approval…")),
+        esc(n.action),
+        esc(n.csrf),
+        n.hidden,
+        esc(&t(lang, "Continue")),
+        esc(n.back_href),
+        esc(&t(lang, "Use another method")),
+        esc(&tf(
+            lang,
+            "Valid for {0} seconds.",
+            &[&c.expires_in_seconds.to_string()]
+        )),
+    )
+}
+
+/// The page for the browser sign-in (it has its own LOGIN cookie for the finish form).
 fn number_page(
     state: &AppState,
     headers: &HeaderMap,
@@ -135,30 +187,17 @@ fn number_page(
     c: &rostdav_app::LoginChallenge,
 ) -> Response {
     let (cookie, csrf) = state.login_csrf_issue();
-    let id = esc(&c.challenge_id);
-    let body = format!(
-        "<div class=\"card\"><div class=\"stepline\"><span class=\"chip\">{}</span></div>\
-         <div><h1>{}</h1><p>{}</p></div>\
-         <p class=\"phone-number\">{}</p>\
-         <div class=\"phone-wait\" data-status-url=\"/login/2fa/phone/status?id={id}\" data-finish-form=\"phone-finish\">{}</div>\
-         <form id=\"phone-finish\" method=\"post\" action=\"/login/2fa/phone/finish\">\
-         <input type=\"hidden\" name=\"csrf\" value=\"{}\"><input type=\"hidden\" name=\"id\" value=\"{id}\">\
-         <button class=\"primary\" type=\"submit\">{}</button></form>\
-         <p class=\"foot\"><a href=\"/login/2fa\">{}</a></p>\
-         <div class=\"note\">{}</div></div>",
-        esc(&t(lang, "Step 2 of 2")),
-        esc(&t(lang, "Approve on your phone")),
-        esc(&t(lang, "Pick this number on your phone:")),
-        c.number,
-        esc(&t(lang, "Waiting for approval…")),
-        esc(&csrf),
-        esc(&t(lang, "Continue")),
-        esc(&t(lang, "Use another method")),
-        esc(&tf(
-            lang,
-            "Valid for {0} seconds.",
-            &[&c.expires_in_seconds.to_string()]
-        )),
+    let status_url = format!("/login/2fa/phone/status?id={}", esc(&c.challenge_id));
+    let body = number_card(
+        lang,
+        c,
+        &NumberCard {
+            csrf: &csrf,
+            status_url: &status_url,
+            action: "/login/2fa/phone/finish",
+            hidden: "",
+            back_href: "/login/2fa",
+        },
     );
     let mut r = layout::bare_with(
         lang,

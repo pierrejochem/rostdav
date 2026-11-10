@@ -5773,3 +5773,250 @@ async fn the_number_is_on_the_page_and_nowhere_else() {
     let js = send(&e, "GET", "/static/phone.js", &[], Body::empty()).await;
     assert_eq!(js.status, StatusCode::OK);
 }
+
+// ---- Login Flow v2 with the RustMFA phone --------------------------------------------------------
+
+struct FlowStep {
+    url: String,
+    poll_token: String,
+    csrf: String,
+    ticket: String,
+    html: String,
+}
+
+async fn flow_post(e: &Env, url: &str, fields: &[(&str, &str)]) -> Res {
+    send(
+        e,
+        "POST",
+        url,
+        &[
+            ("content-type", "application/x-www-form-urlencoded"),
+            ("origin", &origin()),
+        ],
+        Body::from(form(fields)),
+    )
+    .await
+}
+
+/// A started flow whose password step is done: the second-step page of `user`.
+async fn flow_second_step(e: &Env, user: &str) -> FlowStep {
+    let flow = e
+        .state
+        .start_login_flow("Nextcloud Android")
+        .await
+        .expect("flow");
+    let url = format!("/login/v2/flow/{}", flow.login_token);
+    let page = send(e, "GET", &url, &[], Body::empty()).await;
+    let csrf = extract_csrf(&page.text());
+    let r = flow_post(
+        e,
+        &url,
+        &[
+            ("csrf", &csrf),
+            ("user", user),
+            ("password", PW),
+            ("action", "allow"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    let html = r.text();
+    let ticket = between(&html, "name=\"ticket\" value=\"", "\"");
+    FlowStep {
+        url,
+        poll_token: flow.poll_token,
+        csrf,
+        ticket,
+        html,
+    }
+}
+
+async fn flow_send_to_phone(e: &Env, s: &FlowStep) -> Res {
+    flow_post(
+        e,
+        &s.url,
+        &[
+            ("csrf", &s.csrf),
+            ("ticket", &s.ticket),
+            ("action", "phone"),
+        ],
+    )
+    .await
+}
+
+async fn flow_finish(e: &Env, s: &FlowStep, id: &str) -> Res {
+    flow_post(
+        e,
+        &s.url,
+        &[
+            ("csrf", &s.csrf),
+            ("ticket", &s.ticket),
+            ("id", id),
+            ("action", "phone_finish"),
+        ],
+    )
+    .await
+}
+
+fn flow_status_url(page: &str) -> String {
+    between(page, "data-status-url=\"", "\"").replace("&amp;", "&")
+}
+
+#[tokio::test]
+async fn flow_with_a_phone_offers_it_and_grants_after_approval() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    assert!(
+        s.html.contains("Send to my phone") && s.html.contains("value=\"phone\""),
+        "{}",
+        s.html
+    );
+    assert!(
+        !s.html.contains("name=\"code\""),
+        "no code form without TOTP"
+    );
+    let r = flow_send_to_phone(&e, &s).await;
+    assert_eq!(r.status, StatusCode::OK, "{}", r.text());
+    let page = r.text();
+    assert!(page.contains("class=\"phone-number\"") && page.contains("/static/phone.js"));
+    let id = challenge_id_of(&page);
+    let status_url = flow_status_url(&page);
+    let st = send(&e, "GET", &status_url, &[], Body::empty()).await;
+    assert_eq!(
+        (st.status, st.text()),
+        (StatusCode::OK, r#"{"status":"pending"}"#.to_owned())
+    );
+    assert_eq!(st.h("cache-control"), "no-store");
+    assert!(
+        e.state
+            .poll_login_flow(&s.poll_token)
+            .await
+            .expect("poll")
+            .is_none(),
+        "nothing granted before the approval"
+    );
+    assert!(testkit::resolve_challenge(&e.state, &id, "approved").await);
+    let fin = flow_finish(&e, &s, &id).await;
+    assert_eq!(fin.status, StatusCode::OK, "{}", fin.text());
+    assert!(fin.text().contains("Device connected"));
+    let granted = e
+        .state
+        .poll_login_flow(&s.poll_token)
+        .await
+        .expect("poll")
+        .expect("credentials");
+    assert_eq!(granted.login_name, "bob");
+    // a second finish is refused and creates nothing
+    let again = flow_finish(&e, &s, &id).await;
+    assert!(
+        !again.text().contains("Device connected"),
+        "{}",
+        again.text()
+    );
+}
+
+#[tokio::test]
+async fn flow_finish_before_approval_grants_nothing() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    let id = challenge_id_of(&flow_send_to_phone(&e, &s).await.text());
+    let fin = flow_finish(&e, &s, &id).await;
+    assert!(!fin.text().contains("Device connected"));
+    assert!(
+        e.state
+            .poll_login_flow(&s.poll_token)
+            .await
+            .expect("poll")
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn a_denied_flow_request_grants_nothing() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    let id = challenge_id_of(&flow_send_to_phone(&e, &s).await.text());
+    assert!(testkit::resolve_challenge(&e.state, &id, "denied").await);
+    let fin = flow_finish(&e, &s, &id).await;
+    assert!(fin.text().contains("denied"), "{}", fin.text());
+    assert!(
+        e.state
+            .poll_login_flow(&s.poll_token)
+            .await
+            .expect("poll")
+            .is_none()
+    );
+}
+
+#[tokio::test]
+async fn flow_phone_start_needs_the_csrf_value_and_a_genuine_ticket() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let s = flow_second_step(&e, "bob").await;
+    let r = flow_post(
+        &e,
+        &s.url,
+        &[
+            ("csrf", "forged"),
+            ("ticket", &s.ticket),
+            ("action", "phone"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
+    let r = flow_post(
+        &e,
+        &s.url,
+        &[
+            ("csrf", &s.csrf),
+            ("ticket", "1.99999999999.deadbeef"),
+            ("action", "phone"),
+        ],
+    )
+    .await;
+    assert_eq!(r.status, StatusCode::UNAUTHORIZED, "{}", r.text());
+    assert!(
+        testkit::pending_challenge_ids(&e.state, "dev_b")
+            .await
+            .is_empty()
+    );
+}
+
+#[tokio::test]
+async fn a_ticket_of_another_flow_cannot_finish_this_one() {
+    let e = env().await;
+    phone_user(&e, "bob", "dev_b").await;
+    let a = flow_second_step(&e, "bob").await;
+    let b = flow_second_step(&e, "bob").await;
+    let id = challenge_id_of(&flow_send_to_phone(&e, &a).await.text());
+    assert!(testkit::resolve_challenge(&e.state, &id, "approved").await);
+    // flow B's page with flow A's ticket and challenge
+    let r = flow_post(
+        &e,
+        &b.url,
+        &[
+            ("csrf", &b.csrf),
+            ("ticket", &a.ticket),
+            ("id", &id),
+            ("action", "phone_finish"),
+        ],
+    )
+    .await;
+    assert!(!r.text().contains("Device connected"), "{}", r.text());
+    assert!(
+        e.state
+            .poll_login_flow(&b.poll_token)
+            .await
+            .expect("poll")
+            .is_none()
+    );
+    // the status of A's challenge under B's address
+    let uri = format!("{}/phone-status?ticket={}&id={id}", b.url, a.ticket);
+    assert_ne!(
+        send(&e, "GET", &uri, &[], Body::empty()).await.status,
+        StatusCode::OK
+    );
+}
