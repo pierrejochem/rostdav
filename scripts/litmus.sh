@@ -21,4 +21,17 @@ for _ in $(seq 50); do
   sleep 0.2
 done
 
-TESTS="basic copymove" litmus "http://127.0.0.1:$PORT/remote.php/dav/files/litmus/" litmus "$PASSWORD"
+# Known deviation: PUT into a missing parent answers 404 like Nextcloud
+# (docs/compatibility.md), litmus `put_no_parent` wants 409. Any other failure
+# is an error.
+OUT="$DIR/litmus.out"
+set +e
+TESTS="basic copymove" litmus "http://127.0.0.1:$PORT/remote.php/dav/files/litmus/" litmus "$PASSWORD" 2>&1 | tee "$OUT"
+STATUS=${PIPESTATUS[0]}
+set -e
+[ "$STATUS" -eq 0 ] && exit 0
+if [ "$(grep -c ' FAIL' "$OUT")" -eq 1 ] && grep -q 'put_no_parent\.* FAIL' "$OUT"; then
+  echo "litmus: only the known put_no_parent deviation failed"
+  exit 0
+fi
+exit "$STATUS"

@@ -64,7 +64,7 @@ Each line cites its fixture below `tests/fixtures/nextcloud/`. "Differs" marks w
 - PROPFIND: `oc:id` / `OC-FileId` = 8-digit zero-padded numeric ID + instance ID (`00000078ocb0ngxhatbv`), `oc:fileid` = plain number, `oc:permissions` e.g. `RGDNVCK` (dir) / `RGDNVW` (file), ETag on files is an MD5-like string, on folders a short hex string (`04-webdav/16`). Properties the server does not have come back in a 404 `propstat`.
 - `PROPFIND Depth: infinity` → 207 without entries (`04-webdav/04`). Differs: Rostdav answers 403 `propfind-finite-depth`.
 - `PUT`: 201 new / 204 replace; response headers `OC-FileId`, `ETag`, `OC-ETag`, `X-OC-MTime: accepted` (`04-webdav/10`, `11`). Differs: Rostdav sets only `ETag`.
-- `PUT` into a missing parent → **404** (`04-webdav/12`); `MKCOL` into a missing parent → 409 (`04-webdav/09`). Differs: Rostdav answers 409 for both.
+- `PUT` into a missing parent → **404** (`04-webdav/12`); `MKCOL` into a missing parent → 409 (`04-webdav/09`). Rostdav matches; litmus `put_no_parent` expects 409 and is tolerated in `scripts/litmus.sh`.
 - `MKCOL` on an existing name → 405 (`04-webdav/08`); `If-None-Match: *` on an existing file → 412 (`04-webdav/13`); stale `If-Match` → 412 (`04-webdav/14`); stale `If-Match` on DELETE → 412 (`04-webdav/27`).
 - `GET` on a directory → **200** `text/html` (`04-webdav/21`). Differs: Rostdav answers 405.
 - `MOVE` with `Overwrite: F` onto an existing target → 412 (`04-webdav/24`). A `Destination` with a foreign host is **accepted** (path only is used, 201) (`04-webdav/25`). Differs: Rostdav answers 502.
