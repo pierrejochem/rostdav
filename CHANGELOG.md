@@ -4,6 +4,18 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.10.1] - 2026-11-14
+
+### Security
+
+- Updated `zstd` to 0.13.4 and `zstd-safe` to 7.4.0 (RUSTSEC-2026-0391, -0398, -0403).
+
+### Changed
+
+- Dependency updates: `ureq` 3.5.2, `encoding_rs` 0.8.44, `office_oxide` 0.1.17, `zip` 9.5.1.
+- The Rust toolchain is pinned to 1.99.1 (CI, release workflow, container build): rustc 1.100.0 cannot compile `turso_core` 0.8.3. Remove the pin when Turso fixes this.
+- CI tolerates the known litmus `put_no_parent` deviation (we answer 404 like Nextcloud, RFC 4918 says 409).
+
 ## [0.10.0] - 2026-10-25
 
 ### Changed

@@ -2959,7 +2959,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "anyhow",
  "axum",
@@ -2993,7 +2993,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-app"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "argon2",
  "base64 0.23.1",
@@ -3020,7 +3020,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-compat"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "axum",
  "mime_guess",
@@ -3035,7 +3035,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-core"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "percent-encoding",
  "thiserror",
@@ -3044,7 +3044,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-dav"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "axum",
  "blake3",
@@ -3063,7 +3063,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-meta"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "rostdav-core",
  "tempfile",
@@ -3075,7 +3075,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-storage"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "blake3",
  "rostdav-core",
@@ -3087,7 +3087,7 @@ dependencies = [
 
 [[package]]
 name = "rostdav-web"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "axum",
  "futures-core",
