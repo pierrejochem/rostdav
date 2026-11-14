@@ -56,15 +56,24 @@ pub(super) fn sha256(data: &[u8]) -> Vec<u8> {
         .to_vec()
 }
 
-/// The push channel and token a phone gives, at registration or later.
+/// The push channel and token a phone gives, at registration or later. A phone without a push
+/// service uses the channel `none` with an empty token and is woken by polling only.
 pub(super) fn check_push(channel: &str, token: &str) -> Result<(), MfaError> {
-    if !matches!(channel, "fcm" | "unifiedpush") {
-        return Err(invalid("push channel must be fcm or unifiedpush"));
+    match channel {
+        "none" if token.is_empty() => Ok(()),
+        "none" => Err(invalid("a phone without push has no push token")),
+        "fcm" | "unifiedpush" => {
+            if token.is_empty()
+                || token.len() > MAX_PUSH_TOKEN
+                || token.chars().any(char::is_control)
+            {
+                Err(invalid("push token is missing or too long"))
+            } else {
+                Ok(())
+            }
+        }
+        _ => Err(invalid("push channel must be fcm, unifiedpush or none")),
     }
-    if token.is_empty() || token.len() > MAX_PUSH_TOKEN || token.chars().any(char::is_control) {
-        return Err(invalid("push token is missing or too long"));
-    }
-    Ok(())
 }
 
 /// Checks the input without touching the token; returns the cleaned device name.

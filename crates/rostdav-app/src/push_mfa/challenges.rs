@@ -236,6 +236,9 @@ impl AppState {
     /// Wakes the phone after the challenge is stored. A failure is only logged, and the log has
     /// the challenge id but never the push token.
     fn push_in_background(&self, device: &DeviceRow, challenge_id: &str) {
+        if device.push_channel == "none" {
+            return; // polling only: there is nobody to wake
+        }
         let channel = self.push_channel();
         let (kind, token, id) = (
             device.push_channel.clone(),

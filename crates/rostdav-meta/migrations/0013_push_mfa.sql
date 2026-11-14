@@ -11,7 +11,7 @@ CREATE TABLE mfa_devices (
     status          TEXT    NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'revoked')),
     request_pub     TEXT    NOT NULL,
     approval_pub    TEXT    NOT NULL,
-    push_channel    TEXT    NOT NULL CHECK (push_channel IN ('fcm', 'unifiedpush')),
+    push_channel    TEXT    NOT NULL CHECK (push_channel IN ('fcm', 'unifiedpush', 'none')),
     push_token      TEXT    NOT NULL,
     hardware_backed INTEGER NOT NULL,
     strongbox       INTEGER NOT NULL,

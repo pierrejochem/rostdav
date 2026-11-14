@@ -731,6 +731,34 @@ async fn push_is_sent_after_creation_with_the_challenge_id() {
 }
 
 #[tokio::test]
+async fn a_phone_on_the_none_channel_is_never_notified() {
+    /// Counts every call, whatever the arguments (the shared `Recording` asserts an fcm phone).
+    struct CountAll(AtomicUsize);
+    impl PushChannel for CountAll {
+        fn notify<'a>(&'a self, _: &'a str, _: &'a str, _: &'a str) -> PushFuture<'a> {
+            Box::pin(async move {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                Ok(())
+            })
+        }
+    }
+    let (_d, st) = state().await;
+    let p = enrolled(&st, "anna", "dev_a").await;
+    st.inner
+        .db
+        .mfa_device_set_push("dev_a", "none", "")
+        .await
+        .expect("set");
+    let rec = Arc::new(CountAll(AtomicUsize::new(0)));
+    st.set_push_channel_for_tests(rec.clone());
+    let c = create(&st, &p, "l").await;
+    assert_eq!(row(&st, &c.challenge_id).await.status, "pending");
+    // a notification would be spawned right after the insert; give it time to show up
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    assert_eq!(rec.0.load(Ordering::SeqCst), 0);
+}
+
+#[tokio::test]
 async fn push_failure_does_not_fail_creation_and_is_logged_without_token() {
     let cap = captured();
     let (_d, st) = state().await;

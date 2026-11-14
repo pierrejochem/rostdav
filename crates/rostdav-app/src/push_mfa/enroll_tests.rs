@@ -86,6 +86,28 @@ async fn enrollment_happy_path_creates_an_active_device() {
 }
 
 #[tokio::test]
+async fn a_phone_without_push_registers_with_the_none_channel_and_an_empty_token() {
+    let (_d, st) = state().await;
+    let anna = add_user(&st, "anna").await;
+    let (token, f) = enrollable(&st, &anna).await;
+    let mut i = input(&token, &f);
+    i.push_channel = "none".into();
+    i.push_token = String::new();
+    let done = st.mfa_register_device(i, IP).await.expect("register");
+    let row = st
+        .inner
+        .db
+        .mfa_device_get(&done.device_id)
+        .await
+        .expect("get")
+        .expect("row");
+    assert_eq!(
+        (row.push_channel.as_str(), row.push_token.as_str()),
+        ("none", "")
+    );
+}
+
+#[tokio::test]
 async fn token_has_the_configured_lifetime() {
     let (_d, st) = state().await;
     let anna = add_user(&st, "anna").await;
@@ -339,8 +361,15 @@ async fn bad_input_is_rejected_without_burning_the_token() {
             Box::new(|i| i.approval_public_key = "!!!".into()),
         ),
         (
-            "push channel must be fcm or unifiedpush",
+            "push channel must be fcm, unifiedpush or none",
             Box::new(|i| i.push_channel = "apns".into()),
+        ),
+        (
+            "a phone without push has no push token",
+            Box::new(|i| {
+                i.push_channel = "none".into();
+                i.push_token = "x".into();
+            }),
         ),
         (
             "push token is missing or too long",

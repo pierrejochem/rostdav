@@ -281,6 +281,39 @@ async fn update_push_token_changes_the_channel_and_audits_without_the_token() {
 }
 
 #[tokio::test]
+async fn a_phone_can_switch_to_the_none_channel_and_back() {
+    let (_d, st) = state().await;
+    let a = enrolled(&st, "anna", "dev_a").await;
+    st.mfa_update_push_token(&dp(&a), "dev_a", "none", "")
+        .await
+        .expect("to none");
+    let d = device(&st, "dev_a").await;
+    assert_eq!(
+        (d.push_channel.as_str(), d.push_token.as_str()),
+        ("none", "")
+    );
+    st.mfa_update_push_token(&dp(&a), "dev_a", "fcm", "t3")
+        .await
+        .expect("back to fcm");
+    let d = device(&st, "dev_a").await;
+    assert_eq!(
+        (d.push_channel.as_str(), d.push_token.as_str()),
+        ("fcm", "t3")
+    );
+}
+
+#[tokio::test]
+async fn the_none_channel_takes_no_token() {
+    let (_d, st) = state().await;
+    let a = enrolled(&st, "anna", "dev_a").await;
+    let r = st
+        .mfa_update_push_token(&dp(&a), "dev_a", "none", "sneaky")
+        .await;
+    assert!(matches!(r, Err(MfaError::InvalidRequest(_))), "{r:?}");
+    assert_eq!(device(&st, "dev_a").await.push_token, "t");
+}
+
+#[tokio::test]
 async fn update_push_token_validates_channel_and_token() {
     let (_d, st) = state().await;
     let a = enrolled(&st, "anna", "dev_a").await;

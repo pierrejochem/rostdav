@@ -52,7 +52,7 @@ Authorization: RustMFA-Sig device_id="…",ts="…",nonce="…",sig="…"
 | `POST /devices/register` | enrollment token in the body | `201` `{device_id, status}` | Register a phone with its two public keys and key attestation |
 | `GET /devices` | signature | `200` `{devices}` | The caller's phones |
 | `DELETE /devices/{device_id}` | signature | `204` | Revoke a phone of the caller's account (also ends its open approvals) |
-| `PUT /devices/{device_id}/push-token` | signature, own device | `200` `{device_id, status}` | Change push channel and token |
+| `PUT /devices/{device_id}/push-token` | signature, own device | `200` `{device_id, status}` | Change push channel (`fcm`, `unifiedpush`, or `none` with an empty token) and token |
 | `POST /devices/{device_id}/rotate-key` | signature, own device | `200` `{device_id, status}` | Replace both keys (needs a fresh attestation) |
 | `GET /mfa/challenges?status=pending` | signature | `200` `{challenges}` | Open approvals of the phone; only `pending` can be listed |
 | `GET /mfa/challenges/{challenge_id}` | signature | `200` | Details of one approval, with three candidate numbers and no marker of the right one |
