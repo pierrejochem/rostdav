@@ -29,7 +29,9 @@ jobs:
           test "$version" = "$cargo_version" || { echo "tag $version, Cargo.toml $cargo_version"; exit 1; }
           grep -q "^## \[$version\]" CHANGELOG.md || { echo "no CHANGELOG.md section for $version"; exit 1; }
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - uses: dtolnay/rust-toolchain@1.99.1
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
       - uses: Swatinem/rust-cache@v2
       - name: Tests
         run: cargo test --workspace --locked
