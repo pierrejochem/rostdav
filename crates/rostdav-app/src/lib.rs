@@ -19,6 +19,7 @@ mod files;
 mod indexer;
 mod login_flow;
 mod password;
+mod push_mfa;
 mod ratelimit;
 mod search;
 #[cfg(test)]
@@ -55,6 +56,15 @@ pub use indexer::{PassReport, SearchStatus};
 pub use login_flow::FlowStep;
 pub use login_flow::{Granted, StartedFlow};
 pub use password::{MIN_PASSWORD_CHARS, hash_password, verify_password};
+#[cfg(feature = "test-util")]
+pub use push_mfa::testkit;
+pub use push_mfa::{
+    AttestationPolicy, AttestationResult, ChallengeDetails, ChallengeStatus, DeviceInfo,
+    DevicePrincipal, EnrollQr, EnrollToken, FcmPush, LoginChallenge, MfaAuditEvent, MfaConfig,
+    MfaError, NewChallenge as MfaNewChallenge, NoopPush, ParsedAuth, PushChannel, PushFuture,
+    RegisterInput, Registered, SecondStepOptions, enroll_qr_payload, google_roots,
+    parse_authorization, verify_attestation,
+};
 pub use search::{KindFilter, MAX_VISITED, SearchHit, SearchPage, SearchQuery, SnippetPart};
 pub use shares::{
     LINK_TOKEN_LEN, ShareChange, ShareCreate, ShareError, ShareFilter, ShareView, Viewer,
@@ -90,6 +100,13 @@ struct Inner {
     limiter: ratelimit::RateLimiter,
     /// Wrong second-factor codes: five per user in 15 minutes (ADR 0007).
     totp_limiter: ratelimit::RateLimiter,
+    /// Push sign-in approval: failed registrations per address and enrollment tokens per user,
+    /// five in 15 minutes each (ADR 0014).
+    mfa_limiter: ratelimit::RateLimiter,
+    /// Trusted attestation roots that replace Google's in tests.
+    mfa_roots: std::sync::Mutex<Option<Vec<Vec<u8>>>>,
+    /// How phones are woken for a new challenge (ADR 0014).
+    mfa_push: std::sync::RwLock<Arc<dyn push_mfa::PushChannel>>,
     /// Instance ID used in Nextcloud-style file IDs (`oc:id`), e.g. `oc` + 10 characters.
     instance_id: String,
     /// 32-byte key for stateless tickets and CSRF values (stored in `settings`).
@@ -124,6 +141,7 @@ struct AppConfig {
     extractor: Option<std::path::PathBuf>,
     limits: Limits,
     audit: AuditOptions,
+    mfa: MfaConfig,
     versioning: VersioningOptions,
     trash: TrashOptions,
     web: WebOptions,
@@ -215,6 +233,12 @@ impl AppState {
                     5,
                     std::time::Duration::from_secs(15 * 60),
                 ),
+                mfa_limiter: ratelimit::RateLimiter::new(
+                    5,
+                    std::time::Duration::from_secs(15 * 60),
+                ),
+                mfa_roots: std::sync::Mutex::new(None),
+                mfa_push: std::sync::RwLock::new(Arc::new(push_mfa::NoopPush)),
                 instance_id,
                 server_key,
                 maintenance: maintenance.into(),
@@ -251,6 +275,16 @@ impl AppState {
                 totp_limiter: ratelimit::RateLimiter::new(
                     5,
                     std::time::Duration::from_secs(15 * 60),
+                ),
+                mfa_limiter: ratelimit::RateLimiter::new(
+                    5,
+                    std::time::Duration::from_secs(15 * 60),
+                ),
+                mfa_roots: std::sync::Mutex::new(None),
+                mfa_push: std::sync::RwLock::new(
+                    old.mfa_push
+                        .read()
+                        .map_or_else(|e| e.into_inner().clone(), |g| g.clone()),
                 ),
                 instance_id: old.instance_id.clone(),
                 server_key: old.server_key,
@@ -360,6 +394,12 @@ impl AppState {
             audit,
             ..self.cfg()
         };
+        self.reconfigured(config)
+    }
+
+    #[must_use]
+    pub fn with_mfa(self, mfa: MfaConfig) -> Self {
+        let config = AppConfig { mfa, ..self.cfg() };
         self.reconfigured(config)
     }
 

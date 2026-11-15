@@ -1311,10 +1311,14 @@ async fn security_page(state: &AppState, a: &Authed) -> Response {
     let rows: String = locks
         .iter()
         .map(|l| {
-            let (what, kind) = match (l.by_address, l.kind) {
-                (true, _) => (t(lang, "Address"), "password"),
-                (false, LockoutKind::Password) => (t(lang, "User"), "password"),
-                (false, LockoutKind::SecondFactor) => (t(lang, "User (two-factor code)"), "2fa"),
+            let (what, kind) = match (l.kind, l.scope.as_str()) {
+                (LockoutKind::Phone, "mfa-register") => (t(lang, "Address (phone enrollment)"), "mfa"),
+                (LockoutKind::Phone, "mfa-enroll") => (t(lang, "User (phone enrollment)"), "mfa"),
+                (LockoutKind::Phone, "mfa-challenge") => (t(lang, "User (sign-in approvals)"), "mfa"),
+                (LockoutKind::Phone, _) => (t(lang, "Phone (signed requests)"), "mfa"),
+                (_, _) if l.by_address => (t(lang, "Address"), "password"),
+                (LockoutKind::Password, _) => (t(lang, "User"), "password"),
+                (LockoutKind::SecondFactor, _) => (t(lang, "User (two-factor code)"), "2fa"),
             };
             format!(
                 "<tr><td>{}</td><td>{}</td><td class=\"num\">{}</td><td>\
@@ -1395,10 +1399,10 @@ pub async fn unlock(
     if !csrf_ok(&state, &a, &f.csrf) {
         return forbidden();
     }
-    let kind = if f.kind == "2fa" {
-        LockoutKind::SecondFactor
-    } else {
-        LockoutKind::Password
+    let kind = match f.kind.as_str() {
+        "2fa" => LockoutKind::SecondFactor,
+        "mfa" => LockoutKind::Phone,
+        _ => LockoutKind::Password,
     };
     match state
         .unlock(&Actor::User(&a.session.principal), &f.key, kind)

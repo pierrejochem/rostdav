@@ -21,7 +21,8 @@ flowchart TB
     HTTP --> DAV[dav: WebDAV adapter]
     HTTP --> COMPAT[compat: status.php, OCS, Login Flow v2]
     HTTP --> WEB[web: HTML interface]
-    DAV & COMPAT & WEB --> APP
+    HTTP --> MFAAPI[mfa-api: RustMFA phone API]
+    DAV & COMPAT & WEB & MFAAPI --> APP
 
     subgraph APP[app: services]
       ID[Identity]
@@ -49,6 +50,7 @@ flowchart TB
 | `rostdav-dav` | WebDAV methods, PROPFIND/PROPPATCH XML, Nextcloud properties, chunked upload | core, app |
 | `rostdav-compat` | `status.php`, capabilities, OCS endpoints (user, sharing), Login Flow v2 | core, app |
 | `rostdav-web` | HTML pages (askama), sessions, CSRF, static assets | core, app |
+| `rostdav-mfa-api` | HTTP API of the RustMFA app: phone registration, sign-in approval, device list ([ADR 0014](adr/0014-push-mfa.md)) | core, app |
 | `rostdav` (binary) | Configuration, wiring, router, CLI (`serve`, `admin …`) | all |
 
 Rule: protocol crates know neither the database nor the file system. Only `rostdav-app` coordinates `meta` and `storage`.
@@ -64,6 +66,7 @@ Tower layers in this order:
    - Basic Auth with **app password** → `Principal { user, via: AppPassword(id) }`
    - Basic Auth with **account password** → only allowed if neither 2FA is active nor "WebDAV with app passwords only" is set
    - Session cookie → only for `rostdav-web`
+   - Signed device request (`Authorization: RustMFA-Sig …`) → only for `rostdav-mfa-api`; no cookie, no CSRF token
    - Public link token → restricted principal for the share
 5. **Rate limiting** – per IP and per username on all sign-in paths, including login flow polling and 2FA codes.
 6. **CSRF** – only for state-changing web routes.
@@ -103,6 +106,12 @@ A central error type in `rostdav-core` (`NotFound`, `Forbidden`, `Conflict`, `Pr
 | `login_flows` | poll_token_hash, login_token_hash, client_name, state, user_id, app_password_id, expires_at |
 | `totp` | user_id, secret_enc, enabled_at, last_used_step |
 | `recovery_codes` | id, user_id, code_hash, used_at |
+| `mfa_devices` | id, user_id, name, status (active/revoked), request_pub, approval_pub, push_channel, push_token, hardware_backed, strongbox, created_at, last_seen_at, revoked_at ([ADR 0014](adr/0014-push-mfa.md)) |
+| `mfa_enroll_tokens` | token_hash, user_id, expires_at, used_at |
+| `mfa_challenges` | id, user_id, device_id, login_ref, nonce, number, candidates, audience, created_at, expires_at, status, consumed_at, login_device, released_at |
+| `mfa_nonces` | device_id, nonce, expires_at |
+
+Migration 0013 also adds `events_actor` on `events(actor, action)` for the own-events view of the RustMFA app.
 | `nodes` | see ADR 0002 |
 | `blobs` | id, size, checksum, created_at |
 | `versions` | id, node_id, blob_id, size, mtime, author_app_password_id, created_at |

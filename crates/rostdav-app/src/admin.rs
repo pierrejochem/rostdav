@@ -51,6 +51,8 @@ pub enum LockoutKind {
     Password,
     /// Wrong two-factor codes.
     SecondFactor,
+    /// The phone features (ADR 0014): enrollment, signed requests, sign-in approvals.
+    Phone,
 }
 
 /// A client address or user that is blocked for now.
@@ -60,6 +62,8 @@ pub struct Lockout {
     pub by_address: bool,
     pub who: String,
     pub kind: LockoutKind,
+    /// What the key counts: the part before the colon (`ip`, `user`, `totp`, `mfa-enroll`, ...).
+    pub scope: String,
     pub secs_left: u64,
 }
 
@@ -322,18 +326,25 @@ impl AppState {
         for (list, kind) in [
             (self.inner.limiter.blocked(), LockoutKind::Password),
             (self.inner.totp_limiter.blocked(), LockoutKind::SecondFactor),
+            (self.inner.mfa_limiter.blocked(), LockoutKind::Phone),
         ] {
             for (key, secs_left) in list {
                 if let Some((scope, who)) = key.split_once(':') {
                     out.push(Lockout {
                         key: key.clone(),
-                        by_address: scope == "ip",
-                        // Second-factor keys hold the user ID, password keys the user name.
+                        by_address: scope == "ip" || scope == "mfa-register",
+                        // Second-factor and phone keys hold the user ID, password keys the user
+                        // name; a phone key can also hold a device id or an address.
                         who: match names.get(who) {
-                            Some(name) if scope == "totp" => name.clone(),
+                            Some(name)
+                                if matches!(scope, "totp" | "mfa-enroll" | "mfa-challenge") =>
+                            {
+                                name.clone()
+                            }
                             _ => who.to_owned(),
                         },
                         kind,
+                        scope: scope.to_owned(),
                         secs_left,
                     });
                 }
@@ -348,6 +359,7 @@ impl AppState {
         match kind {
             LockoutKind::Password => self.inner.limiter.clear(key),
             LockoutKind::SecondFactor => self.inner.totp_limiter.clear(key),
+            LockoutKind::Phone => self.inner.mfa_limiter.clear(key),
         }
         self.audit(&actor.name(), "admin.unlocked", key, None, json!({}))
             .await;

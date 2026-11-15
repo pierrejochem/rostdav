@@ -26,7 +26,7 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
     let state = AppState::new(db, store)
         .await
         .context("initializing the application state failed")?;
-    Ok(state
+    let state = state
         .with_limits(rostdav_app::Limits {
             max_upload_bytes: cfg.limits.max_upload_bytes,
             max_chunk_bytes: cfg.limits.max_chunk_bytes,
@@ -56,15 +56,46 @@ pub async fn build_state(cfg: &config::Config) -> anyhow::Result<AppState> {
         .with_web(rostdav_app::WebOptions {
             idle_secs: i64::from(cfg.web.session_idle_hours.max(1)) * 3600,
             max_secs: i64::from(cfg.web.session_max_days.max(1)) * 86_400,
+            public_url: cfg.server.public_url.clone(),
         })
         .with_audit(rostdav_app::AuditOptions {
             anonymize_ip: cfg.audit.anonymize_ip,
             retention_days: cfg.audit.retention_days,
         })
+        .with_mfa(rostdav_app::MfaConfig {
+            challenge_ttl_secs: i64::from(cfg.mfa.challenge_ttl_seconds),
+            enroll_ttl_secs: i64::from(cfg.mfa.enroll_ttl_seconds),
+            audience: cfg.mfa.audience.clone(),
+            attestation: match cfg.mfa.attestation {
+                config::MfaAttestation::Required => rostdav_app::AttestationPolicy::Required,
+                config::MfaAttestation::Off => rostdav_app::AttestationPolicy::Off,
+            },
+        })
         // what the file and the environment leave open can be changed in the web interface
         .with_locked_settings(cfg.set_explicitly.iter().cloned())
         .load_setting_overrides()
-        .await?)
+        .await?;
+    install_push_channel(&state, cfg).await?;
+    Ok(state)
+}
+
+/// FCM, if `[mfa.fcm]` is set. A file that cannot be used stops the server: a push channel that
+/// silently does nothing would leave phones unwoken with no hint why.
+async fn install_push_channel(state: &AppState, cfg: &config::Config) -> anyhow::Result<()> {
+    let (Some(project), Some(file)) = (&cfg.mfa.fcm.project_id, &cfg.mfa.fcm.service_account_file)
+    else {
+        return Ok(());
+    };
+    let json = tokio::fs::read_to_string(file).await.with_context(|| {
+        format!(
+            "mfa.fcm.service_account_file: cannot read {}",
+            file.display()
+        )
+    })?;
+    let fcm = rostdav_app::FcmPush::from_service_account(project, &json)
+        .map_err(|e| anyhow::anyhow!("mfa.fcm.service_account_file: {e}"))?;
+    state.set_push_channel(std::sync::Arc::new(fcm));
+    Ok(())
 }
 
 /// Where the key for the two-factor secrets comes from (ADR 0007).

@@ -41,13 +41,17 @@ pub fn mac(key: &[u8; 32], parts: &[&str]) -> String {
     h.finalize().to_hex().to_string()
 }
 
-/// Constant-time comparison of two MAC strings.
-pub fn mac_eq(a: &str, b: &str) -> bool {
-    let (a, b) = (a.as_bytes(), b.as_bytes());
+/// Constant-time comparison of two byte strings (the length is not secret).
+pub fn ct_eq(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }
     a.iter().zip(b).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+}
+
+/// Constant-time comparison of two MAC strings.
+pub fn mac_eq(a: &str, b: &str) -> bool {
+    ct_eq(a.as_bytes(), b.as_bytes())
 }
 
 /// Encrypts a short secret for storage: `base64(nonce || ciphertext)`. `aad` ties the

@@ -142,9 +142,10 @@ pub fn code_error_text(lang: Lang, e: &Error) -> (StatusCode, String) {
 
 // ---- second step of the web sign-in -----------------------------------------------------------
 
-fn second_step_page(
+async fn second_step_page(
     state: &AppState,
     headers: &HeaderMap,
+    ticket: &str,
     recovery: bool,
     error: Option<&str>,
     status: StatusCode,
@@ -156,31 +157,97 @@ fn second_step_page(
     } else {
         "/login/2fa?recovery=1"
     };
+    // a ticket that does not check out gets the code form, as before
+    let opts =
+        state
+            .web_second_step_options(ticket)
+            .await
+            .unwrap_or(rostdav_app::SecondStepOptions {
+                totp: true,
+                phone: false,
+            });
+    let phone = if opts.phone {
+        phone_card(lang, &csrf, if opts.totp { None } else { error })
+    } else {
+        String::new()
+    };
+    let code = if opts.totp || !opts.phone {
+        second_step_card(
+            lang,
+            &StepCard {
+                action: "/login/2fa",
+                csrf: &csrf,
+                hidden: "",
+                recovery,
+                error,
+                submit_label: &t(lang, "Confirm and sign in"),
+                toggle_href: toggle,
+                client: None,
+            },
+        )
+    } else {
+        String::new()
+    };
     let mut r = layout::bare(
         lang,
         status,
         "Confirm your sign-in",
         &format!(
-            "{}<p class=\"foot\"><a href=\"/login\">{}</a></p>",
-            second_step_card(
-                lang,
-                &StepCard {
-                    action: "/login/2fa",
-                    csrf: &csrf,
-                    hidden: "",
-                    recovery,
-                    error,
-                    submit_label: &t(lang, "Confirm and sign in"),
-                    toggle_href: toggle,
-                    client: None,
-                },
-            ),
+            "{phone}{code}<p class=\"foot\"><a href=\"/login\">{}</a></p>",
             esc(&t(lang, "Back to sign-in"))
         ),
     );
     r.headers_mut().append(
         header::SET_COOKIE,
         set_cookie(headers, LOGIN_COOKIE, &cookie, Some(900)),
+    );
+    r
+}
+
+/// The second step without the recovery view, for the phone step's messages.
+pub(crate) async fn step_page(
+    state: &AppState,
+    headers: &HeaderMap,
+    ticket: &str,
+    status: StatusCode,
+    error: Option<&str>,
+) -> Response {
+    second_step_page(state, headers, ticket, false, error, status).await
+}
+
+/// "Send to my phone": a form, because starting a challenge is a POST with a CSRF value.
+fn phone_card(lang: Lang, csrf: &str, error: Option<&str>) -> String {
+    let err = error
+        .map(|e| format!("<div class=\"err\" role=\"alert\">{}</div>", esc(e)))
+        .unwrap_or_default();
+    format!(
+        "<div class=\"card\"><div class=\"stepline\"><span class=\"chip\">{}</span></div>\
+         <div><h1>{}</h1><p>{}</p></div>{err}\
+         <form method=\"post\" action=\"/login/2fa/phone\"><input type=\"hidden\" name=\"csrf\" value=\"{}\">\
+         <button class=\"primary\" type=\"submit\">{}</button></form></div>",
+        esc(&t(lang, "Step 2 of 2")),
+        esc(&t(lang, "Confirm your sign-in")),
+        esc(&t(lang, "Approve the request on your RustMFA phone.")),
+        esc(csrf),
+        esc(&t(lang, "Send to my phone")),
+    )
+}
+
+/// The redirect after a finished sign-in: session cookie set, the step cookies cleared.
+pub(crate) fn signed_in(headers: &HeaderMap, token: &str) -> Response {
+    let mut r = Redirect::to("/files").into_response();
+    let h = r.headers_mut();
+    h.append(
+        header::SET_COOKIE,
+        set_cookie(headers, SESSION_COOKIE, token, None),
+    );
+    h.append(
+        header::SET_COOKIE,
+        set_cookie(headers, LOGIN_COOKIE, "", Some(0)),
+    );
+    h.append(
+        header::SET_COOKIE,
+        set_cookie_at(headers, TWOFA_COOKIE, "", "/login", Some(0)),
     );
     r
 }
@@ -200,7 +267,15 @@ pub async fn login_second_show(
     if !state.web_ticket_valid(&ticket) {
         return Redirect::to("/login").into_response();
     }
-    second_step_page(&state, &headers, q.recovery == "1", None, StatusCode::OK)
+    second_step_page(
+        &state,
+        &headers,
+        &ticket,
+        q.recovery == "1",
+        None,
+        StatusCode::OK,
+    )
+    .await
 }
 
 #[derive(Deserialize)]
@@ -225,10 +300,12 @@ pub async fn login_second_submit(
         return second_step_page(
             &state,
             headers,
+            &ticket,
             false,
             Some(&t(lang, "The form could not be verified. Try again.")),
             StatusCode::FORBIDDEN,
-        );
+        )
+        .await;
     }
     let ua = headers
         .get(header::USER_AGENT)
@@ -238,27 +315,12 @@ pub async fn login_second_submit(
         .web_second_factor(&ticket, &f.code, client_ip(&parts), ua)
         .await
     {
-        Ok((token, _)) => {
-            let mut r = Redirect::to("/files").into_response();
-            let h = r.headers_mut();
-            h.append(
-                header::SET_COOKIE,
-                set_cookie(headers, SESSION_COOKIE, &token, None),
-            );
-            h.append(
-                header::SET_COOKIE,
-                set_cookie(headers, LOGIN_COOKIE, "", Some(0)),
-            );
-            h.append(
-                header::SET_COOKIE,
-                set_cookie_at(headers, TWOFA_COOKIE, "", "/login", Some(0)),
-            );
-            r
-        }
+        Ok((token, _)) => signed_in(headers, &token),
         Err(e) => {
             let (status, text) = code_error_text(lang, &e);
             let recovery = f.code.trim().len() > 7;
-            let mut r = second_step_page(&state, headers, recovery, Some(&text), status);
+            let mut r =
+                second_step_page(&state, headers, &ticket, recovery, Some(&text), status).await;
             if let Error::RateLimited { retry_after_secs } = e
                 && let Ok(v) = HeaderValue::from_str(&retry_after_secs.to_string())
             {

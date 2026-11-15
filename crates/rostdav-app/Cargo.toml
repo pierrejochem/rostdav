@@ -8,6 +8,10 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+rustmfa-contract.workspace = true
+x509-cert.workspace = true
+der.workspace = true
+ring.workspace = true
 rostdav-core.workspace = true
 rostdav-meta.workspace = true
 rostdav-storage.workspace = true
@@ -28,8 +32,15 @@ office_oxide.workspace = true
 zip.workspace = true
 quick-xml.workspace = true
 minisign-verify.workspace = true
+tempfile = { workspace = true, optional = true }
+tracing-subscriber = { workspace = true, optional = true }
+
+[features]
+# Test helpers (`push_mfa::testkit`) for the integration tests of other crates. Not for production.
+test-util = ["dep:tempfile", "dep:tracing-subscriber"]
 
 [dev-dependencies]
+tracing-subscriber.workspace = true
 tempfile.workspace = true
 serde_json.workspace = true
 

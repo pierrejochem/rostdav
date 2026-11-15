@@ -456,3 +456,49 @@ The search index is not open yet. The server opens it a few seconds after it sta
 The index is built in the background. It holds the text of files in a file of its own in the data directory and can be removed at any time with the command rostdav admin search rebuild.	Der Index wird im Hintergrund aufgebaut. Er enthält den Text von Dateien in einer eigenen Datei im Datenverzeichnis und kann jederzeit mit dem Befehl rostdav admin search rebuild entfernt werden.
 More	Mehr
 Close	Schließen
+Send to my phone	An mein Handy senden
+Approve the request on your RustMFA phone.	Bestätige die Anfrage auf deinem RustMFA-Handy.
+Approve on your phone	Auf dem Handy bestätigen
+Pick this number on your phone:	Wähle diese Zahl auf deinem Handy:
+Waiting for approval…	Warte auf Bestätigung …
+Use another method	Andere Methode verwenden
+Valid for {0} seconds.	Gültig für {0} Sekunden.
+Not approved yet.	Noch nicht bestätigt.
+The request was denied on the phone.	Die Anfrage wurde auf dem Handy abgelehnt.
+The request expired. Send a new one.	Die Anfrage ist abgelaufen. Sende eine neue.
+This approval was already used. Sign in again.	Diese Bestätigung wurde schon verwendet. Melde dich neu an.
+No phone is enrolled for this account.	Für dieses Konto ist kein Handy eingerichtet.
+Too many requests. Try again later.	Zu viele Anfragen. Versuche es später noch einmal.
+Sign-in with the phone failed.	Die Anmeldung mit dem Handy ist fehlgeschlagen.
+Continue	Weiter
+Phones (RustMFA)	Handys (RustMFA)
+Add a phone	Handy hinzufügen
+No phone is set up for sign-in approval.	Kein Handy für die Anmelde-Bestätigung eingerichtet.
+Approve browser sign-ins on your phone with the RustMFA app. Once a phone is set up, the account password no longer works for WebDAV; app passwords keep working.	Bestätige Browser-Anmeldungen auf dem Handy mit der RustMFA-App. Sobald ein Handy eingerichtet ist, gilt das Kontopasswort nicht mehr für WebDAV; App-Passwörter funktionieren weiter.
+Added {0}	Hinzugefügt {0}
+Hardware key	Hardware-Schlüssel
+Revoked	Widerrufen
+Recent events	Letzte Ereignisse
+Phone added	Handy hinzugefügt
+Phone revoked	Handy widerrufen
+Keys renewed	Schlüssel erneuert
+Sign-in approval requested	Anmelde-Bestätigung angefragt
+Sign-in approved	Anmeldung bestätigt
+Sign-in denied	Anmeldung abgelehnt
+Sign-in request expired	Anmelde-Anfrage abgelaufen
+Wrong number chosen	Falsche Zahl gewählt
+Enter your password to show the enrollment code for the RustMFA app.	Gib dein Passwort ein, um den Einrichtungscode für die RustMFA-App anzuzeigen.
+Confirm with your password	Mit deinem Passwort bestätigen
+Show enrollment code	Einrichtungscode anzeigen
+Open the RustMFA app and scan this code. It is valid for {0} minutes and works once.	Öffne die RustMFA-App und scanne diesen Code. Er ist {0} Minuten gültig und funktioniert nur einmal.
+Cannot scan? This is what the code says:	Scannen geht nicht? Das sagt der Code:
+Server address: {0}	Serveradresse: {0}
+Scan with the RustMFA app	Mit der RustMFA-App scannen
+Anyone who scans this code before it expires can add a phone to your account. Keep it to yourself.	Wer diesen Code vor Ablauf scannt, kann ein Handy zu deinem Konto hinzufügen. Behalte ihn für dich.
+Enrollment code	Einrichtungscode
+Address (phone enrollment)	Adresse (Handy-Einrichtung)
+User (phone enrollment)	Benutzer (Handy-Einrichtung)
+User (sign-in approvals)	Benutzer (Anmelde-Bestätigungen)
+Phone (signed requests)	Handy (signierte Anfragen)
+Revoke your only second factor?	Deinen einzigen zweiten Faktor widerrufen?
+This phone is your only second factor. Without it, signing in needs only the password, and WebDAV accepts it again. Enter your password to confirm.	Dieses Handy ist dein einziger zweiter Faktor. Ohne es genügt für die Anmeldung das Passwort, und WebDAV akzeptiert es wieder. Gib zur Bestätigung dein Passwort ein.
