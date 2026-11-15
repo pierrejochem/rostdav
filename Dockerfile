@@ -3,7 +3,7 @@
 #   docker run -d --name rostdav -p 8080:8080 -v rostdav-data:/data rostdav
 # Rostdav does not terminate TLS: put a reverse proxy in front (see deploy/compose.yaml).
 
-FROM rust:1-bookworm AS build
+FROM rust:1.99.1-bookworm AS build
 WORKDIR /src
 COPY . .
 RUN --mount=type=cache,target=/usr/local/cargo/registry \

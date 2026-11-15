@@ -31,6 +31,18 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 - **Phone management for the RustMFA app**: list, revoke (this also ends the phone's open sign-in approvals), change the push token, rotate both keys (the new approval key needs a fresh attestation), and a view of the user's own security events. A revoked phone can no longer approve, even an answer that was already in flight. Not reachable over HTTP yet.
 - **HTTP API for the RustMFA app** (`/api/v1/devices/…`, `/api/v1/mfa/challenges/…`, `/api/v1/audit`): phones register and sign their requests; they list and revoke phones, change their push token, rotate keys, fetch and answer sign-in approvals, and read their own security events. Requests are signed (no cookie, no CSRF token), bodies are limited to 64 KiB, and errors follow the contract. Creating an enrollment token and the sign-in page integration follow separately.
 
+## [0.10.1] - 2026-11-14
+
+### Security
+
+- Updated `zstd` to 0.13.4 and `zstd-safe` to 7.4.0 (RUSTSEC-2026-0391, -0398, -0403).
+
+### Changed
+
+- Dependency updates: `ureq` 3.5.2, `encoding_rs` 0.8.44, `office_oxide` 0.1.17, `zip` 9.5.1.
+- The Rust toolchain is pinned to 1.99.1 (CI, release workflow, container build): rustc 1.100.0 cannot compile `turso_core` 0.8.3. Remove the pin when Turso fixes this.
+- CI tolerates the known litmus `put_no_parent` deviation (we answer 404 like Nextcloud, RFC 4918 says 409).
+
 ## [0.10.0] - 2026-10-25
 
 ### Changed
