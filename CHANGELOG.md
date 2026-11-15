@@ -4,6 +4,8 @@ All notable changes are listed here. The format follows [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-15
+
 ### Changed
 
 - **An enrolled RustMFA phone counts as a second factor**, like an authenticator app (ADR 0014). Once a user has an active phone, WebDAV and OCS no longer accept their account password (app passwords still work) and the browser sign-in asks for a second step.
