@@ -74,11 +74,11 @@ pub fn verify_attestation(
     }
     for i in 0..certs.len() - 1 {
         let issuer = &certs[i + 1];
-        let linked = certs[i].tbs_certificate.issuer == issuer.tbs_certificate.subject
+        let linked = certs[i].tbs_certificate().issuer() == issuer.tbs_certificate().subject()
             && verify_cert_signature(
                 &ders[i],
                 &certs[i],
-                &issuer.tbs_certificate.subject_public_key_info,
+                issuer.tbs_certificate().subject_public_key_info(),
             );
         if !linked {
             return Err(invalid("attestation chain is not signed correctly"));
@@ -88,9 +88,9 @@ pub fn verify_attestation(
 
     let leaf = &certs[0];
     let description = leaf
-        .tbs_certificate
-        .extensions
-        .iter()
+        .tbs_certificate()
+        .extensions()
+        .into_iter()
         .flatten()
         .find(|e| e.extn_id == KEY_DESCRIPTION)
         .ok_or_else(|| invalid("attestation key description is missing"))?;
@@ -104,7 +104,11 @@ pub fn verify_attestation(
     if !crate::secrets::ct_eq(kd.challenge, expected_challenge) {
         return Err(invalid("attestation challenge does not match"));
     }
-    let attested = leaf.tbs_certificate.subject_public_key_info.to_der().ok();
+    let attested = leaf
+        .tbs_certificate()
+        .subject_public_key_info()
+        .to_der()
+        .ok();
     let claimed = STANDARD.decode(approval_spki_b64).ok();
     if attested.is_none() || attested != claimed {
         return Err(invalid("attested key is not the approval key"));
@@ -133,11 +137,11 @@ fn check_trust(
             return false;
         };
         valid_at(&root, now)
-            && root.tbs_certificate.subject == last.tbs_certificate.issuer
+            && root.tbs_certificate().subject() == last.tbs_certificate().issuer()
             && verify_cert_signature(
                 last_der,
                 last,
-                &root.tbs_certificate.subject_public_key_info,
+                root.tbs_certificate().subject_public_key_info(),
             )
     });
     if trusted {
@@ -149,7 +153,7 @@ fn check_trust(
 
 fn valid_at(cert: &Certificate, now: i64) -> bool {
     let secs = |t: &x509_cert::time::Time| i64::try_from(t.to_unix_duration().as_secs()).ok();
-    let v = &cert.tbs_certificate.validity;
+    let v = &cert.tbs_certificate().validity();
     matches!((secs(&v.not_before), secs(&v.not_after)), (Some(a), Some(b)) if a <= now && now <= b)
 }
 
@@ -163,10 +167,10 @@ pub(crate) fn verify_cert_signature(
     let Some(tbs) = tbs_bytes(cert_der) else {
         return false;
     };
-    let Some(sig) = cert.signature.as_bytes() else {
+    let Some(sig) = cert.signature().as_bytes() else {
         return false;
     };
-    let Some(alg) = signature_algorithm(cert.signature_algorithm.oid, issuer) else {
+    let Some(alg) = signature_algorithm(cert.signature_algorithm().oid, issuer) else {
         return false;
     };
     let Some(key) = issuer.subject_public_key.as_bytes() else {
