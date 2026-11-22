@@ -95,13 +95,16 @@ mod tests {
         use x509_cert::Certificate;
         for der_bytes in google_roots() {
             let cert = Certificate::from_der(&der_bytes).expect("parses");
-            let spki = cert.tbs_certificate.subject_public_key_info.clone();
+            let spki = cert.tbs_certificate().subject_public_key_info().clone();
             assert!(
                 crate::push_mfa::attestation::verify_cert_signature(&der_bytes, &cert, &spki),
                 "self-signature of {:?}",
-                cert.tbs_certificate.subject.to_string()
+                cert.tbs_certificate().subject().to_string()
             );
-            assert_eq!(cert.tbs_certificate.subject, cert.tbs_certificate.issuer);
+            assert_eq!(
+                cert.tbs_certificate().subject(),
+                cert.tbs_certificate().issuer()
+            );
             assert!(cert.to_der().expect("der") == der_bytes, "DER round trip");
         }
     }

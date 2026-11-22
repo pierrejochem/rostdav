@@ -63,8 +63,8 @@ hmac = "0.13"
 # Push sign-in approval (ADR 0014)
 # Shared signing formats and test vectors, pinned by revision (ADR 0014, "Dependencies").
 rustmfa-contract = { git = "https://github.com/pierrejochem/rostdav-mfa", rev = "95e66f48a4f628ed36d80106cfbf061eac543f85" }
-x509-cert = { version = "0.2", default-features = false }
-der = { version = "0.8", features = ["alloc", "oid"] }
+x509-cert = { version = "0.3", default-features = false }
+der = { version = "0.8", features = ["alloc", "oid", "derive"] }
 ring = { version = "0.17", default-features = false, features = ["alloc"] }
 sha1 = "0.11"
 qrcode = { version = "0.14", default-features = false, features = ["svg"] }

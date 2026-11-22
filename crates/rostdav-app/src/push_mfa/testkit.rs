@@ -4,13 +4,12 @@
 
 use base64::{Engine, engine::general_purpose::STANDARD};
 use der::asn1::{BitString, ObjectIdentifier, OctetString, UtcTime};
-use der::{Any, Encode};
+use der::{Any, Encode, Sequence};
 use ring::rand::SystemRandom;
 use ring::signature::{ECDSA_P256_SHA256_ASN1_SIGNING, EcdsaKeyPair, KeyPair};
 use std::str::FromStr;
 use std::time::Duration;
-use x509_cert::Certificate;
-use x509_cert::TbsCertificate;
+use x509_cert::certificate::Version;
 use x509_cert::ext::Extension;
 use x509_cert::name::Name;
 use x509_cert::serial_number::SerialNumber;
@@ -83,6 +82,29 @@ pub fn key_description(attestation_level: u8, keymaster_level: u8, challenge: &[
     tlv(0x30, &seq)
 }
 
+/// Mirrors of the X.509 certificate structures. `x509-cert` 0.3 keeps its fields private and
+/// offers no public constructor, so the test chains are encoded from these instead.
+#[derive(Sequence)]
+struct TestTbs {
+    #[asn1(context_specific = "0", default = "Default::default")]
+    version: Version,
+    serial_number: SerialNumber,
+    signature: AlgorithmIdentifierOwned,
+    issuer: Name,
+    validity: Validity,
+    subject: Name,
+    subject_public_key_info: SubjectPublicKeyInfoOwned,
+    #[asn1(context_specific = "3", tag_mode = "EXPLICIT", optional = "true")]
+    extensions: Option<Vec<Extension>>,
+}
+
+#[derive(Sequence)]
+struct TestCert {
+    tbs_certificate: TestTbs,
+    signature_algorithm: AlgorithmIdentifierOwned,
+    signature: BitString,
+}
+
 pub fn issue(
     subject: &str,
     subject_kp: &EcdsaKeyPair,
@@ -95,19 +117,14 @@ pub fn issue(
         oid: ECDSA_SHA256,
         parameters: None,
     };
-    let tbs = TbsCertificate {
-        version: x509_cert::certificate::Version::V3,
+    let tbs = TestTbs {
+        version: Version::V3,
         serial_number: SerialNumber::new(&[1]).expect("serial"),
         signature: alg.clone(),
         issuer: Name::from_str(issuer).expect("issuer"),
-        validity: Validity {
-            not_before: time(validity.0),
-            not_after: time(validity.1),
-        },
+        validity: Validity::new(time(validity.0), time(validity.1)),
         subject: Name::from_str(subject).expect("subject"),
         subject_public_key_info: spki(subject_kp),
-        issuer_unique_id: None,
-        subject_unique_id: None,
         extensions: extension.map(|v| {
             vec![Extension {
                 extn_id: KEY_DESCRIPTION,
@@ -119,7 +136,7 @@ pub fn issue(
     let sig = issuer_kp
         .sign(&SystemRandom::new(), &tbs.to_der().expect("tbs"))
         .expect("sign");
-    Certificate {
+    TestCert {
         tbs_certificate: tbs,
         signature_algorithm: alg,
         signature: BitString::from_bytes(sig.as_ref()).expect("sig"),
