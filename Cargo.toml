@@ -67,7 +67,7 @@ x509-cert = { version = "0.3", default-features = false }
 der = { version = "0.8", features = ["alloc", "oid", "derive"] }
 ring = { version = "0.17", default-features = false, features = ["alloc"] }
 sha1 = "0.11"
-qrcode = { version = "0.14", default-features = false, features = ["svg"] }
+qrcode = { version = "0.15", default-features = false, features = ["svg"] }
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 minisign-verify = "0.3"
 encoding_rs = "0.8"
